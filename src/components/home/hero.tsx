@@ -1,17 +1,29 @@
 "use client";
 
 import Image from "next/image";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { useRef } from "react";
 import { ArrowDown, BookOpen, Flame, Sparkles } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
 import { Aurora } from "@/components/motion/aurora";
-import { Counter, Magnetic } from "@/components/motion";
+import { Counter, Magnetic, TextReveal } from "@/components/motion";
 import { LightScene } from "@/components/three/light-scene";
 import { streak, type Verse } from "@/lib/data";
 import { EASE } from "@/lib/motion";
 
 export function Hero({ verse }: { verse: Verse }) {
   const reduce = useReducedMotion();
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // Content sinks and softens as the hero scrolls away — adds depth
+  // without touching layout (transform/opacity only).
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start start", "end start"],
+  });
+  const contentY = useTransform(scrollYProgress, [0, 1], [0, 80]);
+  const contentOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0.25]);
+
   const rise = (delay: number) =>
     reduce
       ? {}
@@ -22,13 +34,16 @@ export function Hero({ verse }: { verse: Verse }) {
         };
 
   return (
-    <section className="relative overflow-hidden pt-16" aria-label="Welcome">
+    <section ref={sectionRef} className="relative overflow-hidden pt-16" aria-label="Welcome">
       <Aurora dense />
 
       {/* 3D light layer — desktop only, decorative */}
       <LightScene className="pointer-events-none absolute right-[-8%] top-24 hidden h-[620px] w-[42%] opacity-90 lg:block" />
 
-      <div className="relative mx-auto grid max-w-7xl gap-14 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-10 lg:px-8 lg:pb-28 lg:pt-24">
+      <motion.div
+        style={reduce ? undefined : { y: contentY, opacity: contentOpacity }}
+        className="relative mx-auto grid max-w-7xl gap-14 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-10 lg:px-8 lg:pb-28 lg:pt-24"
+      >
         <div>
           <motion.span
             {...rise(0)}
@@ -38,13 +53,10 @@ export function Hero({ verse }: { verse: Verse }) {
             Kay Kristo Buong Buhay, Habambuhay!
           </motion.span>
 
-          <motion.h1
-            {...rise(0.06)}
-            className="mt-6 text-4xl font-extrabold leading-[1.08] tracking-tight text-ink sm:text-5xl lg:text-6xl"
-          >
-            Meet God in His Word,{" "}
-            <span className="text-gradient">every morning.</span>
-          </motion.h1>
+          <h1 className="mt-6 text-4xl font-extrabold leading-[1.08] tracking-tight text-ink sm:text-5xl lg:text-6xl">
+            <TextReveal text="Meet God in His Word," delay={0.05} />{" "}
+            <TextReveal text="every morning." delay={0.34} wordClassName="text-gradient" />
+          </h1>
 
           <motion.p {...rise(0.12)} className="mt-6 max-w-lg text-lg leading-relaxed text-ink-soft">
             Daily verses, gentle devotionals, reading plans, and a praying community — built by
@@ -128,7 +140,7 @@ export function Hero({ verse }: { verse: Verse }) {
             className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-gradient-to-br from-primary to-[#66ccff] opacity-20 blur-xl"
           />
         </motion.div>
-      </div>
+      </motion.div>
 
       <a
         href="#today"

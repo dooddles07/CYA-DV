@@ -106,7 +106,7 @@ export function PrayerPreview() {
       {prayerWall.map((p, i) => {
         const done = prayed[i];
         return (
-          <Card key={p.name + i} className="flex flex-col p-6">
+          <Card key={p.name + i} spotlight className="flex flex-col p-6">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-extrabold text-ink">{p.name}</p>
               <Badge tone="sky">{p.tag}</Badge>
@@ -172,7 +172,7 @@ export function ChallengeGrid() {
         const complete = done[i];
         return (
           <StaggerItem key={c.title}>
-            <Card className={cx("flex h-full flex-col p-6", complete && "border-mint-soft")}>
+            <Card spotlight className={cx("flex h-full flex-col p-6", complete && "border-mint-soft")}>
               <span
                 className={cx(
                   "inline-flex h-11 w-11 items-center justify-center rounded-2xl transition-colors duration-300",
@@ -242,10 +242,10 @@ export function QuoteCarousel() {
         <AnimatePresence mode="wait">
           <motion.figure
             key={index}
-            initial={reduce ? false : { opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduce ? undefined : { opacity: 0, y: -10 }}
-            transition={{ duration: 0.35 }}
+            initial={reduce ? false : { opacity: 0, y: 14, scale: 0.985, filter: "blur(5px)" }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            exit={reduce ? undefined : { opacity: 0, y: -10, scale: 0.99, filter: "blur(4px)" }}
+            transition={{ duration: 0.4, ease: [0.21, 0.66, 0.29, 0.99] }}
           >
             <blockquote className="verse-text text-xl italic text-ink sm:text-2xl">
               “{quotes[index].text}”

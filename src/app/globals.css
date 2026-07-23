@@ -97,6 +97,7 @@
   --animate-shimmer: shimmer 1.6s linear infinite;
   --animate-aurora: aurora 22s ease-in-out infinite alternate;
   --animate-ping-slow: ping-slow 2.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+  --animate-gradient-pan: gradient-pan 7s linear infinite;
 
   @keyframes float {
     0%, 100% { transform: translateY(0); }
@@ -119,6 +120,9 @@
     0%   { transform: scale(1); opacity: 0.55; }
     70%  { transform: scale(2.1); opacity: 0; }
     100% { transform: scale(2.1); opacity: 0; }
+  }
+  @keyframes gradient-pan {
+    to { background-position: 200% center; }
   }
 }
 
@@ -189,15 +193,43 @@ body {
   border: 1px solid var(--glass-border);
 }
 
-/* Gradient text that stays readable when the gradient fails to paint */
+/* Gradient text that stays readable when the gradient fails to paint.
+   The gradient slowly pans, giving headlines a living sheen. */
 .text-gradient {
-  background: linear-gradient(100deg, var(--primary) 0%, #33c0ff 55%, #66d4ff 100%);
+  background: linear-gradient(100deg, var(--primary) 0%, #33c0ff 30%, #66d4ff 50%, #33c0ff 70%, var(--primary) 100%);
+  background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
+@media (prefers-reduced-motion: no-preference) {
+  .text-gradient { animation: var(--animate-gradient-pan); }
+}
 @supports not (background-clip: text) {
   .text-gradient { color: var(--primary); }
+}
+
+/* Pointer-tracked spotlight surface — vars written by <Spotlight>. */
+.spotlight {
+  position: relative;
+}
+.spotlight::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    300px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    rgba(0, 149, 255, 0.1),
+    transparent 65%
+  );
+  opacity: 0;
+  transition: opacity 350ms ease;
+  pointer-events: none;
+}
+.spotlight:hover::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .spotlight::after { display: none; }
 }
 
 /* Animated aurora mesh — decorative, hidden under reduced motion */

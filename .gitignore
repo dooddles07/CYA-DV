@@ -3,6 +3,10 @@ node_modules
 out
 build
 .DS_Store
+
+# Tooling caches — machine-local, should never be committed
+.impeccable/
+.playwright-mcp/
 *.pem
 npm-debug.log*
 .env*

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import type { ComponentProps, ReactNode } from "react";
+import { useRef, type ComponentProps, type ReactNode } from "react";
+import { TextReveal } from "@/components/motion";
 import { spring } from "@/lib/motion";
 import { cx } from "@/lib/cx";
 
@@ -126,17 +127,33 @@ export function Card({
   className,
   hover = true,
   ring = false,
+  spotlight = false,
 }: {
   children: ReactNode;
   className?: string;
   hover?: boolean;
   ring?: boolean;
+  /* Pointer-tracked radial highlight — see .spotlight in globals.css. */
+  spotlight?: boolean;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
   return (
     <div
+      ref={ref}
+      onPointerMove={
+        spotlight
+          ? (e) => {
+              if (e.pointerType !== "mouse" || !ref.current) return;
+              const r = ref.current.getBoundingClientRect();
+              ref.current.style.setProperty("--spot-x", `${e.clientX - r.left}px`);
+              ref.current.style.setProperty("--spot-y", `${e.clientY - r.top}px`);
+            }
+          : undefined
+      }
       className={cx(
         "rounded-3xl border border-line bg-surface shadow-soft",
         ring && "ring-gradient",
+        spotlight && "spotlight",
         hover &&
           "transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-sky-mist hover:shadow-lift motion-reduce:hover:translate-y-0",
         className
@@ -165,7 +182,9 @@ export function SectionHeading({
   return (
     <div className={cx("max-w-2xl", center && "mx-auto text-center", className)}>
       <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-primary">{eyebrow}</p>
-      <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">{title}</h2>
+      <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
+        <TextReveal text={title} />
+      </h2>
       {sub && <p className="mt-4 text-base leading-relaxed text-ink-soft">{sub}</p>}
     </div>
   );

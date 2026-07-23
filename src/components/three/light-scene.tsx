@@ -84,6 +84,48 @@ function Motes({ still }: { still: boolean }) {
   );
 }
 
+/** Two thin halo rings orbiting the cross at different speeds. */
+function Halo({ still }: { still: boolean }) {
+  const inner = useRef<Mesh>(null);
+  const outer = useRef<Mesh>(null);
+  useFrame((state, delta) => {
+    if (still) return;
+    const t = state.clock.elapsedTime;
+    if (inner.current) {
+      inner.current.rotation.z += delta * 0.14;
+      inner.current.rotation.x = Math.PI / 2.6 + Math.sin(t * 0.3) * 0.08;
+    }
+    if (outer.current) {
+      outer.current.rotation.z -= delta * 0.09;
+      outer.current.rotation.x = Math.PI / 2.2 + Math.cos(t * 0.24) * 0.06;
+    }
+  });
+  return (
+    <group position={[0, 0.1, -0.6]}>
+      <mesh ref={inner} rotation={[Math.PI / 2.6, 0, 0]}>
+        <torusGeometry args={[1.85, 0.014, 12, 96]} />
+        <meshBasicMaterial color="#7ec9ff" transparent opacity={0.4} />
+      </mesh>
+      <mesh ref={outer} rotation={[Math.PI / 2.2, 0.2, 0]}>
+        <torusGeometry args={[2.3, 0.01, 12, 96]} />
+        <meshBasicMaterial color="#9fd8ff" transparent opacity={0.22} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Eases the camera toward the pointer for a gentle parallax orbit. */
+function Rig({ still }: { still: boolean }) {
+  useFrame((state) => {
+    if (still) return;
+    const { camera, pointer } = state;
+    camera.position.x += (pointer.x * 0.55 - camera.position.x) * 0.045;
+    camera.position.y += (pointer.y * 0.3 - camera.position.y) * 0.045;
+    camera.lookAt(0, 0, 0);
+  });
+  return null;
+}
+
 function Scene({ still }: { still: boolean }) {
   return (
     <>
@@ -94,7 +136,9 @@ function Scene({ still }: { still: boolean }) {
       <Float speed={still ? 0 : 1.1} rotationIntensity={still ? 0 : 0.25} floatIntensity={still ? 0 : 0.6}>
         <GlassCross still={still} />
       </Float>
+      <Halo still={still} />
       <Motes still={still} />
+      <Rig still={still} />
     </>
   );
 }

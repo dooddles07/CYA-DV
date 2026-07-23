@@ -11,13 +11,23 @@ import {
   type MotionValue,
 } from "framer-motion";
 import {
+  Fragment,
   useEffect,
   useRef,
   useState,
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { DUR, EASE, revealVariants, spring, staggerChild, staggerParent } from "@/lib/motion";
+import {
+  DUR,
+  EASE,
+  revealVariants,
+  spring,
+  staggerChild,
+  staggerParent,
+  wordChild,
+  wordParent,
+} from "@/lib/motion";
 
 /* ------------------------------------------------------------------
    Reveal — fades a section in once it enters the viewport.
@@ -266,6 +276,92 @@ export function Counter({
       {value.toLocaleString()}
       {suffix}
     </span>
+  );
+}
+
+/* ------------------------------------------------------------------
+   TextReveal — words rise out of an overflow mask one by one.
+   The gap under each mask keeps descenders (g, y, p) unclipped.
+------------------------------------------------------------------ */
+export function TextReveal({
+  text,
+  className,
+  wordClassName,
+  delay = 0,
+  once = true,
+}: {
+  text: string;
+  className?: string;
+  /* Applied per word — e.g. text-gradient, which cannot span transformed children. */
+  wordClassName?: string;
+  delay?: number;
+  once?: boolean;
+}) {
+  const reduce = useReducedMotion();
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once, margin: "-60px" });
+
+  if (reduce) {
+    return <span className={[className, wordClassName].filter(Boolean).join(" ")}>{text}</span>;
+  }
+
+  return (
+    <motion.span
+      ref={ref}
+      className={className}
+      variants={wordParent}
+      initial="hidden"
+      animate={inView ? "show" : "hidden"}
+      transition={{ delayChildren: delay }}
+    >
+      {text.split(" ").map((word, i, words) => (
+        <Fragment key={`${word}-${i}`}>
+          <span className="inline-block overflow-hidden pb-[0.12em] -mb-[0.12em] align-bottom">
+            <motion.span
+              className={["inline-block will-change-transform", wordClassName]
+                .filter(Boolean)
+                .join(" ")}
+              variants={wordChild}
+            >
+              {word}
+            </motion.span>
+          </span>
+          {i < words.length - 1 ? " " : null}
+        </Fragment>
+      ))}
+    </motion.span>
+  );
+}
+
+/* ------------------------------------------------------------------
+   Spotlight — a radial highlight that follows the pointer across a
+   surface. Writes CSS vars directly on the node, so tracking costs
+   zero React renders. Pair with the .spotlight class in globals.css.
+------------------------------------------------------------------ */
+export function Spotlight({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  return (
+    <div
+      ref={ref}
+      className={`spotlight ${className ?? ""}`}
+      onPointerMove={(e) => {
+        if (e.pointerType !== "mouse") return;
+        const el = ref.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        el.style.setProperty("--spot-x", `${e.clientX - r.left}px`);
+        el.style.setProperty("--spot-y", `${e.clientY - r.top}px`);
+      }}
+    >
+      {children}
+    </div>
   );
 }
 

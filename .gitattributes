@@ -1,0 +1,13 @@
+# Normalize line endings so Windows/macOS/Linux checkouts stop warning
+# and diffs stay clean across machines.
+* text=auto eol=lf
+
+# Binary assets — never touch these
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary

@@ -20,10 +20,15 @@ export const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 export const spring: Transition = { type: "spring", stiffness: 420, damping: 32, mass: 0.7 };
 export const springSoft: Transition = { type: "spring", stiffness: 220, damping: 26, mass: 0.9 };
 
-/** Section reveal — used by <Reveal>. */
+/** Section reveal — used by <Reveal>. Blur adds perceived depth for ~free. */
 export const revealVariants: Variants = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: DUR.slow, ease: EASE } },
+  hidden: { opacity: 0, y: 24, filter: "blur(6px)" },
+  show: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: { duration: DUR.slow, ease: EASE },
+  },
 };
 
 /** Parent that staggers its children by 40ms. */
@@ -33,13 +38,46 @@ export const staggerParent: Variants = {
 };
 
 export const staggerChild: Variants = {
-  hidden: { opacity: 0, y: 18 },
-  show: { opacity: 1, y: 0, transition: { duration: DUR.base, ease: EASE } },
+  hidden: { opacity: 0, y: 18, filter: "blur(4px)" },
+  show: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: { duration: DUR.base, ease: EASE },
+  },
 };
 
-/** Route transition — forward moves up, back fades out faster. */
+/** Route transition — soft blur crossfade with a hint of scale depth. */
 export const pageVariants: Variants = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: DUR.base, ease: EASE } },
-  exit: { opacity: 0, y: -8, transition: { duration: DUR.exit, ease: "easeIn" } },
+  hidden: { opacity: 0, y: 14, scale: 0.992, filter: "blur(5px)" },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    filter: "blur(0px)",
+    transition: { duration: 0.45, ease: EASE },
+  },
+  exit: {
+    opacity: 0,
+    y: -10,
+    scale: 0.996,
+    filter: "blur(4px)",
+    transition: { duration: DUR.exit, ease: "easeIn" },
+  },
+};
+
+/** Word-mask reveal — parent/child pair used by <TextReveal>. */
+export const wordParent: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.05 } },
+};
+
+export const wordChild: Variants = {
+  hidden: { y: "112%", rotate: 3, opacity: 0 },
+  show: {
+    y: "0%",
+    rotate: 0,
+    opacity: 1,
+    transition: { duration: 0.7, ease: EASE_OUT },
+  },
 };
