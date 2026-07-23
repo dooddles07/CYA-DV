@@ -1,37 +1,51 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Award, BookOpen, Bookmark, Flame, Star, Trophy } from "lucide-react";
 import { Counter, Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { Badge, ButtonLink, Card, ProgressBar, SectionHeading } from "@/components/ui";
+import { SignOutButton } from "@/components/sign-out-button";
 import { cx } from "@/lib/cx";
-import { readingPlan, streak, verseLibrary } from "@/lib/data";
+import { readingPlan, verseLibrary } from "@/lib/data";
+import { getSession } from "@/server/utils/session";
+import { getUserStats } from "@/server/services/user.service";
 
 export const metadata: Metadata = {
   title: "My Dashboard",
   description: "Your reading streak, saved verses, and achievements.",
 };
 
-const badges = [
-  { name: "7-Day Streak", icon: Flame, earned: true },
-  { name: "First Verse Saved", icon: Bookmark, earned: true },
-  { name: "Prayer Warrior", icon: Star, earned: true },
-  { name: "30-Day Streak", icon: Trophy, earned: false },
-  { name: "Plan Finisher", icon: Award, earned: false },
-  { name: "Scripture Scholar", icon: BookOpen, earned: false },
-];
+export const dynamic = "force-dynamic";
 
-const XP_TO_NEXT = 2000;
+export default async function DashboardPage() {
+  const session = await getSession();
+  if (!session) redirect("/login");
 
-export default function DashboardPage() {
-  const savedVerses = verseLibrary.slice(0, 3);
+  const user = await getUserStats(session);
+  if (!user) redirect("/login");
+
+  const badges = [
+    { name: "7-Day Streak", icon: Flame, earned: user.bestStreak >= 7 },
+    { name: "First Verse Read", icon: Bookmark, earned: user.xp > 0 },
+    { name: "Prayer Warrior", icon: Star, earned: false },
+    { name: "30-Day Streak", icon: Trophy, earned: user.bestStreak >= 30 },
+    { name: "Plan Finisher", icon: Award, earned: false },
+    { name: "Scripture Scholar", icon: BookOpen, earned: user.level >= 5 },
+  ];
+
+  const suggested = verseLibrary.slice(0, 3);
+  const firstName = user.name.split(" ")[0] || "friend";
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-28 pt-28 sm:px-6 lg:px-8">
       <Reveal>
-        <SectionHeading
-          eyebrow="My dashboard"
-          title="Good morning, friend"
-          sub="Demo data shown — sign-in unlocks your real journey."
-        />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <SectionHeading
+            eyebrow="My dashboard"
+            title={`Good morning, ${firstName}`}
+            sub="Read today's verse to keep your streak alive."
+          />
+          <SignOutButton />
+        </div>
       </Reveal>
 
       {/* Stats */}
@@ -44,10 +58,10 @@ export default function DashboardPage() {
               </span>
               <div>
                 <p className="text-3xl font-extrabold text-ink">
-                  <Counter to={streak.current} />
+                  <Counter to={user.streak} />
                 </p>
                 <p className="text-xs font-bold text-ink-faint">
-                  day streak · best {streak.best}
+                  day streak · best {user.bestStreak}
                 </p>
               </div>
             </div>
@@ -61,18 +75,18 @@ export default function DashboardPage() {
                 <Star className="h-6 w-6" aria-hidden />
               </span>
               <div className="flex-1">
-                <p className="text-3xl font-extrabold text-ink">Level {streak.level}</p>
+                <p className="text-3xl font-extrabold text-ink">Level {user.level}</p>
                 <ProgressBar
                   className="mt-2"
-                  value={streak.xp}
-                  max={XP_TO_NEXT}
+                  value={user.xp}
+                  max={user.xpToNext}
                   label="XP progress"
                 />
                 <p
                   className="mt-1.5 text-xs font-bold text-ink-faint"
                   style={{ fontVariantNumeric: "tabular-nums" }}
                 >
-                  {streak.xp.toLocaleString()} / {XP_TO_NEXT.toLocaleString()} XP
+                  {user.xp.toLocaleString()} / {user.xpToNext.toLocaleString()} XP
                 </p>
               </div>
             </div>
@@ -100,11 +114,11 @@ export default function DashboardPage() {
         <Reveal>
           <Card hover={false} className="h-full p-8">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-extrabold text-ink">Saved verses</h2>
-              <Badge tone="sky">{savedVerses.length} saved</Badge>
+              <h2 className="text-xl font-extrabold text-ink">Verses for you</h2>
+              <Badge tone="sky">{suggested.length} picks</Badge>
             </div>
             <ul className="mt-5 space-y-3">
-              {savedVerses.map((v) => (
+              {suggested.map((v) => (
                 <li key={v.reference} className="rounded-2xl bg-sky-soft p-5">
                   <p className="verse-text text-[15px] leading-relaxed text-ink">
                     “{v.text.length > 120 ? v.text.slice(0, 120) + "…" : v.text}”

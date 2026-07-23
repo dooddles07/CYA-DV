@@ -25,7 +25,7 @@ const lora = Lora({
   display: "swap",
 });
 
-const SITE = "https://cya-daily-verse.app";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cya-daily-verses-production.up.railway.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),

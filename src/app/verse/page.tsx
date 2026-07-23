@@ -2,14 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, BookOpen, HandHelping, PenLine } from "lucide-react";
 import { VerseCard } from "@/components/verse-card";
+import { MarkRead } from "@/components/mark-read";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { Card, SectionHeading } from "@/components/ui";
-import { getTodayLabel, reflectionQuestions, todaysVerse, verseLibrary } from "@/lib/data";
+import { getTodayLabel, reflectionQuestions, verseLibrary } from "@/lib/data";
+import { getVerseOfDay } from "@/server/services/verse.service";
 
 export const metadata: Metadata = {
   title: "Daily Verse",
   description: "Today's verse with reflection, prayer, and related scriptures.",
 };
+
+export const dynamic = "force-dynamic";
 
 const panels = [
   {
@@ -22,7 +26,8 @@ const panels = [
   },
 ];
 
-export default function VersePage() {
+export default async function VersePage() {
+  const todaysVerse = await getVerseOfDay();
   return (
     <div className="pb-28 pt-28">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
@@ -39,6 +44,7 @@ export default function VersePage() {
       <div className="mx-auto mt-12 max-w-4xl px-4 sm:px-6 lg:px-8">
         <Reveal>
           <VerseCard verse={todaysVerse} dateLabel={getTodayLabel()} compact />
+          <MarkRead />
         </Reveal>
       </div>
 

@@ -9,9 +9,9 @@ import { Flame, Menu, X } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
 import { cx } from "@/lib/cx";
 import { ThemeToggle } from "@/components/nav/theme-toggle";
-import { streak } from "@/lib/data";
 import { EASE } from "@/lib/motion";
 import { useScrolled } from "@/lib/hooks";
+import { useMe } from "@/lib/use-me";
 
 const links = [
   { href: "/verse", label: "Daily Verse" },
@@ -27,6 +27,7 @@ export function Navbar() {
   const reduce = useReducedMotion();
   const scrolled = useScrolled(12);
   const [open, setOpen] = useState(false);
+  const me = useMe();
 
   // Close the sheet when the route changes — derived during render,
   // which avoids an extra effect-driven re-render pass.
@@ -112,20 +113,30 @@ export function Navbar() {
         </ul>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full bg-amber-soft px-3 py-1.5 text-xs font-bold text-amber-strong"
-            title={`${streak.current}-day reading streak`}
-          >
-            <Flame className="h-3.5 w-3.5" aria-hidden />
-            {streak.current} days
-          </span>
+          {me && (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full bg-amber-soft px-3 py-1.5 text-xs font-bold text-amber-strong"
+              title={`${me.streak}-day reading streak`}
+            >
+              <Flame className="h-3.5 w-3.5" aria-hidden />
+              {me.streak} {me.streak === 1 ? "day" : "days"}
+            </span>
+          )}
           <ThemeToggle className="h-9 w-9" />
-          <ButtonLink href="/login" variant="ghost" size="sm">
-            Sign in
-          </ButtonLink>
-          <ButtonLink href="/register" size="sm">
-            Start free
-          </ButtonLink>
+          {me ? (
+            <ButtonLink href="/dashboard" size="sm">
+              My dashboard
+            </ButtonLink>
+          ) : (
+            <>
+              <ButtonLink href="/login" variant="ghost" size="sm">
+                Sign in
+              </ButtonLink>
+              <ButtonLink href="/register" size="sm">
+                Start free
+              </ButtonLink>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 lg:hidden">
@@ -176,12 +187,20 @@ export function Navbar() {
                 ))}
               </ul>
               <div className="mt-4 flex gap-3">
-                <ButtonLink href="/login" variant="outline" className="flex-1">
-                  Sign in
-                </ButtonLink>
-                <ButtonLink href="/register" className="flex-1">
-                  Start free
-                </ButtonLink>
+                {me ? (
+                  <ButtonLink href="/dashboard" className="flex-1">
+                    My dashboard
+                  </ButtonLink>
+                ) : (
+                  <>
+                    <ButtonLink href="/login" variant="outline" className="flex-1">
+                      Sign in
+                    </ButtonLink>
+                    <ButtonLink href="/register" className="flex-1">
+                      Start free
+                    </ButtonLink>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

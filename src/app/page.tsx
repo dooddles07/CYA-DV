@@ -18,12 +18,15 @@ import {
   getTodayLabel,
   readingPlan,
   testimonials,
-  todaysVerse,
 } from "@/lib/data";
+import { getVerseOfDay } from "@/server/services/verse.service";
 
 const days = ["M", "T", "W", "T", "F", "S", "S"];
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const todaysVerse = await getVerseOfDay();
   const [featured] = devotions;
 
   return (

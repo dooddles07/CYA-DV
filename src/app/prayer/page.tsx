@@ -2,13 +2,17 @@ import type { Metadata } from "next";
 import { PrayerClient } from "./prayer-client";
 import { Reveal } from "@/components/motion";
 import { SectionHeading } from "@/components/ui";
+import { listPrayers } from "@/server/services/prayer.service";
 
 export const metadata: Metadata = {
   title: "Prayer Wall",
   description: "Share a prayer request and pray for the CYA community.",
 };
 
-export default function PrayerPage() {
+export const dynamic = "force-dynamic";
+
+export default async function PrayerPage() {
+  const prayers = await listPrayers();
   return (
     <div className="mx-auto max-w-6xl px-4 pb-28 pt-28 sm:px-6 lg:px-8">
       <Reveal>
@@ -19,7 +23,7 @@ export default function PrayerPage() {
           className="mb-10"
         />
       </Reveal>
-      <PrayerClient />
+      <PrayerClient initialPrayers={prayers} />
     </div>
   );
 }

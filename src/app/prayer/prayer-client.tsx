@@ -2,48 +2,85 @@
 
 import { useState, type FormEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, HandHelping, Send } from "lucide-react";
+import { Check, HandHelping, Loader2, Send } from "lucide-react";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { cx } from "@/lib/cx";
 import { toast } from "@/components/toast";
-import { prayerWall } from "@/lib/data";
 import { spring } from "@/lib/motion";
 
-type Prayer = (typeof prayerWall)[number];
+export type PrayerItem = {
+  id: string;
+  name: string;
+  request: string;
+  tag: string;
+  prayedCount: number;
+  createdAt: string;
+};
 
-export function PrayerClient() {
+function relTime(iso: string): string {
+  const mins = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 60_000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+export function PrayerClient({ initialPrayers }: { initialPrayers: PrayerItem[] }) {
   const reduce = useReducedMotion();
-  const [items, setItems] = useState<Prayer[]>(prayerWall);
+  const [items, setItems] = useState<PrayerItem[]>(initialPrayers);
   const [prayed, setPrayed] = useState<Record<string, boolean>>({});
   const [name, setName] = useState("");
   const [request, setRequest] = useState("");
   const [anonymous, setAnonymous] = useState(false);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     if (request.trim().length < 10) {
       setError("Please write at least a short sentence so people know how to pray.");
       document.getElementById("pr-request")?.focus();
       return;
     }
     setError("");
-    setItems((list) => [
-      {
-        name: anonymous || !name.trim() ? "Anonymous" : name.trim(),
-        request: request.trim(),
-        prayedCount: 0,
-        time: "just now",
-        tag: "New",
-      },
-      ...list,
-    ]);
-    setRequest("");
-    setName("");
-    setSubmitted(true);
-    toast("Shared with the family", "success");
-    window.setTimeout(() => setSubmitted(false), 3000);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/prayers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, request, anonymous }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Could not share right now. Please try again.");
+        return;
+      }
+      setItems((list) => [data.prayer, ...list]);
+      setRequest("");
+      setName("");
+      setSubmitted(true);
+      toast("Shared with the family", "success");
+      window.setTimeout(() => setSubmitted(false), 3000);
+    } catch {
+      setError("Network error — check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onPray = (p: PrayerItem, done: boolean) => {
+    setPrayed((s) => ({ ...s, [p.id]: !done }));
+    if (!done) toast(`Praying with ${p.name}`, "success");
+    // Static fallback items (DB offline) only update locally.
+    if (p.id.startsWith("static-")) return;
+    fetch(`/api/prayers/${p.id}/pray`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ undo: done }),
+    }).catch(() => {});
   };
 
   return (
@@ -100,8 +137,12 @@ export function PrayerClient() {
               Post anonymously
             </label>
 
-            <Button type="submit" className="w-full" size="lg">
-              {submitted ? (
+            <Button type="submit" className="w-full" size="lg" disabled={busy}>
+              {busy ? (
+                <>
+                  <Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden /> Sharing…
+                </>
+              ) : submitted ? (
                 <>
                   <Check className="h-[18px] w-[18px]" aria-hidden /> Shared with the family
                 </>
@@ -127,11 +168,10 @@ export function PrayerClient() {
         <motion.div layout className="mt-5 space-y-4">
           <AnimatePresence initial={false}>
             {items.map((p) => {
-              const key = `${p.name}-${p.request.slice(0, 24)}`;
-              const done = prayed[key];
+              const done = prayed[p.id];
               return (
                 <motion.div
-                  key={key}
+                  key={p.id}
                   layout
                   initial={reduce ? false : { opacity: 0, y: -14, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -143,7 +183,7 @@ export function PrayerClient() {
                       <p className="text-sm font-extrabold text-ink">{p.name}</p>
                       <div className="flex items-center gap-2">
                         <Badge tone={p.tag === "New" ? "green" : "sky"}>{p.tag}</Badge>
-                        <span className="text-xs text-ink-faint">{p.time}</span>
+                        <span className="text-xs text-ink-faint">{relTime(p.createdAt)}</span>
                       </div>
                     </div>
                     <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">{p.request}</p>
@@ -152,10 +192,7 @@ export function PrayerClient() {
                         type="button"
                         whileTap={reduce ? undefined : { scale: 0.94 }}
                         transition={spring}
-                        onClick={() => {
-                          setPrayed((s) => ({ ...s, [key]: !s[key] }));
-                          if (!done) toast(`Praying with ${p.name}`, "success");
-                        }}
+                        onClick={() => onPray(p, !!done)}
                         aria-pressed={!!done}
                         className={cx(
                           "relative inline-flex h-11 cursor-pointer items-center gap-2 rounded-full px-4 text-sm font-bold transition-all duration-200",

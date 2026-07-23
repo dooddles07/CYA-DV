@@ -1,5 +1,6 @@
-// Mock content layer — swap with Supabase/Firebase queries later.
-// Shapes mirror the intended DB tables so the UI is backend-ready.
+// Static content layer. Verse texts use the World English Bible (WEB),
+// a public-domain translation, with "Yahweh" rendered as "the LORD".
+// verseLibrary doubles as the DB seed — see src/lib/verse-of-day.ts.
 
 export type Verse = {
   reference: string;
@@ -10,24 +11,24 @@ export type Verse = {
 
 export const todaysVerse: Verse = {
   reference: "Isaiah 40:31",
-  text: "But those who hope in the LORD will renew their strength. They will soar on wings like eagles; they will run and not grow weary, they will walk and not be faint.",
-  version: "NIV",
+  text: "But those who wait for the LORD will renew their strength. They will mount up with wings like eagles. They will run, and not be weary. They will walk, and not faint.",
+  version: "WEB",
   topic: "Strength",
 };
 
 export const verseLibrary: Verse[] = [
   todaysVerse,
-  { reference: "Jeremiah 29:11", text: "“For I know the plans I have for you,” declares the LORD, “plans to prosper you and not to harm you, plans to give you hope and a future.”", version: "NIV", topic: "Hope" },
-  { reference: "Philippians 4:6-7", text: "Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God. And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus.", version: "NIV", topic: "Peace" },
-  { reference: "Joshua 1:9", text: "Have I not commanded you? Be strong and courageous. Do not be afraid; do not be discouraged, for the LORD your God will be with you wherever you go.", version: "NIV", topic: "Courage" },
-  { reference: "Psalm 23:1-3", text: "The LORD is my shepherd, I lack nothing. He makes me lie down in green pastures, he leads me beside quiet waters, he refreshes my soul.", version: "NIV", topic: "Peace" },
-  { reference: "1 Corinthians 16:14", text: "Do everything in love.", version: "NIV", topic: "Love" },
-  { reference: "Proverbs 3:5-6", text: "Trust in the LORD with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.", version: "NIV", topic: "Wisdom" },
-  { reference: "Matthew 11:28", text: "“Come to me, all you who are weary and burdened, and I will give you rest.”", version: "NIV", topic: "Rest" },
-  { reference: "Romans 8:28", text: "And we know that in all things God works for the good of those who love him, who have been called according to his purpose.", version: "NIV", topic: "Faith" },
-  { reference: "Psalm 46:1", text: "God is our refuge and strength, an ever-present help in trouble.", version: "NIV", topic: "Strength" },
-  { reference: "1 Timothy 4:12", text: "Don't let anyone look down on you because you are young, but set an example for the believers in speech, in conduct, in love, in faith and in purity.", version: "NIV", topic: "Youth" },
-  { reference: "Lamentations 3:22-23", text: "Because of the LORD's great love we are not consumed, for his compassions never fail. They are new every morning; great is your faithfulness.", version: "NIV", topic: "Grace" },
+  { reference: "Jeremiah 29:11", text: "“For I know the thoughts that I think toward you,” says the LORD, “thoughts of peace, and not of evil, to give you hope and a future.”", version: "WEB", topic: "Hope" },
+  { reference: "Philippians 4:6-7", text: "In nothing be anxious, but in everything, by prayer and petition with thanksgiving, let your requests be made known to God. And the peace of God, which surpasses all understanding, will guard your hearts and your thoughts in Christ Jesus.", version: "WEB", topic: "Peace" },
+  { reference: "Joshua 1:9", text: "Haven't I commanded you? Be strong and courageous. Don't be afraid. Don't be dismayed, for the LORD your God is with you wherever you go.", version: "WEB", topic: "Courage" },
+  { reference: "Psalm 23:1-3", text: "The LORD is my shepherd: I shall lack nothing. He makes me lie down in green pastures. He leads me beside still waters. He restores my soul.", version: "WEB", topic: "Peace" },
+  { reference: "1 Corinthians 16:14", text: "Let all that you do be done in love.", version: "WEB", topic: "Love" },
+  { reference: "Proverbs 3:5-6", text: "Trust in the LORD with all your heart, and don't lean on your own understanding. In all your ways acknowledge him, and he will make your paths straight.", version: "WEB", topic: "Wisdom" },
+  { reference: "Matthew 11:28", text: "“Come to me, all you who labor and are heavily burdened, and I will give you rest.”", version: "WEB", topic: "Rest" },
+  { reference: "Romans 8:28", text: "We know that all things work together for good for those who love God, to those who are called according to his purpose.", version: "WEB", topic: "Faith" },
+  { reference: "Psalm 46:1", text: "God is our refuge and strength, a very present help in trouble.", version: "WEB", topic: "Strength" },
+  { reference: "1 Timothy 4:12", text: "Let no man despise your youth; but be an example to those who believe, in word, in your way of life, in love, in spirit, in faith, and in purity.", version: "WEB", topic: "Youth" },
+  { reference: "Lamentations 3:22-23", text: "It is because of the LORD's loving kindnesses that we are not consumed, because his compassion doesn't fail. They are new every morning. Great is your faithfulness.", version: "WEB", topic: "Grace" },
 ];
 
 export const categories = [
