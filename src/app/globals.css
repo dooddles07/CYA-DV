@@ -1,0 +1,250 @@
+@import "tailwindcss";
+
+/* Class-based dark mode: .dark on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   Runtime theme variables — 1:1 with the Figma "Semantic"
+   variable collection (Light / Dark modes).
+   ============================================================ */
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --sky-tint: #e8f5ff;
+  --sky-soft: #f4faff;
+  --sky-mist: #d4ecff;
+  --ink: #0f2233;
+  --ink-soft: #45586b;
+  --ink-faint: #7d8fa0;
+  --line: #e3edf5;
+  --primary: #0095ff;
+  --primary-600: #0077d6;
+  --primary-700: #005ea8;
+  --amber-soft: #fff4d6;
+  --amber-strong: #9a6b00;
+  --mint-soft: #e2f8ee;
+  --mint-strong: #116b4a;
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(227, 237, 245, 0.9);
+  --skeleton-a: #eef5fb;
+  --skeleton-b: #f8fbfe;
+  --scrim: rgba(9, 22, 36, 0.45);
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0a1522;
+  --surface: #122031;
+  --sky-tint: #16293d;
+  --sky-soft: #0d1a29;
+  --sky-mist: #1e3c5a;
+  --ink: #eaf3fb;
+  --ink-soft: #a9bdd0;
+  --ink-faint: #7e93a8;
+  --line: #223850;
+  --primary: #0095ff;
+  --primary-600: #2ea8ff;
+  --primary-700: #7ec9ff;
+  --amber-soft: #382d10;
+  --amber-strong: #ffd27a;
+  --mint-soft: #0f3226;
+  --mint-strong: #62dfae;
+  --glass-bg: rgba(13, 23, 37, 0.72);
+  --glass-border: rgba(34, 56, 80, 0.8);
+  --skeleton-a: #142334;
+  --skeleton-b: #1a2c40;
+  --scrim: rgba(3, 9, 16, 0.6);
+}
+
+/* ---- Tailwind tokens mapped to runtime vars ---- */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sky-tint: var(--sky-tint);
+  --color-sky-soft: var(--sky-soft);
+  --color-sky-mist: var(--sky-mist);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-primary-600: var(--primary-600);
+  --color-primary-700: var(--primary-700);
+  --color-amber-soft: var(--amber-soft);
+  --color-amber-strong: var(--amber-strong);
+  --color-mint-soft: var(--mint-soft);
+  --color-mint-strong: var(--mint-strong);
+}
+
+/* ---- Static tokens ---- */
+@theme {
+  --color-success: #2eb886;
+  --color-warning: #f59f4a;
+  --color-danger: #ef5f5f;
+  --color-gold: #ffc94d;
+
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-lora), ui-serif, Georgia, serif;
+
+  --shadow-soft: 0 2px 12px rgba(15, 60, 100, 0.06);
+  --shadow-lift: 0 12px 32px -8px rgba(0, 110, 190, 0.16);
+  --shadow-glow: 0 8px 40px -6px rgba(0, 149, 255, 0.35);
+
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-float-slow: float 11s ease-in-out infinite;
+  --animate-drift: drift 18s ease-in-out infinite alternate;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-aurora: aurora 22s ease-in-out infinite alternate;
+  --animate-ping-slow: ping-slow 2.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-14px); }
+  }
+  @keyframes drift {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(40px, -30px) scale(1.08); }
+  }
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to { background-position: 200% 0; }
+  }
+  @keyframes aurora {
+    0%   { transform: translate3d(0,0,0) rotate(0deg) scale(1); }
+    50%  { transform: translate3d(3%, -4%, 0) rotate(8deg) scale(1.12); }
+    100% { transform: translate3d(-3%, 3%, 0) rotate(-6deg) scale(1.05); }
+  }
+  @keyframes ping-slow {
+    0%   { transform: scale(1); opacity: 0.55; }
+    70%  { transform: scale(2.1); opacity: 0; }
+    100% { transform: scale(2.1); opacity: 0; }
+  }
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+  /* Decorative blur layers extend past the viewport; clip at both the
+     root and body so no device can ever scroll sideways. */
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background-color 250ms ease, color 250ms ease;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--sky-mist);
+  color: var(--primary-700);
+}
+
+/* Focus ring — keyboard nav only */
+:focus-visible {
+  outline: 3px solid rgba(0, 149, 255, 0.55);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ============================================================
+   Reduced motion — every effect degrades to a static state
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .cursor-glow, .aurora-layer { display: none !important; }
+}
+
+/* ============================================================
+   Scripture typography
+   ============================================================ */
+.verse-text {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.55;
+}
+
+/* ============================================================
+   Surfaces & effects
+   ============================================================ */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid var(--glass-border);
+}
+
+/* Gradient text that stays readable when the gradient fails to paint */
+.text-gradient {
+  background: linear-gradient(100deg, var(--primary) 0%, #33c0ff 55%, #66d4ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@supports not (background-clip: text) {
+  .text-gradient { color: var(--primary); }
+}
+
+/* Animated aurora mesh — decorative, hidden under reduced motion */
+.aurora-layer {
+  position: absolute;
+  inset: -20%;
+  filter: blur(90px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* Conic border used on featured cards */
+.ring-gradient {
+  position: relative;
+  isolation: isolate;
+}
+.ring-gradient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(0,149,255,0.55), rgba(0,149,255,0) 45%, rgba(102,212,255,0.5));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Hide scrollbars on carousels while keeping scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Skeleton shimmer */
+.skeleton {
+  background: linear-gradient(90deg, var(--skeleton-a) 25%, var(--skeleton-b) 50%, var(--skeleton-a) 75%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+/* Scroll-snap track for the horizontal journey rail */
+.snap-rail {
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 1rem;
+}
+.snap-rail > * { scroll-snap-align: start; }
+
+/* Safe-area helpers for mobile chrome */
+.pb-safe { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+.mb-safe { margin-bottom: max(0.75rem, env(safe-area-inset-bottom)); }

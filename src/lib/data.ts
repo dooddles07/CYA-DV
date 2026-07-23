@@ -1,0 +1,203 @@
+// Mock content layer — swap with Supabase/Firebase queries later.
+// Shapes mirror the intended DB tables so the UI is backend-ready.
+
+export type Verse = {
+  reference: string;
+  text: string;
+  version: string;
+  topic: string;
+};
+
+export const todaysVerse: Verse = {
+  reference: "Isaiah 40:31",
+  text: "But those who hope in the LORD will renew their strength. They will soar on wings like eagles; they will run and not grow weary, they will walk and not be faint.",
+  version: "NIV",
+  topic: "Strength",
+};
+
+export const verseLibrary: Verse[] = [
+  todaysVerse,
+  { reference: "Jeremiah 29:11", text: "“For I know the plans I have for you,” declares the LORD, “plans to prosper you and not to harm you, plans to give you hope and a future.”", version: "NIV", topic: "Hope" },
+  { reference: "Philippians 4:6-7", text: "Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God. And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus.", version: "NIV", topic: "Peace" },
+  { reference: "Joshua 1:9", text: "Have I not commanded you? Be strong and courageous. Do not be afraid; do not be discouraged, for the LORD your God will be with you wherever you go.", version: "NIV", topic: "Courage" },
+  { reference: "Psalm 23:1-3", text: "The LORD is my shepherd, I lack nothing. He makes me lie down in green pastures, he leads me beside quiet waters, he refreshes my soul.", version: "NIV", topic: "Peace" },
+  { reference: "1 Corinthians 16:14", text: "Do everything in love.", version: "NIV", topic: "Love" },
+  { reference: "Proverbs 3:5-6", text: "Trust in the LORD with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.", version: "NIV", topic: "Wisdom" },
+  { reference: "Matthew 11:28", text: "“Come to me, all you who are weary and burdened, and I will give you rest.”", version: "NIV", topic: "Rest" },
+  { reference: "Romans 8:28", text: "And we know that in all things God works for the good of those who love him, who have been called according to his purpose.", version: "NIV", topic: "Faith" },
+  { reference: "Psalm 46:1", text: "God is our refuge and strength, an ever-present help in trouble.", version: "NIV", topic: "Strength" },
+  { reference: "1 Timothy 4:12", text: "Don't let anyone look down on you because you are young, but set an example for the believers in speech, in conduct, in love, in faith and in purity.", version: "NIV", topic: "Youth" },
+  { reference: "Lamentations 3:22-23", text: "Because of the LORD's great love we are not consumed, for his compassions never fail. They are new every morning; great is your faithfulness.", version: "NIV", topic: "Grace" },
+];
+
+export const categories = [
+  { name: "Faith", icon: "Sparkles", count: 128 },
+  { name: "Hope", icon: "Sunrise", count: 96 },
+  { name: "Love", icon: "Heart", count: 143 },
+  { name: "Wisdom", icon: "Lightbulb", count: 87 },
+  { name: "Peace", icon: "Leaf", count: 74 },
+  { name: "Strength", icon: "Mountain", count: 89 },
+  { name: "Forgiveness", icon: "HandHeart", count: 52 },
+  { name: "Prayer", icon: "Church", count: 110 },
+  { name: "Grace", icon: "Droplets", count: 65 },
+  { name: "Joy", icon: "Smile", count: 71 },
+  { name: "Healing", icon: "HeartPulse", count: 48 },
+  { name: "Family", icon: "House", count: 59 },
+  { name: "Youth", icon: "Flame", count: 83 },
+  { name: "Leadership", icon: "Compass", count: 44 },
+  { name: "Encouragement", icon: "MessageCircleHeart", count: 102 },
+] as const;
+
+export const moods = [
+  { feeling: "I feel anxious", verse: verseLibrary[2], tint: "#e8f5ff" },
+  { feeling: "I need hope", verse: verseLibrary[1], tint: "#fff6e8" },
+  { feeling: "I feel lonely", verse: verseLibrary[7], tint: "#f3efff" },
+  { feeling: "I need strength", verse: verseLibrary[0], tint: "#e8fff3" },
+  { feeling: "I need forgiveness", verse: verseLibrary[11], tint: "#fff0f0" },
+  { feeling: "I need peace", verse: verseLibrary[4], tint: "#eafaff" },
+];
+
+export const devotions = [
+  {
+    slug: "wings-like-eagles",
+    title: "Wings Like Eagles: Strength for the Waiting Season",
+    excerpt: "Waiting is not wasted time. Isaiah reminds us that hope in the Lord is an exchange — our exhaustion for His strength.",
+    author: "Ralph",
+    readTime: "4 min",
+    date: "July 17, 2026",
+    verse: "Isaiah 40:31",
+    image: "/media/tree-guitar.jpg",
+  },
+  {
+    slug: "new-every-morning",
+    title: "New Every Morning",
+    excerpt: "God's mercies don't run out at midnight. Every sunrise is a fresh page of grace written just for you.",
+    author: "Julie",
+    readTime: "3 min",
+    date: "July 16, 2026",
+    verse: "Lamentations 3:22-23",
+    image: "/media/golden-selfie.jpg",
+  },
+  {
+    slug: "young-and-called",
+    title: "Young and Called",
+    excerpt: "Timothy was told to never let his youth disqualify him. Neither should you — your generation is your mission field.",
+    author: "MJ",
+    readTime: "5 min",
+    date: "July 15, 2026",
+    verse: "1 Timothy 4:12",
+    image: "/media/cya-shirts.jpg",
+  },
+];
+
+export const readingPlan = {
+  name: "Through the Gospels in 90 Days",
+  todayReading: "John 15:1–17",
+  todayTheme: "The Vine and the Branches",
+  day: 42,
+  totalDays: 90,
+  weekProgress: [true, true, true, true, false, false, false],
+  upcoming: [
+    { day: 43, passage: "John 15:18–27", theme: "The World's Hatred" },
+    { day: 44, passage: "John 16:1–15", theme: "The Work of the Spirit" },
+    { day: 45, passage: "John 16:16–33", theme: "Grief Will Turn to Joy" },
+  ],
+};
+
+export const otherPlans = [
+  { name: "Psalms of Peace", days: 30, tag: "Calm", desc: "One psalm a day for anxious seasons." },
+  { name: "Proverbs for Students", days: 31, tag: "Wisdom", desc: "Practical wisdom for school, friends, and choices." },
+  { name: "First Steps: New Believer", days: 21, tag: "Foundations", desc: "The essentials of following Jesus, from day one." },
+  { name: "Acts: The Church on Fire", days: 28, tag: "Mission", desc: "Watch the early church turn the world upside down." },
+];
+
+export const prayerWall = [
+  { name: "Kim", request: "Please pray for my upcoming board exams. I'm nervous but trusting God's plan.", prayedCount: 47, time: "2h ago", tag: "Studies" },
+  { name: "MJ", request: "Praying for my father's healing and full recovery from surgery.", prayedCount: 132, time: "5h ago", tag: "Healing" },
+  { name: "Ralph", request: "For our youth camp this August — that many young people will encounter Christ.", prayedCount: 89, time: "8h ago", tag: "Ministry" },
+  { name: "Julie", request: "Struggling with anxiety lately. Pray that I find peace in God's presence.", prayedCount: 64, time: "12h ago", tag: "Peace" },
+];
+
+export const challenges = [
+  { type: "Memorize", title: "Hide Isaiah 40:31 in your heart", xp: 50, icon: "Brain" },
+  { type: "Kindness", title: "Encourage one friend with a verse today", xp: 30, icon: "HandHeart" },
+  { type: "Prayer", title: "Pray for 3 people on the prayer wall", xp: 40, icon: "Church" },
+  { type: "Reflection", title: "Journal: where did you see God this week?", xp: 35, icon: "PenLine" },
+];
+
+export const quotes = [
+  { text: "God's Word is a lamp that never runs out of oil.", author: "Gwen" },
+  { text: "You are never too young to be used by God, and never too old to be renewed by Him.", author: "Ralph" },
+  { text: "Prayer is not a backup plan. It is the battle plan.", author: "CYA Youth Camp 2025" },
+  { text: "Kay Kristo Buong Buhay, Habambuhay!", author: "CYA — Christ's Youth in Action" },
+];
+
+export const events = [
+  {
+    title: "Step In, Shine Out: Youth Encounter",
+    date: "2026-08-08",
+    displayDate: "Aug 8, 2026",
+    time: "1:00 PM",
+    location: "CYA Main Hall, Quezon City",
+    speaker: "Ralph",
+    image: "/media/greatest-love.jpg",
+    tag: "Youth Camp",
+  },
+  {
+    title: "KKBBH Worship & Fellowship Night",
+    date: "2026-07-25",
+    displayDate: "Jul 25, 2026",
+    time: "6:00 PM",
+    location: "Fellowship Center, Room 204",
+    speaker: "Gwen & the CYA Worship Team",
+    image: "/media/stage-event.jpg",
+    tag: "Fellowship",
+  },
+  {
+    title: "Servant Leaders Training Day",
+    date: "2026-08-22",
+    displayDate: "Aug 22, 2026",
+    time: "9:00 AM",
+    location: "CYA Training Room",
+    speaker: "Julie",
+    image: "/media/leader-teaching.jpg",
+    tag: "Leadership",
+  },
+];
+
+export const testimonials = [
+  {
+    name: "Kim",
+    role: "Student, 19",
+    quote: "I used to scroll social media first thing every morning. Now CYA Daily Verse is my first tap — my mornings finally feel peaceful.",
+    image: "/media/golden-selfie.jpg",
+  },
+  {
+    name: "Ralph",
+    role: "Youth Leader",
+    quote: "The reading streak turned our whole small group into daily Bible readers. We compare streaks like it's a game — but the Word is real.",
+    image: "/media/cya-shirts.jpg",
+  },
+  {
+    name: "MJ",
+    role: "Ministry Volunteer",
+    quote: "The prayer wall carried me through my hardest season. Dozens of young people I've never met prayed for my family.",
+    image: "/media/worship-practice.jpg",
+  },
+];
+
+export const streak = { current: 12, best: 30, xp: 1840, level: 7 };
+
+export const reflectionQuestions = [
+  "What does this verse show you about who God is?",
+  "Where does this word meet your life right now — school, family, work, or a quiet worry?",
+  "Who could you encourage with this verse today, and how?",
+];
+
+export function getTodayLabel(): string {
+  return new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
