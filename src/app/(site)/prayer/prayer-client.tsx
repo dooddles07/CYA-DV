@@ -249,7 +249,9 @@ export function PrayerClient({
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-extrabold text-ink">{p.name}</p>
                       <div className="flex items-center gap-2">
-                        <Badge tone={p.tag === "New" ? "green" : "sky"}>{p.tag}</Badge>
+                        {p.tag ? (
+                          <Badge tone={p.tag === "New" ? "green" : "sky"}>{p.tag}</Badge>
+                        ) : null}
                         <span className="text-xs text-ink-faint">{relTime(p.createdAt, now)}</span>
                       </div>
                     </div>

@@ -10,16 +10,21 @@ import { logError } from "@/server/utils/logger";
 /** @typedef {import("@/lib/types").PrayerItem} PrayerItem */
 /** @typedef {import("@/lib/types").ModeratedPrayer} ModeratedPrayer */
 
+const NEW_TAG_MS = 24 * 60 * 60 * 1000;
+
 /** @returns {PrayerItem} */
 function serialize(doc, prayed = false) {
+  const createdAt = new Date(doc.createdAt);
+  // "New" is derived from age at read time, never stored, so it expires on its own.
+  const isNew = Date.now() - createdAt.getTime() < NEW_TAG_MS;
   return {
     id: doc._id.toString(),
     name: doc.name,
     request: doc.request,
-    tag: doc.tag,
+    tag: isNew ? "New" : "",
     prayedCount: doc.prayedCount,
     prayed,
-    createdAt: new Date(doc.createdAt).toISOString(),
+    createdAt: createdAt.toISOString(),
   };
 }
 
@@ -112,7 +117,6 @@ export async function createPrayer({ name, request, anonymous }, author) {
     userId: author.sub,
     name: display.slice(0, 60),
     request,
-    tag: "New",
   });
   return serialize(doc);
 }
