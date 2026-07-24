@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "seed": "node scripts/seed.mjs",
+    "verses:fetch": "node scripts/fetch-verses.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.6",

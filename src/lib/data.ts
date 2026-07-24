@@ -1,6 +1,9 @@
 // Static content layer. Verse texts use the World English Bible (WEB),
 // a public-domain translation, with "Yahweh" rendered as "the LORD".
-// verseLibrary doubles as the DB seed — see src/lib/verse-of-day.ts.
+// The verse corpus lives in src/data/verses.json — regenerate it with
+// `npm run verses:fetch`, load it into the database with `npm run seed`.
+
+import verses from "../data/verses.json" with { type: "json" };
 
 export type Verse = {
   reference: string;
@@ -9,53 +12,42 @@ export type Verse = {
   topic: string;
 };
 
-export const todaysVerse: Verse = {
-  reference: "Isaiah 40:31",
-  text: "But those who wait for the LORD will renew their strength. They will mount up with wings like eagles. They will run, and not be weary. They will walk, and not faint.",
-  version: "WEB",
-  topic: "Strength",
-};
+export const verseLibrary: Verse[] = verses;
 
-export const verseLibrary: Verse[] = [
-  todaysVerse,
-  { reference: "Jeremiah 29:11", text: "“For I know the thoughts that I think toward you,” says the LORD, “thoughts of peace, and not of evil, to give you hope and a future.”", version: "WEB", topic: "Hope" },
-  { reference: "Philippians 4:6-7", text: "In nothing be anxious, but in everything, by prayer and petition with thanksgiving, let your requests be made known to God. And the peace of God, which surpasses all understanding, will guard your hearts and your thoughts in Christ Jesus.", version: "WEB", topic: "Peace" },
-  { reference: "Joshua 1:9", text: "Haven't I commanded you? Be strong and courageous. Don't be afraid. Don't be dismayed, for the LORD your God is with you wherever you go.", version: "WEB", topic: "Courage" },
-  { reference: "Psalm 23:1-3", text: "The LORD is my shepherd: I shall lack nothing. He makes me lie down in green pastures. He leads me beside still waters. He restores my soul.", version: "WEB", topic: "Peace" },
-  { reference: "1 Corinthians 16:14", text: "Let all that you do be done in love.", version: "WEB", topic: "Love" },
-  { reference: "Proverbs 3:5-6", text: "Trust in the LORD with all your heart, and don't lean on your own understanding. In all your ways acknowledge him, and he will make your paths straight.", version: "WEB", topic: "Wisdom" },
-  { reference: "Matthew 11:28", text: "“Come to me, all you who labor and are heavily burdened, and I will give you rest.”", version: "WEB", topic: "Rest" },
-  { reference: "Romans 8:28", text: "We know that all things work together for good for those who love God, to those who are called according to his purpose.", version: "WEB", topic: "Faith" },
-  { reference: "Psalm 46:1", text: "God is our refuge and strength, a very present help in trouble.", version: "WEB", topic: "Strength" },
-  { reference: "1 Timothy 4:12", text: "Let no man despise your youth; but be an example to those who believe, in word, in your way of life, in love, in spirit, in faith, and in purity.", version: "WEB", topic: "Youth" },
-  { reference: "Lamentations 3:22-23", text: "It is because of the LORD's loving kindnesses that we are not consumed, because his compassion doesn't fail. They are new every morning. Great is your faithfulness.", version: "WEB", topic: "Grace" },
-];
+/** Fallback only — the live verse of the day comes from the database. */
+export const todaysVerse: Verse =
+  verseLibrary.find((v) => v.reference === "Isaiah 40:31") ?? verseLibrary[0];
 
+/** Topic names must match the `topic` values in verses.json, or a grid tile shows no verses. */
 export const categories = [
-  { name: "Faith", icon: "Sparkles", count: 128 },
-  { name: "Hope", icon: "Sunrise", count: 96 },
-  { name: "Love", icon: "Heart", count: 143 },
-  { name: "Wisdom", icon: "Lightbulb", count: 87 },
-  { name: "Peace", icon: "Leaf", count: 74 },
-  { name: "Strength", icon: "Mountain", count: 89 },
-  { name: "Forgiveness", icon: "HandHeart", count: 52 },
-  { name: "Prayer", icon: "Church", count: 110 },
-  { name: "Grace", icon: "Droplets", count: 65 },
-  { name: "Joy", icon: "Smile", count: 71 },
-  { name: "Healing", icon: "HeartPulse", count: 48 },
-  { name: "Family", icon: "House", count: 59 },
-  { name: "Youth", icon: "Flame", count: 83 },
-  { name: "Leadership", icon: "Compass", count: 44 },
-  { name: "Encouragement", icon: "MessageCircleHeart", count: 102 },
+  { name: "Faith", icon: "Sparkles" },
+  { name: "Hope", icon: "Sunrise" },
+  { name: "Love", icon: "Heart" },
+  { name: "Wisdom", icon: "Lightbulb" },
+  { name: "Peace", icon: "Leaf" },
+  { name: "Strength", icon: "Mountain" },
+  { name: "Forgiveness", icon: "HandHeart" },
+  { name: "Prayer", icon: "Church" },
+  { name: "Grace", icon: "Droplets" },
+  { name: "Joy", icon: "Smile" },
+  { name: "Healing", icon: "HeartPulse" },
+  { name: "Family", icon: "House" },
+  { name: "Youth", icon: "Flame" },
+  { name: "Leadership", icon: "Compass" },
+  { name: "Encouragement", icon: "MessageCircleHeart" },
 ] as const;
 
+function byReference(reference: string): Verse {
+  return verseLibrary.find((v) => v.reference === reference) ?? verseLibrary[0];
+}
+
 export const moods = [
-  { feeling: "I feel anxious", verse: verseLibrary[2], tint: "#e8f5ff" },
-  { feeling: "I need hope", verse: verseLibrary[1], tint: "#fff6e8" },
-  { feeling: "I feel lonely", verse: verseLibrary[7], tint: "#f3efff" },
-  { feeling: "I need strength", verse: verseLibrary[0], tint: "#e8fff3" },
-  { feeling: "I need forgiveness", verse: verseLibrary[11], tint: "#fff0f0" },
-  { feeling: "I need peace", verse: verseLibrary[4], tint: "#eafaff" },
+  { feeling: "I feel anxious", verse: byReference("Philippians 4:6-7"), tint: "#e8f5ff" },
+  { feeling: "I need hope", verse: byReference("Jeremiah 29:11"), tint: "#fff6e8" },
+  { feeling: "I feel lonely", verse: byReference("Deuteronomy 31:8"), tint: "#f3efff" },
+  { feeling: "I need strength", verse: byReference("Isaiah 40:31"), tint: "#e8fff3" },
+  { feeling: "I need forgiveness", verse: byReference("1 John 1:9"), tint: "#fff0f0" },
+  { feeling: "I need peace", verse: byReference("John 14:27"), tint: "#eafaff" },
 ];
 
 export type Devotion = {
