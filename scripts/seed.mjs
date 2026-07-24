@@ -19,7 +19,7 @@ function loadEnv(text) {
 const VerseSchema = new mongoose.Schema({
   reference: { type: String, required: true, unique: true, trim: true },
   text: { type: String, required: true },
-  version: { type: String, default: "WEB" },
+  version: { type: String, default: "BSB" },
   topic: { type: String, required: true },
 });
 

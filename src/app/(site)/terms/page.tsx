@@ -38,7 +38,7 @@ export default function TermsPage() {
         </Section>
 
         <Section title="Scripture">
-          Bible text is from the World English Bible (WEB), a public-domain translation.
+          Bible text is from the Berean Standard Bible (BSB), a public-domain translation.
         </Section>
 
         <Section title="No warranty">

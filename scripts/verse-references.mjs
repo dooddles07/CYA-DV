@@ -1,7 +1,7 @@
 /**
  * Curated verse references grouped by the topics shown in the category grid.
  * Every category in src/lib/data.ts appears here, so none renders empty.
- * Texts are fetched from bible-api.com (World English Bible, public domain).
+ * Texts are fetched from bible.helloao.org (Berean Standard Bible, public domain).
  */
 export const referencesByTopic = {
   Faith: [

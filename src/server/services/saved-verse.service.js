@@ -44,7 +44,7 @@ export async function toggleSaved(userId, verse) {
     userId,
     reference,
     text: String(verse.text ?? "").slice(0, 2000),
-    version: String(verse.version ?? "WEB").slice(0, 20),
+    version: String(verse.version ?? "BSB").slice(0, 20),
     topic: String(verse.topic ?? "").slice(0, 40),
   });
   return { saved: true };

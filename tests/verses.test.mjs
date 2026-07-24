@@ -17,21 +17,9 @@ test("every verse has all four fields populated", () => {
   for (const v of verses) {
     assert.ok(v.reference?.trim(), "missing reference");
     assert.ok(v.text?.trim().length > 10, `text too short for ${v.reference}`);
-    assert.equal(v.version, "WEB");
+    assert.equal(v.version, "BSB");
     assert.ok(v.topic?.trim(), `missing topic for ${v.reference}`);
   }
-});
-
-test("the divine name was substituted everywhere", () => {
-  const leaks = verses.filter((v) => /Yahweh/.test(v.text));
-  assert.deepEqual(leaks.map((v) => v.reference), []);
-});
-
-test("no sentence starts with a lowercase 'the' after substitution", () => {
-  const bad = verses.filter(
-    (v) => /^["“‘'([]*the\b/.test(v.text) || /[.!?]\s+["“‘'([]*the\b/.test(v.text)
-  );
-  assert.deepEqual(bad.map((v) => v.reference), []);
 });
 
 test("text is single-line and free of stray whitespace", () => {

@@ -1,5 +1,5 @@
-// Static content layer. Verse texts use the World English Bible (WEB),
-// a public-domain translation, with "Yahweh" rendered as "the LORD".
+// Static content layer. Verse texts use the Berean Standard Bible (BSB),
+// a public-domain translation.
 // The verse corpus lives in src/data/verses.json — regenerate it with
 // `npm run verses:fetch`, load it into the database with `npm run seed`.
 

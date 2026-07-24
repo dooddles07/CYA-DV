@@ -5,7 +5,7 @@ const SavedVerseSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     reference: { type: String, required: true, trim: true },
     text: { type: String, required: true },
-    version: { type: String, default: "WEB" },
+    version: { type: String, default: "BSB" },
     topic: { type: String, default: "" },
   },
   { timestamps: true }
