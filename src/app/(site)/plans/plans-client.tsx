@@ -5,11 +5,9 @@ import { useRouter } from "next/navigation";
 import { BookOpen, CalendarCheck, Check, Flame, Loader2, LogOut, RotateCcw, Sunrise } from "lucide-react";
 import { Badge, Button, ButtonLink, Card, ProgressBar } from "@/components/ui";
 import { Stagger, StaggerItem } from "@/components/motion";
+import { WeekProgress } from "@/components/week-progress";
 import { toast } from "@/components/toast";
-import { cx } from "@/lib/cx";
 import type { ActivePlan, PlanSummary } from "@/lib/types";
-
-const days = ["M", "T", "W", "T", "F", "S", "S"];
 
 export function PlansClient({
   initialPlan,
@@ -94,19 +92,8 @@ export function PlansClient({
             </div>
 
             <p className="mt-6 text-xs font-bold text-ink-faint">First week</p>
-            <div className="mt-2 flex gap-2">
-              {plan.weekProgress.map((done, i) => (
-                <span
-                  key={i}
-                  className={cx(
-                    "grid h-10 w-10 place-items-center rounded-full text-xs font-extrabold",
-                    done ? "bg-primary text-white shadow-glow" : "bg-sky-tint text-ink-faint"
-                  )}
-                  aria-label={`${days[i]}: ${done ? "read" : "not yet"}`}
-                >
-                  {days[i]}
-                </span>
-              ))}
+            <div className="mt-2">
+              <WeekProgress weekProgress={plan.weekProgress} size="md" />
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">

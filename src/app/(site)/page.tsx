@@ -11,6 +11,7 @@ import {
   QuoteCarousel,
 } from "@/components/home/sections";
 import { Reveal, Parallax, Stagger, StaggerItem } from "@/components/motion";
+import { WeekProgress } from "@/components/week-progress";
 import { Badge, ButtonLink, Card, ProgressBar, SectionHeading } from "@/components/ui";
 import { getTodayLabel, testimonials } from "@/lib/data";
 import { listDevotions } from "@/server/services/devotion.service";
@@ -21,8 +22,6 @@ import { listPrayers } from "@/server/services/prayer.service";
 import { getActivePlan, previewPlan } from "@/server/services/plan.service";
 import { savedReferences } from "@/server/services/saved-verse.service";
 import { getSession } from "@/server/utils/session";
-
-const days = ["M", "T", "W", "T", "F", "S", "S"];
 
 export const dynamic = "force-dynamic";
 
@@ -160,18 +159,8 @@ export default async function HomePage() {
               </div>
 
               <p className="mt-6 text-xs font-bold text-ink-faint">First week</p>
-              <div className="mt-2 flex gap-2">
-                {plan.weekProgress.map((done, i) => (
-                  <span
-                    key={i}
-                    aria-label={`${days[i]}: ${done ? "read" : "not yet"}`}
-                    className={`grid h-9 w-9 place-items-center rounded-full text-xs font-extrabold ${
-                      done ? "bg-primary text-white shadow-glow" : "bg-sky-tint text-ink-faint"
-                    }`}
-                  >
-                    {days[i]}
-                  </span>
-                ))}
+              <div className="mt-2">
+                <WeekProgress weekProgress={plan.weekProgress} />
               </div>
 
               <ul className="mt-6 flex-1 space-y-2">
@@ -265,7 +254,6 @@ export default async function HomePage() {
                       fill
                       sizes="(min-width:1024px) 33vw, (min-width:768px) 50vw, 100vw"
                       className="object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none"
-                      unoptimized={e.image.startsWith("/api/images/")}
                     />
                     <Badge tone="white" className="absolute left-4 top-4">
                       {e.tag}

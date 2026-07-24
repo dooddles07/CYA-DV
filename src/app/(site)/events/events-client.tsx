@@ -74,7 +74,6 @@ function EventCard({ event, signedIn }: { event: EventItem; signedIn: boolean })
           fill
           sizes="(min-width:1024px) 33vw, (min-width:768px) 50vw, 100vw"
           className="object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none"
-          unoptimized={event.image.startsWith("/api/images/")}
         />
         <Badge tone="white" className="absolute left-4 top-4">
           {event.tag}

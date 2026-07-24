@@ -13,7 +13,6 @@ import {
   Droplets,
   Flame,
   HandHeart,
-  HandHelping,
   Heart,
   HeartPulse,
   House,
@@ -34,6 +33,9 @@ import { Stagger, StaggerItem } from "@/components/motion";
 import { toast } from "@/components/toast";
 import { categories, challenges, quotes } from "@/lib/data";
 import { spring } from "@/lib/motion";
+import { useNow } from "@/lib/hooks";
+import { relTime } from "@/lib/rel-time";
+import { PrayButton } from "@/components/prayer";
 import type { PrayerItem } from "@/lib/types";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -103,15 +105,6 @@ export function MoodChips() {
 
 /* ------------------------------------------------------- Prayer preview */
 
-function relTime(iso: string): string {
-  const mins = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 60_000));
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
 /** Shows the same live requests as /prayer, so the two pages never disagree. */
 export function PrayerPreview({
   prayers,
@@ -121,6 +114,7 @@ export function PrayerPreview({
   signedIn: boolean;
 }) {
   const reduce = useReducedMotion();
+  const now = useNow(60_000);
   const [items, setItems] = useState<PrayerItem[]>(prayers);
   const [prayed, setPrayed] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(prayers.map((p) => [p.id, p.prayed]))
@@ -172,41 +166,13 @@ export function PrayerPreview({
             </div>
             <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-soft">{p.request}</p>
             <div className="mt-5 flex items-center justify-between">
-              <span className="text-xs text-ink-faint">{relTime(p.createdAt)}</span>
-              <motion.button
-                type="button"
-                whileTap={reduce ? undefined : { scale: 0.94 }}
-                transition={spring}
+              <span className="text-xs text-ink-faint">{relTime(p.createdAt, now)}</span>
+              <PrayButton
+                count={p.prayedCount}
+                done={!!done}
+                reduce={reduce}
                 onClick={() => onPray(p, !!done)}
-                aria-pressed={!!done}
-                className={cx(
-                  "relative inline-flex h-11 cursor-pointer items-center gap-2 rounded-full px-4 text-sm font-bold transition-all duration-200",
-                  done ? "bg-primary text-white shadow-glow" : "bg-sky-tint text-primary-700 hover:bg-sky-mist"
-                )}
-              >
-                <HandHelping className="h-4 w-4" aria-hidden />
-                {done ? "Praying" : "I prayed"}
-                <span
-                  className={cx(
-                    "rounded-full px-1.5 text-xs",
-                    done ? "bg-white/20" : "bg-surface"
-                  )}
-                  style={{ fontVariantNumeric: "tabular-nums" }}
-                >
-                  {p.prayedCount}
-                </span>
-                <AnimatePresence>
-                  {done && !reduce && (
-                    <motion.span
-                      aria-hidden
-                      className="pointer-events-none absolute inset-0 rounded-full border-2 border-primary"
-                      initial={{ opacity: 0.7, scale: 1 }}
-                      animate={{ opacity: 0, scale: 1.5 }}
-                      transition={{ duration: 0.6, ease: "easeOut" }}
-                    />
-                  )}
-                </AnimatePresence>
-              </motion.button>
+              />
             </div>
           </Card>
         );

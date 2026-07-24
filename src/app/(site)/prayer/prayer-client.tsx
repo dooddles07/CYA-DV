@@ -3,21 +3,14 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, HandHelping, Loader2, LogIn, Send } from "lucide-react";
+import { Check, Loader2, LogIn, Send } from "lucide-react";
 import { Badge, Button, ButtonLink, Card, Field, inputClass } from "@/components/ui";
 import { cx } from "@/lib/cx";
 import { toast } from "@/components/toast";
-import { spring } from "@/lib/motion";
+import { useNow } from "@/lib/hooks";
+import { relTime } from "@/lib/rel-time";
+import { PrayButton } from "@/components/prayer";
 import type { PrayerItem } from "@/lib/types";
-
-function relTime(iso: string): string {
-  const mins = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 60_000));
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
 
 export function PrayerClient({
   initialPrayers,
@@ -33,6 +26,7 @@ export function PrayerClient({
   displayName: string;
 }) {
   const reduce = useReducedMotion();
+  const now = useNow(60_000);
   const [items, setItems] = useState<PrayerItem[]>(initialPrayers);
   const [cursor, setCursor] = useState(initialCursor);
   const [count, setCount] = useState(total);
@@ -256,47 +250,17 @@ export function PrayerClient({
                       <p className="text-sm font-extrabold text-ink">{p.name}</p>
                       <div className="flex items-center gap-2">
                         <Badge tone={p.tag === "New" ? "green" : "sky"}>{p.tag}</Badge>
-                        <span className="text-xs text-ink-faint">{relTime(p.createdAt)}</span>
+                        <span className="text-xs text-ink-faint">{relTime(p.createdAt, now)}</span>
                       </div>
                     </div>
                     <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">{p.request}</p>
                     <div className="mt-4">
-                      <motion.button
-                        type="button"
-                        whileTap={reduce ? undefined : { scale: 0.94 }}
-                        transition={spring}
+                      <PrayButton
+                        count={p.prayedCount}
+                        done={!!done}
+                        reduce={reduce}
                         onClick={() => onPray(p, !!done)}
-                        aria-pressed={!!done}
-                        className={cx(
-                          "relative inline-flex h-11 cursor-pointer items-center gap-2 rounded-full px-4 text-sm font-bold transition-all duration-200",
-                          done
-                            ? "bg-primary text-white shadow-glow"
-                            : "bg-sky-tint text-primary-700 hover:bg-sky-mist"
-                        )}
-                      >
-                        <HandHelping className="h-4 w-4" aria-hidden />
-                        {done ? "Praying" : "I prayed"}
-                        <span
-                          className={cx(
-                            "rounded-full px-1.5 text-xs",
-                            done ? "bg-white/20" : "bg-surface"
-                          )}
-                          style={{ fontVariantNumeric: "tabular-nums" }}
-                        >
-                          {p.prayedCount}
-                        </span>
-                        <AnimatePresence>
-                          {done && !reduce && (
-                            <motion.span
-                              aria-hidden
-                              className="pointer-events-none absolute inset-0 rounded-full border-2 border-primary"
-                              initial={{ opacity: 0.7, scale: 1 }}
-                              animate={{ opacity: 0, scale: 1.5 }}
-                              transition={{ duration: 0.6, ease: "easeOut" }}
-                            />
-                          )}
-                        </AnimatePresence>
-                      </motion.button>
+                      />
                     </div>
                   </Card>
                 </motion.div>

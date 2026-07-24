@@ -37,6 +37,9 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ["three"],
+  // Uploaded pubmats stream from Mongo full-size; let the optimizer resize
+  // them to the layout breakpoints, serve WebP/AVIF, and cache the variants.
+  images: { minimumCacheTTL: 31536000 },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

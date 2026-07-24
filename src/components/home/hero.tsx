@@ -1,14 +1,21 @@
 "use client";
 
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { ArrowDown, BookOpen, Flame, Sparkles } from "lucide-react";
 import { ButtonLink } from "@/components/ui";
 import { Aurora } from "@/components/motion/aurora";
 import { Counter, Magnetic, TextReveal } from "@/components/motion";
-import { LightScene } from "@/components/three/light-scene";
 import { type Verse } from "@/lib/data";
+
+// Desktop-only decorative 3D layer. Loaded client-side so three.js + drei
+// never ship in the initial home bundle.
+const LightScene = dynamic(
+  () => import("@/components/three/light-scene").then((m) => m.LightScene),
+  { ssr: false }
+);
 import { EASE } from "@/lib/motion";
 import type { CommunityStats } from "@/lib/types";
 
