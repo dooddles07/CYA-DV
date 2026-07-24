@@ -3,6 +3,12 @@ import webpush from "web-push";
 import { dbConnect } from "@/server/config/db";
 import { PushSubscription } from "@/server/models/push-subscription.model";
 import { ApiError } from "@/server/utils/api-error";
+import { logError } from "@/server/utils/logger";
+
+// Cap concurrent push requests so a large subscriber base can't open thousands
+// of TLS connections at once (memory spike, socket exhaustion, provider rate
+// limits). Sent in sequential batches of this size.
+const SEND_CONCURRENCY = 100;
 
 let configured = false;
 
@@ -55,19 +61,22 @@ export async function broadcast({ title, body, url }) {
   const dead = [];
   let sent = 0;
 
-  await Promise.all(
-    subs.map(async (s) => {
-      try {
-        await webpush.sendNotification(
-          { endpoint: s.endpoint, keys: s.keys },
-          payload
-        );
-        sent += 1;
-      } catch (err) {
-        if (err?.statusCode === 404 || err?.statusCode === 410) dead.push(s.endpoint);
-      }
-    })
-  );
+  // Send in bounded batches rather than one giant Promise.all.
+  for (let i = 0; i < subs.length; i += SEND_CONCURRENCY) {
+    const batch = subs.slice(i, i + SEND_CONCURRENCY);
+    await Promise.all(
+      batch.map(async (s) => {
+        try {
+          await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, payload);
+          sent += 1;
+        } catch (err) {
+          // Gone — prune. Anything else is a real send failure worth logging.
+          if (err?.statusCode === 404 || err?.statusCode === 410) dead.push(s.endpoint);
+          else logError("push.broadcast.send", err, { endpoint: s.endpoint });
+        }
+      })
+    );
+  }
 
   if (dead.length) await PushSubscription.deleteMany({ endpoint: { $in: dead } });
   return { sent, removed: dead.length, total: subs.length };
