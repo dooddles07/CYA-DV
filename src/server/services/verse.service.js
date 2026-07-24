@@ -89,6 +89,8 @@ export async function getVerseOfDay() {
  * Search the whole verse collection by keyword or reference, optionally
  * narrowed to a topic. Escapes user input before building the regex.
  */
+const toVerse = (d) => ({ reference: d.reference, text: d.text, version: d.version, topic: d.topic });
+
 export async function searchVerses({ query = "", topic = "", limit = 60 } = {}) {
   query = String(query).slice(0, 120).trim();
   topic = String(topic).slice(0, 40).trim();
@@ -96,20 +98,31 @@ export async function searchVerses({ query = "", topic = "", limit = 60 } = {}) 
   try {
     await dbConnect();
     await ensureSeeded();
-    const filter = {};
-    if (query) {
-      const rx = new RegExp(escapeRegex(query), "i");
-      filter.$or = [{ text: rx }, { reference: rx }];
-    }
-    if (topic) filter.topic = topic;
+    const topicFilter = topic ? { topic } : {};
 
-    const docs = await Verse.find(filter).sort({ reference: 1 }).limit(limit).lean();
-    return docs.map((d) => ({
-      reference: d.reference,
-      text: d.text,
-      version: d.version,
-      topic: d.topic,
-    }));
+    if (!query) {
+      const docs = await Verse.find(topicFilter).sort({ reference: 1 }).limit(limit).lean();
+      return docs.map(toVerse);
+    }
+
+    // Fast path: the text index ranks whole-word and reference matches.
+    const scored = await Verse.find(
+      { $text: { $search: query }, ...topicFilter },
+      { score: { $meta: "textScore" } }
+    )
+      .sort({ score: { $meta: "textScore" } })
+      .limit(limit)
+      .lean();
+    if (scored.length) return scored.map(toVerse);
+
+    // Fallback for partial words the tokenizer can't match (e.g. mid-typing
+    // "lov"). Rare and bounded by limit; the index handles the common case.
+    const rx = new RegExp(escapeRegex(query), "i");
+    const docs = await Verse.find({ $or: [{ text: rx }, { reference: rx }], ...topicFilter })
+      .sort({ reference: 1 })
+      .limit(limit)
+      .lean();
+    return docs.map(toVerse);
   } catch {
     return searchLibrary(query, topic);
   }
