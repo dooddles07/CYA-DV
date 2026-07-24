@@ -5,9 +5,17 @@ import { ScrollProgress } from "@/components/motion/scroll-progress";
 import { CursorGlow } from "@/components/motion/cursor-glow";
 import { PageTransition } from "@/components/motion/page-transition";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
+import { getSession } from "@/server/utils/session";
+import { getUserStats } from "@/server/services/user.service";
 
 /** Chrome for every public-facing page. */
-export default function SiteLayout({ children }: { children: React.ReactNode }) {
+export default async function SiteLayout({ children }: { children: React.ReactNode }) {
+  // Resolve auth state on the server so the header renders correctly on first
+  // paint — no /api/auth/me round trip, no flash of signed-out chrome.
+  const session = await getSession();
+  const stats = session ? await getUserStats(session) : null;
+  const me = stats ? { streak: stats.streak } : null;
+
   return (
     <>
       <a
@@ -18,7 +26,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       </a>
       <ScrollProgress />
       <CursorGlow />
-      <Navbar />
+      <Navbar me={me} />
       <main id="main">
         <PageTransition>{children}</PageTransition>
       </main>

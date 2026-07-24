@@ -11,7 +11,9 @@ import { cx } from "@/lib/cx";
 import { ThemeToggle } from "@/components/nav/theme-toggle";
 import { EASE } from "@/lib/motion";
 import { useScrolled } from "@/lib/hooks";
-import { useMe } from "@/lib/use-me";
+
+/** Minimal auth state the header needs, resolved on the server per request. */
+export type NavMe = { streak: number };
 
 const links = [
   { href: "/verse", label: "Daily Verse" },
@@ -22,12 +24,11 @@ const links = [
   { href: "/events", label: "Events" },
 ];
 
-export function Navbar() {
+export function Navbar({ me }: { me: NavMe | null }) {
   const pathname = usePathname();
   const reduce = useReducedMotion();
   const scrolled = useScrolled(12);
   const [open, setOpen] = useState(false);
-  const me = useMe();
 
   // Close the sheet when the route changes — derived during render,
   // which avoids an extra effect-driven re-render pass.
