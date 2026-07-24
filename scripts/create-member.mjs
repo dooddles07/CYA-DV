@@ -1,11 +1,14 @@
 /**
- * Creates (or updates) the site owner account and seeds ONE real prayer-wall
- * post authored by that account, connected to the live database.
+ * Creates (or updates) a normal member account and seeds one prayer-wall post
+ * authored by that account, connected to the live database.
  *
- *   MONGO_URL='...' OWNER_PASSWORD='your-password' npm run setup:owner
+ *   MONGO_URL='...' MEMBER_PASSWORD='the-password' npm run member:create
  *
- * Optional overrides: OWNER_EMAIL, OWNER_NAME, OWNER_ROLE (member|admin),
- * PRAYER_NAME, PRAYER_REQUEST.
+ * Optional overrides: MEMBER_EMAIL, MEMBER_NAME, PRAYER_NAME, PRAYER_REQUEST.
+ *
+ * The account is always a plain member — the same role a normal sign-up gets.
+ * Admin access is a separate mechanism (the admin-portal passphrase,
+ * ADMIN_PORTAL_PASSWORD) and is never granted through a login account here.
  *
  * The password is read from the environment and never written to disk or logged.
  * Safe to run repeatedly: the account is upserted by email and the prayer is
@@ -48,13 +51,12 @@ async function main() {
   await readFile(".env", "utf8").then(loadEnv).catch(() => {});
 
   const url = process.env.MONGO_URL;
-  const password = process.env.OWNER_PASSWORD;
-  if (!url) exit("MONGO_URL is not set. Pass it inline:\n  MONGO_URL='...' OWNER_PASSWORD='...' npm run setup:owner");
-  if (!password || password.length < 8) exit("OWNER_PASSWORD is not set (min 8 chars). Pass it inline, do not commit it.");
+  const password = process.env.MEMBER_PASSWORD;
+  if (!url) exit("MONGO_URL is not set. Pass it inline:\n  MONGO_URL='...' MEMBER_PASSWORD='...' npm run member:create");
+  if (!password || password.length < 8) exit("MEMBER_PASSWORD is not set (min 8 chars). Pass it inline, do not commit it.");
 
-  const email = (process.env.OWNER_EMAIL ?? "brixdodd07@gmail.com").toLowerCase();
-  const name = process.env.OWNER_NAME ?? "Brix Dodd";
-  const role = process.env.OWNER_ROLE === "admin" ? "admin" : "member";
+  const email = (process.env.MEMBER_EMAIL ?? "brixdodd07@gmail.com").toLowerCase();
+  const name = process.env.MEMBER_NAME ?? "Brix Dodd";
   const prayerName = process.env.PRAYER_NAME ?? "Brix";
   const request =
     process.env.PRAYER_REQUEST ??
@@ -67,7 +69,7 @@ async function main() {
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await User.findOneAndUpdate(
     { email },
-    { $set: { name, passwordHash, role }, $setOnInsert: { email } },
+    { $set: { name, passwordHash }, $setOnInsert: { email, role: "member" } },
     { new: true, upsert: true }
   );
   console.log(`Account ready: ${user.email} (${user.role}) — id ${user._id}`);

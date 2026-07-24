@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "seed": "node scripts/seed.mjs",
-    "setup:owner": "node scripts/setup-owner.mjs",
+    "member:create": "node scripts/create-member.mjs",
     "verses:fetch": "node scripts/fetch-verses.mjs"
   },
   "dependencies": {
