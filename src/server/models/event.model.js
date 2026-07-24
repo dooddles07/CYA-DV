@@ -19,6 +19,7 @@ const EventSchema = new Schema(
   { timestamps: true }
 );
 
-EventSchema.index({ date: 1 });
+// Public list filters published upcoming events sorted by date; compound covers both.
+EventSchema.index({ published: 1, date: 1 });
 
 export const Event = models.Event ?? model("Event", EventSchema);

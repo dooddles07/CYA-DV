@@ -68,11 +68,14 @@ export async function listPrayersPage({ limit = 20, cursor = null, userId = null
       if (!Number.isNaN(at.getTime())) filter.createdAt = { $lt: at };
     }
 
-    // Fetch one extra row to learn whether another page exists.
-    const docs = await Prayer.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(limit + 1)
-      .lean();
+    // Fetch one extra row to learn whether another page exists. The total is
+    // only needed for the first page (the client keeps its own tally while
+    // paginating), so skip the count on cursor pages and run it alongside the
+    // find on the first page rather than sequentially.
+    const [docs, total] = await Promise.all([
+      Prayer.find(filter).sort({ createdAt: -1 }).limit(limit + 1).lean(),
+      cursor ? Promise.resolve(0) : Prayer.countDocuments({ status: "approved" }),
+    ]);
 
     const hasMore = docs.length > limit;
     const page = hasMore ? docs.slice(0, limit) : docs;
@@ -81,7 +84,7 @@ export async function listPrayersPage({ limit = 20, cursor = null, userId = null
     return {
       prayers: page.map((d) => serialize(d, mine.has(d._id.toString()))),
       nextCursor: hasMore ? new Date(page[page.length - 1].createdAt).toISOString() : null,
-      total: await Prayer.countDocuments({ status: "approved" }),
+      total,
     };
   } catch (err) {
     // DB down — return an empty page rather than fabricated content.

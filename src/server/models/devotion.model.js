@@ -21,4 +21,7 @@ const DevotionSchema = new Schema(
   { timestamps: true }
 );
 
+// Public list reads published devotions newest-first; serve filter + sort together.
+DevotionSchema.index({ published: 1, createdAt: -1 });
+
 export const Devotion = models.Devotion ?? model("Devotion", DevotionSchema);

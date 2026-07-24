@@ -13,4 +13,8 @@ const PrayerSchema = new Schema(
   { timestamps: true }
 );
 
+// The wall reads approved posts newest-first with a createdAt cursor; this
+// compound index serves both the filter and the sort without a collection scan.
+PrayerSchema.index({ status: 1, createdAt: -1 });
+
 export const Prayer = models.Prayer ?? model("Prayer", PrayerSchema);
