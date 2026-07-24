@@ -49,6 +49,8 @@ export const routes = {
   "DELETE /api/admin/events/:id": "event.controller#destroy",
   "GET  /api/admin/prayers": "admin.controller#prayers",
   "PATCH /api/admin/prayers/:id": "admin.controller#moderatePrayer",
+  "GET  /api/admin/users": "admin.controller#users",
+  "PATCH /api/admin/users/:id": "admin.controller#setRole",
   "POST /api/admin/sync-verses": "sync.controller#syncVerseCorpus",
 };
 

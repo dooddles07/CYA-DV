@@ -1,4 +1,5 @@
 import "server-only";
+import { isValidObjectId } from "mongoose";
 import { dbConnect } from "@/server/config/db";
 import { User } from "@/server/models/user.model";
 import { ApiError } from "@/server/utils/api-error";
@@ -106,4 +107,43 @@ export async function requireAdmin(session) {
   const user = await User.findById(session.sub).select("role").lean();
   if (user?.role !== "admin") throw new ApiError(403, "Admins only.");
   return true;
+}
+
+/** @typedef {import("@/lib/types").AdminUser} AdminUser */
+
+/** All accounts, newest first, for the admin user-management screen. */
+export async function listUsers(limit = 200) {
+  await dbConnect();
+  const docs = await User.find()
+    .select("name email role emailVerified createdAt")
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+  return docs.map((u) => ({
+    id: u._id.toString(),
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    emailVerified: Boolean(u.emailVerified),
+    createdAt: new Date(u.createdAt).toISOString(),
+  }));
+}
+
+/**
+ * Sets an account's role. `actorId` is the acting admin's user id (null for a
+ * passphrase-only portal session) — an account admin cannot strip their own
+ * role and lock themselves out.
+ */
+export async function setUserRole(id, role, actorId = null) {
+  if (!isValidObjectId(id)) throw new ApiError(404, "Account not found.");
+  if (!["member", "admin"].includes(role)) throw new ApiError(400, "Invalid role.");
+  if (actorId && String(actorId) === String(id) && role !== "admin")
+    throw new ApiError(400, "You can't remove your own admin role.");
+
+  await dbConnect();
+  const doc = await User.findByIdAndUpdate(id, { $set: { role } }, { new: true })
+    .select("name email role")
+    .lean();
+  if (!doc) throw new ApiError(404, "Account not found.");
+  return { id, name: doc.name, email: doc.email, role: doc.role };
 }

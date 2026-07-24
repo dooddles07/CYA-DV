@@ -43,6 +43,15 @@ export type PrayerItem = {
 
 export type ModeratedPrayer = PrayerItem & { status: "approved" | "hidden" };
 
+export type AdminUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: "member" | "admin";
+  emailVerified: boolean;
+  createdAt: string;
+};
+
 export type SavedVerse = {
   reference: string;
   text: string;
