@@ -5,9 +5,22 @@ import { ApiError } from "@/server/utils/api-error";
 // Per-process fallback, used only when the DB is unreachable.
 const local = new Map();
 
+// Number of trusted reverse proxies in front of the app (e.g. the platform
+// edge). Everything to the LEFT of these hops in X-Forwarded-For is
+// client-supplied and spoofable, so the real client IP is counted from the
+// right. Override via env when the deployment sits behind extra proxies.
+const TRUSTED_PROXIES = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS) || 1);
+
 function clientKey(req) {
   const fwd = req.headers.get("x-forwarded-for");
-  return fwd?.split(",")[0].trim() || req.headers.get("x-real-ip") || "unknown";
+  if (fwd) {
+    const ips = fwd.split(",").map((s) => s.trim()).filter(Boolean);
+    // Count from the right: the hop our trusted proxy appended, not the
+    // attacker-controlled leftmost value.
+    const ip = ips[ips.length - TRUSTED_PROXIES];
+    if (ip) return ip;
+  }
+  return req.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
 function localLimit(key, limit, windowMs) {
