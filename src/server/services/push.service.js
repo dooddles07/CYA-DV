@@ -2,8 +2,11 @@ import "server-only";
 import webpush from "web-push";
 import { dbConnect } from "@/server/config/db";
 import { PushSubscription } from "@/server/models/push-subscription.model";
+import { PushLog } from "@/server/models/push-log.model";
 import { ApiError } from "@/server/utils/api-error";
 import { logError } from "@/server/utils/logger";
+import { manilaDayKey } from "@/server/utils/dates";
+import { getVerseOfDay } from "@/server/services/verse.service";
 
 // Cap concurrent push requests so a large subscriber base can't open thousands
 // of TLS connections at once (memory spike, socket exhaustion, provider rate
@@ -80,4 +83,38 @@ export async function broadcast({ title, body, url }) {
 
   if (dead.length) await PushSubscription.deleteMany({ endpoint: { $in: dead } });
   return { sent, removed: dead.length, total: subs.length };
+}
+
+/**
+ * Sends today's verse to every subscriber, at most once per Manila day.
+ *
+ * Idempotent: the day is claimed atomically via a unique PushLog row before
+ * sending, so a scheduler retry or overlapping trigger short-circuits instead
+ * of re-sending. If the broadcast itself throws, the claim is released so a
+ * later retry can succeed.
+ */
+export async function sendDailyVerse() {
+  await dbConnect();
+  const day = manilaDayKey();
+
+  try {
+    await PushLog.create({ day });
+  } catch (err) {
+    if (err?.code === 11000) return { skipped: true, reason: "already-sent", day };
+    throw err;
+  }
+
+  try {
+    const verse = await getVerseOfDay();
+    const result = await broadcast({
+      title: `Today's verse — ${verse.reference}`,
+      body: verse.text.length > 140 ? `${verse.text.slice(0, 140)}…` : verse.text,
+      url: "/verse",
+    });
+    return { day, ...result };
+  } catch (err) {
+    // Hard failure — release the claim so a retry isn't blocked as a duplicate.
+    await PushLog.deleteOne({ day }).catch(() => {});
+    throw err;
+  }
 }

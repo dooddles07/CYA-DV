@@ -1,7 +1,6 @@
 import "server-only";
 import { NextResponse } from "next/server";
-import { broadcast, removeSubscription, saveSubscription } from "@/server/services/push.service";
-import { getVerseOfDay } from "@/server/services/verse.service";
+import { removeSubscription, saveSubscription, sendDailyVerse } from "@/server/services/push.service";
 import { getSession } from "@/server/utils/session";
 import { ApiError, toResponse } from "@/server/utils/api-error";
 
@@ -42,13 +41,7 @@ export async function sendDaily(req) {
     if (!secret) throw new ApiError(503, "CRON_SECRET is not configured.");
     if (provided !== secret) throw new ApiError(401, "Not authorized.");
 
-    const verse = await getVerseOfDay();
-    const result = await broadcast({
-      title: `Today's verse — ${verse.reference}`,
-      body: verse.text.length > 140 ? `${verse.text.slice(0, 140)}…` : verse.text,
-      url: "/verse",
-    });
-    return NextResponse.json(result);
+    return NextResponse.json(await sendDailyVerse());
   } catch (err) {
     return toResponse(err, "Could not send reminders.");
   }
