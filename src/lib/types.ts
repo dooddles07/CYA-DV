@@ -52,6 +52,23 @@ export type AdminUser = {
   createdAt: string;
 };
 
+export type Devotion = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  author: string;
+  readTime: string;
+  date: string;
+  verse: string;
+  verseText: string;
+  image: string;
+  imageAlt: string;
+  body: string[];
+  practice: string;
+  published: boolean;
+};
+
 export type SavedVerse = {
   reference: string;
   text: string;

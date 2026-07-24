@@ -5,17 +5,15 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Clock } from "lucide-react";
 import { Reveal } from "@/components/motion";
 import { Badge, ButtonLink, Card } from "@/components/ui";
-import { devotions } from "@/lib/data";
+import { getDevotion, listDevotions } from "@/server/services/devotion.service";
 
 type Params = { params: Promise<{ slug: string }> };
 
-export function generateStaticParams() {
-  return devotions.map((d) => ({ slug: d.slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
-  const devotion = devotions.find((d) => d.slug === slug);
+  const devotion = await getDevotion(slug);
   if (!devotion) return { title: "Devotional not found" };
   return {
     title: devotion.title,
@@ -31,10 +29,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function DevotionDetailPage({ params }: Params) {
   const { slug } = await params;
-  const devotion = devotions.find((d) => d.slug === slug);
+  const devotion = await getDevotion(slug);
   if (!devotion) notFound();
 
-  const more = devotions.filter((d) => d.slug !== slug);
+  const more = (await listDevotions()).filter((d) => d.slug !== slug).slice(0, 4);
 
   return (
     <div className="mx-auto max-w-4xl px-4 pb-28 pt-28 sm:px-6 lg:px-8">

@@ -3,16 +3,30 @@ import Image from "next/image";
 import Link from "next/link";
 import { Clock } from "lucide-react";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
-import { Badge, ButtonLink, Card, SectionHeading } from "@/components/ui";
-import { devotions } from "@/lib/data";
+import { Badge, ButtonLink, Card, EmptyState, SectionHeading } from "@/components/ui";
+import { BookOpen } from "lucide-react";
+import { listDevotions } from "@/server/services/devotion.service";
 
 export const metadata: Metadata = {
   title: "Daily Devotional",
   description: "Short, honest devotionals written for young believers.",
 };
 
-export default function DevotionPage() {
-  const [featured, ...rest] = devotions;
+export const dynamic = "force-dynamic";
+
+export default async function DevotionPage() {
+  const [featured, ...rest] = await listDevotions();
+
+  if (!featured)
+    return (
+      <div className="mx-auto max-w-6xl px-4 pb-28 pt-28 sm:px-6 lg:px-8">
+        <EmptyState
+          icon={<BookOpen className="h-10 w-10" aria-hidden />}
+          title="No devotionals yet"
+          body="New readings are posted here soon — check back in the morning."
+        />
+      </div>
+    );
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-28 pt-28 sm:px-6 lg:px-8">

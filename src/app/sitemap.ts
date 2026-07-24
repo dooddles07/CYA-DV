@@ -1,11 +1,12 @@
 import type { MetadataRoute } from "next";
-import { devotions } from "@/lib/data";
+import { listDevotions } from "@/server/services/devotion.service";
 import { SITE_URL } from "@/lib/site";
 
 const routes = ["", "/verse", "/search", "/plans", "/devotion", "/prayer", "/events", "/mood", "/about", "/login", "/register"];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+  const devotions = await listDevotions();
   return [
     ...routes.map((path) => ({
       url: `${SITE_URL}${path}`,

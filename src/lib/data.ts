@@ -4,6 +4,7 @@
 // `npm run verses:fetch`, load it into the database with `npm run seed`.
 
 import verses from "../data/verses.json" with { type: "json" };
+import type { Devotion } from "./types";
 
 export type Verse = {
   reference: string;
@@ -46,22 +47,8 @@ export const moods = [
   { feeling: "I need peace", verse: byReference("John 14:27"), tint: "#eafaff" },
 ];
 
-export type Devotion = {
-  slug: string;
-  title: string;
-  excerpt: string;
-  author: string;
-  readTime: string;
-  date: string;
-  verse: string;
-  verseText: string;
-  image: string;
-  imageAlt: string;
-  body: string[];
-  practice: string;
-};
-
-export const devotions: Devotion[] = [
+/** Seed content for the DB-backed devotions (id/published are assigned there). */
+export const devotions: Omit<Devotion, "id" | "published">[] = [
   {
     slug: "wings-like-eagles",
     title: "Wings Like Eagles: Strength for the Waiting Season",

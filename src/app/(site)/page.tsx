@@ -12,7 +12,8 @@ import {
 } from "@/components/home/sections";
 import { Reveal, Parallax, Stagger, StaggerItem } from "@/components/motion";
 import { Badge, ButtonLink, Card, ProgressBar, SectionHeading } from "@/components/ui";
-import { devotions, getTodayLabel, testimonials } from "@/lib/data";
+import { getTodayLabel, testimonials } from "@/lib/data";
+import { listDevotions } from "@/server/services/devotion.service";
 import { listUpcomingEvents } from "@/server/services/event.service";
 import { getVerseOfDay } from "@/server/services/verse.service";
 import { getCommunityStats, getTopicCounts } from "@/server/services/stats.service";
@@ -27,15 +28,17 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const session = await getSession();
-  const [todaysVerse, stats, topicCounts, prayers, plan, saved, events] = await Promise.all([
-    getVerseOfDay(),
-    getCommunityStats(),
-    getTopicCounts(),
-    listPrayers(4, session?.sub ?? null),
-    session ? getActivePlan(session.sub) : previewPlan(),
-    session ? savedReferences(session.sub) : ([] as string[]),
-    listUpcomingEvents(3),
-  ]);
+  const [todaysVerse, stats, topicCounts, prayers, plan, saved, events, devotions] =
+    await Promise.all([
+      getVerseOfDay(),
+      getCommunityStats(),
+      getTopicCounts(),
+      listPrayers(4, session?.sub ?? null),
+      session ? getActivePlan(session.sub) : previewPlan(),
+      session ? savedReferences(session.sub) : ([] as string[]),
+      listUpcomingEvents(3),
+      listDevotions(1),
+    ]);
   const [featured] = devotions;
 
   return (
@@ -89,6 +92,7 @@ export default async function HomePage() {
       {/* -------------------------------------------- Devotion + reading plan */}
       <section className="py-24" aria-label="Devotion and reading plan">
         <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
+          {featured && (
           <Reveal>
             <Card className="flex h-full flex-col overflow-hidden" ring>
               <div className="relative h-52 overflow-hidden">
@@ -126,6 +130,7 @@ export default async function HomePage() {
               </div>
             </Card>
           </Reveal>
+          )}
 
           <Reveal delay={0.06}>
             <Card hover={false} className="flex h-full flex-col p-8 sm:p-9">

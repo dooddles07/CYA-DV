@@ -11,5 +11,9 @@ export const adminRoutes = {
   "PATCH /api/admin/prayers/:id": "admin.controller#moderatePrayer",
   "GET  /api/admin/users": "admin.controller#users",
   "PATCH /api/admin/users/:id": "admin.controller#setRole",
+  "GET  /api/admin/devotions": "devotion.controller#index",
+  "POST /api/admin/devotions": "devotion.controller#create",
+  "PATCH /api/admin/devotions/:id": "devotion.controller#update",
+  "DELETE /api/admin/devotions/:id": "devotion.controller#destroy",
   "POST /api/admin/sync-verses": "sync.controller#syncVerseCorpus",
 };

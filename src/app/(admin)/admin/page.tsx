@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Users } from "lucide-react";
+import { BookOpen, Users } from "lucide-react";
 import { EventsAdminClient } from "./events-admin-client";
 import { listAllEvents } from "@/server/services/event.service";
 import { isAdmin } from "@/server/utils/require-admin";
@@ -27,13 +27,22 @@ export default async function AdminEventsPage() {
             Post, edit, hide, or delete what the CYA family sees on the events page.
           </p>
         </div>
-        <Link
-          href="/admin/users"
-          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-sky-tint px-4 text-sm font-bold text-primary-700 hover:bg-sky-mist"
-        >
-          <Users className="h-4 w-4" aria-hidden />
-          Users
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/admin/devotions"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-sky-tint px-4 text-sm font-bold text-primary-700 hover:bg-sky-mist"
+          >
+            <BookOpen className="h-4 w-4" aria-hidden />
+            Devotionals
+          </Link>
+          <Link
+            href="/admin/users"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-sky-tint px-4 text-sm font-bold text-primary-700 hover:bg-sky-mist"
+          >
+            <Users className="h-4 w-4" aria-hidden />
+            Users
+          </Link>
+        </div>
       </div>
       <EventsAdminClient initialEvents={events} />
     </div>
