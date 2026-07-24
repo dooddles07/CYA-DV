@@ -1,3 +1,1 @@
-import { markRead } from "@/server/controllers/streak.controller";
-
-export const POST = markRead;
+export { markVerseRead as POST } from "@/server/routes/streak.routes";

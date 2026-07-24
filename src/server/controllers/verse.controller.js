@@ -2,7 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { getVerseOfDay, searchVerses } from "@/server/services/verse.service";
 import { toResponse } from "@/server/utils/api-error";
-import { rateLimit } from "@/server/utils/rate-limit";
+import { rateLimit } from "@/server/middleware/rate-limit";
 
 export async function today() {
   return NextResponse.json({ verse: await getVerseOfDay() });

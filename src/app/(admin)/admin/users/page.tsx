@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { UsersAdminClient } from "./users-admin-client";
 import { listUsers } from "@/server/services/user.service";
-import { isAdmin } from "@/server/utils/require-admin";
+import { isAdmin } from "@/server/middleware/require-admin";
 
 export const metadata: Metadata = {
   title: "User management",

@@ -1,3 +1,1 @@
-import { enroll } from "@/server/controllers/plan.controller";
-
-export const POST = enroll;
+export { enrollPlan as POST } from "@/server/routes/plan.routes";

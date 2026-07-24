@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { DevotionsAdminClient } from "./devotions-admin-client";
 import { listAllDevotions } from "@/server/services/devotion.service";
-import { isAdmin } from "@/server/utils/require-admin";
+import { isAdmin } from "@/server/middleware/require-admin";
 
 export const metadata: Metadata = {
   title: "Devotionals",

@@ -3,7 +3,7 @@ import { PrayerClient } from "./prayer-client";
 import { Reveal } from "@/components/motion";
 import { SectionHeading } from "@/components/ui";
 import { listPrayersPage } from "@/server/services/prayer.service";
-import { getSession } from "@/server/utils/session";
+import { getSession } from "@/server/middleware/session";
 
 export const metadata: Metadata = {
   title: "Prayer Wall",

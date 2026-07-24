@@ -2,7 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { syncVerses } from "@/server/services/verse.service";
-import { assertAdmin } from "@/server/utils/require-admin";
+import { assertAdmin } from "@/server/middleware/require-admin";
 import { toResponse } from "@/server/utils/api-error";
 
 /**

@@ -1,7 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { claimChallenge, markVerseRead } from "@/server/services/user.service";
-import { getSession } from "@/server/utils/session";
+import { getSession } from "@/server/middleware/session";
 import { toResponse } from "@/server/utils/api-error";
 
 export async function markRead() {

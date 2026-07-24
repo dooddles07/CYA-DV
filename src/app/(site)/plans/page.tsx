@@ -4,7 +4,7 @@ import { SectionHeading } from "@/components/ui";
 import { PlansClient } from "./plans-client";
 import { getActivePlan, listPlans, previewPlan } from "@/server/services/plan.service";
 import { getUserStats } from "@/server/services/user.service";
-import { getSession } from "@/server/utils/session";
+import { getSession } from "@/server/middleware/session";
 
 export const metadata: Metadata = {
   title: "Reading Plans",

@@ -1,4 +1,2 @@
-import { search } from "@/server/controllers/verse.controller";
-
 export const dynamic = "force-dynamic";
-export const GET = search;
+export { searchVerses as GET } from "@/server/routes/verse.routes";

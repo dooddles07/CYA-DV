@@ -2,8 +2,8 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { createPrayer, listPrayersPage, togglePrayed } from "@/server/services/prayer.service";
 import { toResponse } from "@/server/utils/api-error";
-import { rateLimit } from "@/server/utils/rate-limit";
-import { getSession } from "@/server/utils/session";
+import { rateLimit } from "@/server/middleware/rate-limit";
+import { getSession } from "@/server/middleware/session";
 
 export async function index(req) {
   const { searchParams } = new URL(req.url);

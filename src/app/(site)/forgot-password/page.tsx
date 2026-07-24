@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ForgotClient } from "./forgot-client";
 import { Aurora } from "@/components/motion/aurora";
-import { getSession } from "@/server/utils/session";
+import { getSession } from "@/server/middleware/session";
 
 export const metadata: Metadata = { title: "Forgot password", robots: { index: false } };
 

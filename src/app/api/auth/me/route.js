@@ -1,4 +1,2 @@
-import { me } from "@/server/controllers/auth.controller";
-
 export const dynamic = "force-dynamic";
-export const GET = me;
+export { currentUser as GET } from "@/server/routes/auth.routes";

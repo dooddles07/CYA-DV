@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { ShieldCheck } from "lucide-react";
 import { ExitPortalButton } from "./exit-portal-button";
-import { isAdmin } from "@/server/utils/require-admin";
+import { isAdmin } from "@/server/middleware/require-admin";
 
 export const dynamic = "force-dynamic";
 

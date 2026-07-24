@@ -9,7 +9,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { NotifyToggle } from "@/components/pwa/notify-toggle";
 import { SavedVerses } from "@/components/saved-verses";
 import { cx } from "@/lib/cx";
-import { getSession } from "@/server/utils/session";
+import { getSession } from "@/server/middleware/session";
 import { getUserStats } from "@/server/services/user.service";
 import { listSaved } from "@/server/services/saved-verse.service";
 import { getActivePlan } from "@/server/services/plan.service";

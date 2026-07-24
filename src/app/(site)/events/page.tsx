@@ -3,7 +3,7 @@ import { EventsClient } from "./events-client";
 import { Reveal } from "@/components/motion";
 import { SectionHeading } from "@/components/ui";
 import { listUpcomingEvents } from "@/server/services/event.service";
-import { getSession } from "@/server/utils/session";
+import { getSession } from "@/server/middleware/session";
 
 export const metadata: Metadata = {
   title: "Events",

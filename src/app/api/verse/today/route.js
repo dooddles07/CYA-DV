@@ -1,4 +1,2 @@
-import { today } from "@/server/controllers/verse.controller";
-
 export const dynamic = "force-dynamic";
-export const GET = today;
+export { todayVerse as GET } from "@/server/routes/verse.routes";

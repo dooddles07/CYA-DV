@@ -1,3 +1,1 @@
-import { logout } from "@/server/controllers/auth.controller";
-
-export const POST = logout;
+export { signOut as POST } from "@/server/routes/auth.routes";

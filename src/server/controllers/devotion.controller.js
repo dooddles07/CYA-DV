@@ -6,7 +6,7 @@ import {
   listAllDevotions,
   updateDevotion,
 } from "@/server/services/devotion.service";
-import { assertAdmin as guard } from "@/server/utils/require-admin";
+import { assertAdmin as guard } from "@/server/middleware/require-admin";
 import { toResponse } from "@/server/utils/api-error";
 
 export async function index() {

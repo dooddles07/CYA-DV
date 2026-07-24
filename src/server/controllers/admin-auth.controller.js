@@ -7,7 +7,7 @@ import {
   portalConfigured,
 } from "@/server/utils/admin-session";
 import { ApiError, toResponse } from "@/server/utils/api-error";
-import { rateLimit } from "@/server/utils/rate-limit";
+import { rateLimit } from "@/server/middleware/rate-limit";
 
 export async function portalLogin(req) {
   try {

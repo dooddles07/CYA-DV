@@ -1,9 +1,9 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { getEventImage, saveEventImage } from "@/server/services/event-image.service";
-import { assertAdmin } from "@/server/utils/require-admin";
+import { assertAdmin } from "@/server/middleware/require-admin";
 import { toResponse } from "@/server/utils/api-error";
-import { rateLimit } from "@/server/utils/rate-limit";
+import { rateLimit } from "@/server/middleware/rate-limit";
 
 export async function upload(req) {
   try {

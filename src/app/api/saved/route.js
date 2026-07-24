@@ -1,6 +1,6 @@
-import { index, remove, toggle } from "@/server/controllers/saved-verse.controller";
-
 export const dynamic = "force-dynamic";
-export const GET = index;
-export const POST = toggle;
-export const DELETE = remove;
+export {
+  listSaved as GET,
+  toggleSaved as POST,
+  removeSaved as DELETE,
+} from "@/server/routes/saved.routes";

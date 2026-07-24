@@ -2,8 +2,8 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { listAllPrayers, setPrayerStatus } from "@/server/services/prayer.service";
 import { listUsers, setUserRole } from "@/server/services/user.service";
-import { assertAdmin as guard } from "@/server/utils/require-admin";
-import { getSession } from "@/server/utils/session";
+import { assertAdmin as guard } from "@/server/middleware/require-admin";
+import { getSession } from "@/server/middleware/session";
 import { toResponse } from "@/server/utils/api-error";
 
 export async function prayers() {

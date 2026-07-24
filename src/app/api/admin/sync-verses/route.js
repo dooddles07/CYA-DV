@@ -1,4 +1,2 @@
-import { syncVerseCorpus } from "@/server/controllers/sync.controller";
-
 export const dynamic = "force-dynamic";
-export const POST = syncVerseCorpus;
+export { syncVerses as POST } from "@/server/routes/sync.routes";

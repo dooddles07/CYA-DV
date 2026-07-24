@@ -5,7 +5,7 @@ import { BookOpen, HeartHandshake, Users } from "lucide-react";
 import { EventsAdminClient } from "./events-admin-client";
 import { listAllEvents } from "@/server/services/event.service";
 import { recentPrayerCount } from "@/server/services/prayer.service";
-import { isAdmin } from "@/server/utils/require-admin";
+import { isAdmin } from "@/server/middleware/require-admin";
 
 export const metadata: Metadata = {
   title: "Events console",

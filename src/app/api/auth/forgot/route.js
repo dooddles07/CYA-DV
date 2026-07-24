@@ -1,3 +1,1 @@
-import { forgotPassword } from "@/server/controllers/auth.controller";
-
-export const POST = forgotPassword;
+export { forgot as POST } from "@/server/routes/auth.routes";

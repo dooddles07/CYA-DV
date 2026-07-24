@@ -1,5 +1,2 @@
-import { create, index } from "@/server/controllers/devotion.controller";
-
 export const dynamic = "force-dynamic";
-export const GET = index;
-export const POST = create;
+export { listDevotions as GET, createDevotion as POST } from "@/server/routes/devotion.routes";

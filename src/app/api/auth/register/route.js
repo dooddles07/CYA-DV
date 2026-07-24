@@ -1,3 +1,1 @@
-import { register } from "@/server/controllers/auth.controller";
-
-export const POST = register;
+export { signUp as POST } from "@/server/routes/auth.routes";

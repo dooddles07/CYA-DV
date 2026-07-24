@@ -5,7 +5,7 @@ import { ScrollProgress } from "@/components/motion/scroll-progress";
 import { CursorGlow } from "@/components/motion/cursor-glow";
 import { PageTransition } from "@/components/motion/page-transition";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
-import { getSession } from "@/server/utils/session";
+import { getSession } from "@/server/middleware/session";
 import { getUserStats } from "@/server/services/user.service";
 
 /** Chrome for every public-facing page. */

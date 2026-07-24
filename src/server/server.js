@@ -7,8 +7,8 @@ import { assertEnv, missingEnv } from "@/server/config/env";
  *
  * This is not a custom HTTP server — Next.js owns the HTTP layer, and replacing
  * it would disable static optimization. This module boots the backend: env
- * checks and DB warmup. Routing lives entirely in src/app/api/**\/route.js,
- * which delegate to the controllers in @/server/controllers.
+ * checks and DB warmup. Route-to-controller wiring lives in @/server/routes;
+ * each src/app/api/**\/route.js is a thin shim that re-exports those handlers.
  */
 
 let booted = null;

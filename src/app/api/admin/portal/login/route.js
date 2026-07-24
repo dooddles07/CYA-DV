@@ -1,3 +1,1 @@
-import { portalLogin } from "@/server/controllers/admin-auth.controller";
-
-export const POST = portalLogin;
+export { login as POST } from "@/server/routes/admin-auth.routes";

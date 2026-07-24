@@ -1,7 +1,7 @@
 import "server-only";
 import { hasAdminSession } from "@/server/utils/admin-session";
 import { requireAdmin } from "@/server/services/user.service";
-import { getSession } from "@/server/utils/session";
+import { getSession } from "@/server/middleware/session";
 import { ApiError } from "@/server/utils/api-error";
 
 /**

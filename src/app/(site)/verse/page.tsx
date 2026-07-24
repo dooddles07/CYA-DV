@@ -9,7 +9,7 @@ import { Card, SectionHeading } from "@/components/ui";
 import { getTodayLabel, reflectionQuestions, verseLibrary } from "@/lib/data";
 import { getVerseOfDay } from "@/server/services/verse.service";
 import { savedReferences } from "@/server/services/saved-verse.service";
-import { getSession } from "@/server/utils/session";
+import { getSession } from "@/server/middleware/session";
 
 export const metadata: Metadata = {
   title: "Daily Verse",

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { AdminClient } from "./admin-client";
 import { listAllPrayers } from "@/server/services/prayer.service";
-import { isAdmin } from "@/server/utils/require-admin";
+import { isAdmin } from "@/server/middleware/require-admin";
 
 export const metadata: Metadata = {
   title: "Prayer moderation",

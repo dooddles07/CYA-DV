@@ -1,7 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { enrollPlan, leavePlan, setDayComplete } from "@/server/services/plan.service";
-import { getSession } from "@/server/utils/session";
+import { getSession } from "@/server/middleware/session";
 import { toResponse } from "@/server/utils/api-error";
 
 export async function enroll(req) {

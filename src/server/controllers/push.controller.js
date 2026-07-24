@@ -1,7 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { removeSubscription, saveSubscription, sendDailyVerse } from "@/server/services/push.service";
-import { getSession } from "@/server/utils/session";
+import { getSession } from "@/server/middleware/session";
 import { ApiError, toResponse } from "@/server/utils/api-error";
 
 /** The browser needs the public key to build a subscription. */

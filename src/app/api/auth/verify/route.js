@@ -1,4 +1,2 @@
-import { verifyEmailAddress } from "@/server/controllers/auth.controller";
-
 export const dynamic = "force-dynamic";
-export const POST = verifyEmailAddress;
+export { verify as POST } from "@/server/routes/auth.routes";

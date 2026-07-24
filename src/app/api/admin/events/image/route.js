@@ -1,3 +1,1 @@
-import { upload } from "@/server/controllers/image.controller";
-
-export const POST = upload;
+export { uploadImage as POST } from "@/server/routes/image.routes";

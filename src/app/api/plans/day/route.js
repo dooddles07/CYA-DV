@@ -1,3 +1,1 @@
-import { completeDay } from "@/server/controllers/plan.controller";
-
-export const POST = completeDay;
+export { completePlanDay as POST } from "@/server/routes/plan.routes";

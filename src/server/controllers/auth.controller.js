@@ -4,9 +4,9 @@ import { loginUser, registerUser } from "@/server/services/auth.service";
 import { completeReset, requestReset } from "@/server/services/password-reset.service";
 import { resendVerification, sendVerificationEmail, verifyEmail } from "@/server/services/email-verification.service";
 import { getUserStats } from "@/server/services/user.service";
-import { createSession, destroySession, getSession } from "@/server/utils/session";
+import { createSession, destroySession, getSession } from "@/server/middleware/session";
 import { toResponse } from "@/server/utils/api-error";
-import { rateLimit } from "@/server/utils/rate-limit";
+import { rateLimit } from "@/server/middleware/rate-limit";
 
 async function readJson(req) {
   try {

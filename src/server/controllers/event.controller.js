@@ -8,8 +8,8 @@ import {
   toggleRsvp,
   updateEvent,
 } from "@/server/services/event.service";
-import { assertAdmin as guard } from "@/server/utils/require-admin";
-import { getSession } from "@/server/utils/session";
+import { assertAdmin as guard } from "@/server/middleware/require-admin";
+import { getSession } from "@/server/middleware/session";
 import { toResponse } from "@/server/utils/api-error";
 
 /** Public — upcoming published events only. RSVP state reflects the viewer. */

@@ -1,3 +1,1 @@
-import { resetPassword } from "@/server/controllers/auth.controller";
-
-export const POST = resetPassword;
+export { reset as POST } from "@/server/routes/auth.routes";

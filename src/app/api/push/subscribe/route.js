@@ -1,4 +1,1 @@
-import { subscribe, unsubscribe } from "@/server/controllers/push.controller";
-
-export const POST = subscribe;
-export const DELETE = unsubscribe;
+export { subscribePush as POST, unsubscribePush as DELETE } from "@/server/routes/push.routes";

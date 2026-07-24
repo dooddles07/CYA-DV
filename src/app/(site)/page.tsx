@@ -22,7 +22,7 @@ import { getCommunityStats, getTopicCounts } from "@/server/services/stats.servi
 import { listPrayers } from "@/server/services/prayer.service";
 import { getActivePlan, previewPlan } from "@/server/services/plan.service";
 import { savedReferences } from "@/server/services/saved-verse.service";
-import { getSession } from "@/server/utils/session";
+import { getSession } from "@/server/middleware/session";
 
 export const dynamic = "force-dynamic";
 
