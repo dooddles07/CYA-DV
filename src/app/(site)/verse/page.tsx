@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpen, HandHelping, PenLine } from "lucide-react";
 import { VerseCard } from "@/components/verse-card";
 import { MarkRead } from "@/components/mark-read";
+import { RecentlyViewed } from "@/components/recently-viewed";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { Card, SectionHeading } from "@/components/ui";
 import { getTodayLabel, reflectionQuestions, verseLibrary } from "@/lib/data";
@@ -56,6 +57,22 @@ export default async function VersePage() {
             initialSaved={saved.includes(todaysVerse.reference)}
           />
           <MarkRead />
+          <p className="mt-3 text-center text-xs leading-relaxed text-ink-faint">
+            This keeps your daily-verse streak.{" "}
+            <Link href="/plans" className="font-bold text-primary-700 hover:underline">
+              Reading-plan progress
+            </Link>{" "}
+            is tracked separately on the plans page.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <Link
+              href="/verse/archive"
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-primary-700 hover:underline"
+            >
+              Browse past daily verses
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
+          </div>
         </Reveal>
       </div>
 
@@ -144,6 +161,8 @@ export default async function VersePage() {
             ))}
           </Stagger>
         </section>
+
+        <RecentlyViewed current={todaysVerse.reference} />
       </div>
     </div>
   );

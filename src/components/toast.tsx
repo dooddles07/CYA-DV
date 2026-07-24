@@ -1,8 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect, useState } from "react";
-import { Check, Info, TriangleAlert } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Check, Info, TriangleAlert, X } from "lucide-react";
 import { spring } from "@/lib/motion";
 
 type Tone = "success" | "info" | "error";
@@ -27,17 +27,20 @@ export function Toaster() {
   const reduce = useReducedMotion();
   const [items, setItems] = useState<Item[]>([]);
 
+  const dismiss = useCallback(
+    (id: number) => setItems((list) => list.filter((i) => i.id !== id)),
+    []
+  );
+
   useEffect(() => {
     const onToast = (e: Event) => {
       const detail = (e as CustomEvent<Item>).detail;
       setItems((list) => [...list, detail]);
-      window.setTimeout(() => {
-        setItems((list) => list.filter((i) => i.id !== detail.id));
-      }, 3200);
+      window.setTimeout(() => dismiss(detail.id), 3200);
     };
     window.addEventListener(EVENT, onToast);
     return () => window.removeEventListener(EVENT, onToast);
-  }, []);
+  }, [dismiss]);
 
   return (
     <div
@@ -56,10 +59,18 @@ export function Toaster() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.96 }}
               transition={spring}
-              className="pointer-events-auto inline-flex items-center gap-2.5 rounded-full bg-ink px-5 py-3 text-sm font-semibold text-bg shadow-lift"
+              className="pointer-events-auto inline-flex items-center gap-2.5 rounded-full bg-ink py-3 pl-5 pr-2.5 text-sm font-semibold text-bg shadow-lift"
             >
               <Icon className="h-4 w-4 shrink-0" aria-hidden />
               {t.msg}
+              <button
+                type="button"
+                onClick={() => dismiss(t.id)}
+                aria-label="Dismiss notification"
+                className="-mr-1 grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-full text-bg/70 transition-colors hover:bg-bg/15 hover:text-bg"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
             </motion.div>
           );
         })}

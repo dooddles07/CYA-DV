@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useMemo, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -23,6 +23,7 @@ import { toast } from "@/components/toast";
 import { compressImage } from "@/lib/compress-image";
 import { cx } from "@/lib/cx";
 import { eventTags } from "@/lib/media";
+import { useDialog } from "@/lib/hooks";
 import type { EventItem } from "@/lib/types";
 
 type Draft = Omit<EventItem, "id" | "displayDate" | "rsvpCount" | "rsvped">;
@@ -70,6 +71,8 @@ export function EventsAdminClient({ initialEvents }: { initialEvents: EventItem[
   const [serverError, setServerError] = useState("");
   const [busy, setBusy] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<EventItem | null>(null);
+  const closeDelete = useCallback(() => setConfirmDelete(null), []);
+  const deleteRef = useDialog<HTMLDivElement>(!!confirmDelete, closeDelete);
   const [uploading, setUploading] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -520,12 +523,14 @@ export function EventsAdminClient({ initialEvents }: { initialEvents: EventItem[
             initial={reduce ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={reduce ? undefined : { opacity: 0 }}
-            onClick={() => setConfirmDelete(null)}
+            onClick={closeDelete}
           >
             <motion.div
+              ref={deleteRef}
               role="alertdialog"
               aria-modal="true"
               aria-labelledby="del-title"
+              aria-describedby="del-body"
               initial={reduce ? false : { opacity: 0, scale: 0.96, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={reduce ? undefined : { opacity: 0, scale: 0.97 }}
@@ -539,7 +544,7 @@ export function EventsAdminClient({ initialEvents }: { initialEvents: EventItem[
               <h2 id="del-title" className="mt-5 text-xl font-extrabold text-ink">
                 Delete this event?
               </h2>
-              <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+              <p id="del-body" className="mt-2 text-sm leading-relaxed text-ink-soft">
                 <span className="font-bold text-ink">{confirmDelete.title}</span>{" "}
                 will be removed permanently. This can&apos;t be undone — hide it instead if you only
                 want it off the page for now.
@@ -555,7 +560,7 @@ export function EventsAdminClient({ initialEvents }: { initialEvents: EventItem[
                   )}
                   Delete permanently
                 </Button>
-                <Button variant="outline" onClick={() => setConfirmDelete(null)}>
+                <Button variant="outline" onClick={closeDelete}>
                   Keep it
                 </Button>
               </div>

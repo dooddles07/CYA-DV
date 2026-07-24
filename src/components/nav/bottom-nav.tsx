@@ -3,21 +3,25 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { BookOpen, HandHelping, House, Search, User } from "lucide-react";
+import { BookOpen, HandHelping, House, LogIn, Search, User } from "lucide-react";
 import { cx } from "@/lib/cx";
 
-const items = [
-  { href: "/", label: "Home", icon: House },
-  { href: "/verse", label: "Verse", icon: BookOpen },
-  { href: "/search", label: "Search", icon: Search },
-  { href: "/prayer", label: "Pray", icon: HandHelping },
-  { href: "/dashboard", label: "Me", icon: User },
-];
-
 /** Thumb-friendly mobile navigation. Hidden on desktop. Max 5 items. */
-export function BottomNav() {
+export function BottomNav({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname();
   const reduce = useReducedMotion();
+
+  // Signed-out users have no dashboard, so send the last tab to sign-in
+  // rather than to a page that only redirects them back to /login.
+  const items = [
+    { href: "/", label: "Home", icon: House },
+    { href: "/verse", label: "Verse", icon: BookOpen },
+    { href: "/search", label: "Search", icon: Search },
+    { href: "/prayer", label: "Pray", icon: HandHelping },
+    signedIn
+      ? { href: "/dashboard", label: "Me", icon: User }
+      : { href: "/login", label: "Sign in", icon: LogIn },
+  ];
 
   return (
     <nav

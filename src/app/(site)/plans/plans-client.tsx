@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookOpen, CalendarCheck, Check, Flame, Loader2, LogOut, RotateCcw, Sunrise } from "lucide-react";
 import { Badge, Button, ButtonLink, Card, ProgressBar } from "@/components/ui";
@@ -91,7 +92,7 @@ export function PlansClient({
               </p>
             </div>
 
-            <p className="mt-6 text-xs font-bold text-ink-faint">First week</p>
+            <p className="mt-6 text-xs font-bold text-ink-faint">Recent days</p>
             <div className="mt-2">
               <WeekProgress weekProgress={plan.weekProgress} size="md" />
             </div>
@@ -122,6 +123,16 @@ export function PlansClient({
                 View my stats
               </ButtonLink>
             </div>
+
+            {plan.enrolled && (
+              <p className="mt-3 text-xs leading-relaxed text-ink-faint">
+                Marking a day moves your reading plan.{" "}
+                <Link href="/verse" className="font-bold text-primary-700 hover:underline">
+                  Reading today&apos;s verse
+                </Link>{" "}
+                keeps your daily-verse streak — the two are tracked separately.
+              </p>
+            )}
 
             {plan.enrolled && (
               <div className="mt-5 flex flex-wrap gap-4 text-sm">

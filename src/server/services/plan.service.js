@@ -9,6 +9,21 @@ import { logError } from "@/server/utils/logger";
 /** @typedef {import("@/lib/types").PlanSummary} PlanSummary */
 
 /**
+ * A rolling 7-day window ending at (or near) the day the reader is on, so a
+ * plan at day 40 shows days 34-40 instead of a useless days 1-7.
+ * @returns {{ day: number, done: boolean }[]}
+ */
+function weekWindow(total, nextDay, done) {
+  const len = Math.min(7, total);
+  const end = Math.min(total, Math.max(len, nextDay));
+  const start = Math.max(1, end - len + 1);
+  return Array.from({ length: len }, (_, i) => {
+    const day = start + i;
+    return { day, done: done.has(day) };
+  });
+}
+
+/**
  * Shape the plans page renders when nobody is signed in.
  * @returns {ActivePlan}
  */
@@ -24,7 +39,7 @@ export function previewPlan(slug = defaultPlanSlug) {
     nextDay: 1,
     todayReading: plan.readings[0],
     upcoming: plan.readings.slice(1, 4).map((passage, i) => ({ day: i + 2, passage })),
-    weekProgress: Array(7).fill(false),
+    weekProgress: weekWindow(plan.readings.length, 1, new Set()),
     enrolled: false,
   };
 }
@@ -50,8 +65,7 @@ function shape(plan, completedDays) {
     upcoming: plan.readings
       .slice(nextDay, nextDay + 3)
       .map((passage, i) => ({ day: nextDay + i + 1, passage })),
-    // The first seven days of the plan, as a simple at-a-glance row.
-    weekProgress: Array.from({ length: 7 }, (_, i) => done.has(i + 1)),
+    weekProgress: weekWindow(plan.readings.length, nextDay, done),
     enrolled: true,
   };
 }

@@ -2,7 +2,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { dbConnect } from "@/server/config/db";
 import { Verse } from "@/server/models/verse.model";
-import { dayNumber, manilaDayKey } from "@/server/utils/dates";
+import { dayNumber, keyFromDayNumber, manilaDayKey } from "@/server/utils/dates";
 import { logError } from "@/server/utils/logger";
 import verseSeed from "../../data/verses.json" with { type: "json" };
 
@@ -92,6 +92,39 @@ export async function getVerseOfDay() {
  * narrowed to a topic. Escapes user input before building the regex.
  */
 const toVerse = (d) => ({ reference: d.reference, text: d.text, version: d.version, topic: d.topic });
+
+/** Same lexical order the DB uses, for the archive's seed fallback. */
+function byReference(a, b) {
+  return a.reference < b.reference ? -1 : a.reference > b.reference ? 1 : 0;
+}
+
+/**
+ * The last `days` daily verses. Verse-of-day is a deterministic rotation
+ * (dayNumber % count), so past days are reproducible with no history table.
+ * @returns {Promise<{ dayKey: string, today: boolean, verse: import("@/lib/data").Verse }[]>}
+ */
+export async function getVerseArchive(days = 30) {
+  const build = (docs) => {
+    const count = docs.length;
+    const todayNum = dayNumber(manilaDayKey());
+    return Array.from({ length: days }, (_, i) => {
+      const num = todayNum - i;
+      const idx = ((num % count) + count) % count;
+      return { dayKey: keyFromDayNumber(num), today: i === 0, verse: toVerse(docs[idx]) };
+    });
+  };
+
+  try {
+    await dbConnect();
+    await ensureSeeded();
+    const docs = await Verse.find().sort({ reference: 1 }).lean();
+    if (!docs.length) throw new Error("no verses");
+    return build(docs);
+  } catch (err) {
+    logError("verse.getVerseArchive", err);
+    return build([...verseSeed].sort(byReference));
+  }
+}
 
 export async function searchVerses({ query = "", topic = "", limit = 60 } = {}) {
   query = String(query).slice(0, 120).trim();

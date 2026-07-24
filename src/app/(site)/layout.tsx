@@ -31,7 +31,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         <PageTransition>{children}</PageTransition>
       </main>
       <Footer />
-      <BottomNav />
+      <BottomNav signedIn={!!session} />
       <InstallPrompt />
     </>
   );

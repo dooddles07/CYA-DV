@@ -11,7 +11,8 @@ export type ActivePlan = {
   todayReading: string;
   finished?: boolean;
   upcoming: { day: number; passage: string }[];
-  weekProgress: boolean[];
+  // A rolling 7-day window ending near the current day, not a fixed days 1-7.
+  weekProgress: { day: number; done: boolean }[];
   enrolled: boolean;
 };
 

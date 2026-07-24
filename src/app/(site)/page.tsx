@@ -12,6 +12,7 @@ import {
 } from "@/components/home/sections";
 import { Reveal, Parallax, Stagger, StaggerItem } from "@/components/motion";
 import { WeekProgress } from "@/components/week-progress";
+import { SignInCard } from "@/components/sign-in-card";
 import { Badge, ButtonLink, Card, ProgressBar, SectionHeading } from "@/components/ui";
 import { getTodayLabel, testimonials } from "@/lib/data";
 import { listDevotions } from "@/server/services/devotion.service";
@@ -132,6 +133,9 @@ export default async function HomePage() {
           )}
 
           <Reveal delay={0.06}>
+            {!session ? (
+              <SignInCard />
+            ) : (
             <Card hover={false} className="flex h-full flex-col p-8 sm:p-9">
               <Badge tone="green">
                 {plan.enrolled
@@ -158,7 +162,7 @@ export default async function HomePage() {
                 />
               </div>
 
-              <p className="mt-6 text-xs font-bold text-ink-faint">First week</p>
+              <p className="mt-6 text-xs font-bold text-ink-faint">Recent days</p>
               <div className="mt-2">
                 <WeekProgress weekProgress={plan.weekProgress} />
               </div>
@@ -179,6 +183,7 @@ export default async function HomePage() {
                 Continue today&apos;s reading
               </ButtonLink>
             </Card>
+            )}
           </Reveal>
         </div>
       </section>

@@ -7,3 +7,8 @@ export function manilaDayKey(date = new Date()) {
 export function dayNumber(key) {
   return Math.floor(Date.parse(`${key}T00:00:00Z`) / 86_400_000);
 }
+
+/** Inverse of dayNumber: the Manila YYYY-MM-DD key for a whole-day number. */
+export function keyFromDayNumber(num) {
+  return manilaDayKey(new Date(num * 86_400_000));
+}

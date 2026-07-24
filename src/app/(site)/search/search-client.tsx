@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { BookOpen, Search as SearchIcon, Shuffle, X } from "lucide-react";
+import { BookOpen, Clock, Search as SearchIcon, Shuffle, X } from "lucide-react";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { cx } from "@/lib/cx";
 import { categories, type Verse } from "@/lib/data";
 import { EASE } from "@/lib/motion";
+import { useRecentList } from "@/lib/hooks";
 
 const topics = ["Strength", "Hope", "Peace", "Love", "Wisdom", "Faith", "Youth", "Grace", "Courage", "Rest"];
 
@@ -24,6 +25,8 @@ export function SearchClient({
   const [topic, setTopic] = useState(initialTopic);
   const [results, setResults] = useState<Verse[]>(initialResults);
   const skipFirst = useRef(true);
+  const history = useRecentList("cya:search-history", 8);
+  const pushHistory = history.push;
 
   // Debounced server search so results cover the whole collection, not just what shipped to the client.
   useEffect(() => {
@@ -33,19 +36,21 @@ export function SearchClient({
     }
     const controller = new AbortController();
     const id = window.setTimeout(() => {
+      const q = query.trim();
       const params = new URLSearchParams();
-      if (query.trim()) params.set("q", query.trim());
+      if (q) params.set("q", q);
       if (topic) params.set("topic", topic);
       fetch(`/api/verse/search?${params}`, { signal: controller.signal })
         .then((r) => r.json())
         .then((d) => setResults(d.verses ?? []))
         .catch(() => {});
+      if (q) pushHistory(q);
     }, 250);
     return () => {
       window.clearTimeout(id);
       controller.abort();
     };
-  }, [query, topic]);
+  }, [query, topic, pushHistory]);
 
   // Picks from the full collection, not the current filtered view.
   const randomVerse = async () => {
@@ -96,6 +101,52 @@ export function SearchClient({
           Surprise me with a random verse
         </motion.button>
       </div>
+
+      {/* Recent searches — only when the field is empty, so they don't fight typing */}
+      {!query.trim() && history.items.length > 0 && (
+        <div className="mx-auto mt-6 max-w-2xl">
+          <div className="flex items-center justify-between">
+            <p className="flex items-center gap-2 text-xs font-bold text-ink-faint">
+              <Clock className="h-3.5 w-3.5" aria-hidden />
+              Recent searches
+            </p>
+            <button
+              type="button"
+              onClick={history.clear}
+              className="min-h-9 cursor-pointer text-xs font-bold text-ink-faint hover:text-primary-700"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {history.items.map((q) => (
+              <span
+                key={q}
+                className="inline-flex items-center gap-1 rounded-full border border-line bg-surface pl-3 pr-1 text-sm font-semibold text-ink-soft shadow-soft"
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery(q);
+                    setTopic("");
+                  }}
+                  className="min-h-9 cursor-pointer py-1 hover:text-primary-700"
+                >
+                  {q}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => history.remove(q)}
+                  aria-label={`Remove "${q}" from recent searches`}
+                  className="grid h-6 w-6 cursor-pointer place-items-center rounded-full text-ink-faint hover:bg-sky-soft hover:text-ink"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Topic filters */}
       <div className="mt-6 flex flex-wrap justify-center gap-2" role="group" aria-label="Filter by topic">
