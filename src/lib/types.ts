@@ -48,6 +48,21 @@ export type SavedVerse = {
   topic: string;
 };
 
+export type EventItem = {
+  id: string;
+  title: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** Derived from `date`, e.g. "Aug 8, 2026" */
+  displayDate: string;
+  time: string;
+  location: string;
+  speaker: string;
+  tag: string;
+  image: string;
+  published: boolean;
+};
+
 export type UserStats = {
   name: string;
   email: string;

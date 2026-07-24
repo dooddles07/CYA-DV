@@ -103,7 +103,9 @@ export function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-line pt-6 text-xs text-ink-faint sm:flex-row">
-          <p>© 2026 Christ&apos;s Youth in Action. Scripture: NIV (demo content).</p>
+          <p>
+            © 2026 Christ&apos;s Youth in Action. Scripture: World English Bible (public domain).
+          </p>
           <p>Made with prayer, for the youth.</p>
         </div>
       </div>

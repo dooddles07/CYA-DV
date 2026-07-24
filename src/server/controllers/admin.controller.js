@@ -1,16 +1,8 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { listAllPrayers, setPrayerStatus } from "@/server/services/prayer.service";
-import { requireAdmin } from "@/server/services/user.service";
-import { getSession } from "@/server/utils/session";
-import { ApiError, toResponse } from "@/server/utils/api-error";
-
-async function guard() {
-  const session = await getSession();
-  if (!session) throw new ApiError(401, "Sign in required.");
-  await requireAdmin(session);
-  return session;
-}
+import { assertAdmin as guard } from "@/server/utils/require-admin";
+import { toResponse } from "@/server/utils/api-error";
 
 export async function prayers() {
   try {

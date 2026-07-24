@@ -12,7 +12,8 @@ import {
 } from "@/components/home/sections";
 import { Reveal, Parallax, Stagger, StaggerItem } from "@/components/motion";
 import { Badge, ButtonLink, Card, ProgressBar, SectionHeading } from "@/components/ui";
-import { devotions, events, getTodayLabel, testimonials } from "@/lib/data";
+import { devotions, getTodayLabel, testimonials } from "@/lib/data";
+import { listUpcomingEvents } from "@/server/services/event.service";
 import { getVerseOfDay } from "@/server/services/verse.service";
 import { getCommunityStats, getTopicCounts } from "@/server/services/stats.service";
 import { listPrayers } from "@/server/services/prayer.service";
@@ -26,13 +27,14 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const session = await getSession();
-  const [todaysVerse, stats, topicCounts, prayers, plan, saved] = await Promise.all([
+  const [todaysVerse, stats, topicCounts, prayers, plan, saved, events] = await Promise.all([
     getVerseOfDay(),
     getCommunityStats(),
     getTopicCounts(),
     listPrayers(4),
     session ? getActivePlan(session.sub) : previewPlan(),
     session ? savedReferences(session.sub) : ([] as string[]),
+    listUpcomingEvents(3),
   ]);
   const [featured] = devotions;
 
@@ -249,7 +251,7 @@ export default async function HomePage() {
 
           <Stagger className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {events.map((e) => (
-              <StaggerItem key={e.title}>
+              <StaggerItem key={e.id}>
                 <Card className="group flex h-full flex-col overflow-hidden">
                   <div className="relative h-52 overflow-hidden">
                     <Image

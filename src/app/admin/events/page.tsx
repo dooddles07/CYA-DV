@@ -2,36 +2,36 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Reveal } from "@/components/motion";
 import { SectionHeading } from "@/components/ui";
-import { AdminClient } from "./admin-client";
-import { AdminTabs } from "./admin-tabs";
-import { listAllPrayers } from "@/server/services/prayer.service";
+import { AdminTabs } from "@/app/admin/admin-tabs";
+import { EventsAdminClient } from "./events-admin-client";
+import { listAllEvents } from "@/server/services/event.service";
 import { isAdmin } from "@/server/utils/require-admin";
 
 export const metadata: Metadata = {
-  title: "Moderation",
+  title: "Manage events",
   robots: { index: false, follow: false },
 };
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage() {
-  if (!(await isAdmin())) redirect("/admin-portal?next=/admin");
+export default async function AdminEventsPage() {
+  if (!(await isAdmin())) redirect("/admin-portal?next=/admin/events");
 
-  const prayers = await listAllPrayers().catch(() => []);
+  const events = await listAllEvents().catch(() => []);
 
   return (
     <div className="mx-auto max-w-4xl px-4 pb-28 pt-28 sm:px-6 lg:px-8">
       <Reveal>
         <SectionHeading
           eyebrow="Admin portal"
-          title="Prayer wall"
-          sub="Hide anything that shouldn't be public. Hidden requests stay in the database but disappear from the wall."
+          title="Events"
+          sub="Post, edit, hide, or delete what the CYA family sees on the events page."
           className="mb-6"
         />
       </Reveal>
-      <AdminTabs active="prayers" />
+      <AdminTabs active="events" />
       <div className="mt-10">
-        <AdminClient initialPrayers={prayers} />
+        <EventsAdminClient initialEvents={events} />
       </div>
     </div>
   );

@@ -2,13 +2,18 @@ import type { Metadata } from "next";
 import { EventsClient } from "./events-client";
 import { Reveal } from "@/components/motion";
 import { SectionHeading } from "@/components/ui";
+import { listUpcomingEvents } from "@/server/services/event.service";
 
 export const metadata: Metadata = {
   title: "Events",
   description: "Worship nights, youth camps, and trainings from Christ's Youth in Action.",
 };
 
-export default function EventsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function EventsPage() {
+  const events = await listUpcomingEvents();
+
   return (
     <div className="mx-auto max-w-6xl px-4 pb-28 pt-28 sm:px-6 lg:px-8">
       <Reveal>
@@ -20,7 +25,7 @@ export default function EventsPage() {
           className="mb-12"
         />
       </Reveal>
-      <EventsClient />
+      <EventsClient events={events} />
     </div>
   );
 }

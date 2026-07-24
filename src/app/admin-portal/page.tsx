@@ -1,0 +1,29 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { PortalClient } from "./portal-client";
+import { isAdmin } from "@/server/utils/require-admin";
+
+export const metadata: Metadata = {
+  title: "Admin portal",
+  robots: { index: false, follow: false },
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function AdminPortalPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  if (await isAdmin()) redirect("/admin");
+
+  const { next = "/admin" } = await searchParams;
+  // Only allow internal redirects, so ?next= can't bounce a leader off-site.
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/admin";
+
+  return (
+    <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center px-4 pb-28 pt-28">
+      <PortalClient next={safeNext} />
+    </div>
+  );
+}

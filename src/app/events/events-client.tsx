@@ -4,13 +4,13 @@ import Image from "next/image";
 import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Calendar, Check, MapPin, Mic } from "lucide-react";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card, EmptyState } from "@/components/ui";
 import { cx } from "@/lib/cx";
 import { toast } from "@/components/toast";
 import { Stagger, StaggerItem } from "@/components/motion";
-import { events } from "@/lib/data";
 import { spring } from "@/lib/motion";
 import { useNow } from "@/lib/hooks";
+import type { EventItem } from "@/lib/types";
 
 /** Live countdown, recalculated each minute. Returns null once the date passes. */
 function useCountdown(target: string) {
@@ -26,7 +26,7 @@ function useCountdown(target: string) {
   };
 }
 
-function EventCard({ event }: { event: (typeof events)[number] }) {
+function EventCard({ event }: { event: EventItem }) {
   const reduce = useReducedMotion();
   const cd = useCountdown(event.date);
   const [going, setGoing] = useState(false);
@@ -92,11 +92,20 @@ function EventCard({ event }: { event: (typeof events)[number] }) {
   );
 }
 
-export function EventsClient() {
+export function EventsClient({ events }: { events: EventItem[] }) {
+  if (events.length === 0)
+    return (
+      <EmptyState
+        icon={<Calendar className="h-10 w-10" aria-hidden />}
+        title="No events scheduled yet"
+        body="Nothing on the calendar right now. Check back soon — new gatherings are posted here first."
+      />
+    );
+
   return (
     <Stagger className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {events.map((e) => (
-        <StaggerItem key={e.title}>
+        <StaggerItem key={e.id}>
           <EventCard event={e} />
         </StaggerItem>
       ))}

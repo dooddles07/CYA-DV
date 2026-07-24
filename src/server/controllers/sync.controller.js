@@ -1,9 +1,8 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { syncVerses } from "@/server/services/verse.service";
-import { requireAdmin } from "@/server/services/user.service";
-import { getSession } from "@/server/utils/session";
-import { ApiError, toResponse } from "@/server/utils/api-error";
+import { assertAdmin } from "@/server/utils/require-admin";
+import { toResponse } from "@/server/utils/api-error";
 
 /**
  * Loads src/data/verses.json into the database.
@@ -19,11 +18,7 @@ export async function syncVerseCorpus(req) {
       req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
       new URL(req.url).searchParams.get("secret");
 
-    if (!secret || provided !== secret) {
-      const session = await getSession();
-      if (!session) throw new ApiError(401, "Not authorized.");
-      await requireAdmin(session);
-    }
+    if (!secret || provided !== secret) await assertAdmin();
 
     return NextResponse.json(await syncVerses());
   } catch (err) {
