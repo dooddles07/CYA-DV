@@ -19,7 +19,7 @@ export async function index(req) {
 
 export async function create(req) {
   try {
-    const session = await getSession();
+    const session = await getSession({ strict: true });
     if (!session)
       return NextResponse.json({ error: "Sign in to share a prayer request." }, { status: 401 });
 

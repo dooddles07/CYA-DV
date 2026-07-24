@@ -50,8 +50,14 @@ async function currentTokenVersion(sub) {
   }
 }
 
-/** Returns { sub, name, email } or null. */
-export async function getSession() {
+/**
+ * Returns { sub, name, email } or null.
+ * @param {{ strict?: boolean }} [opts] When strict, a DB outage during the
+ * revocation lookup fails closed (null) instead of open. Use on auth-sensitive
+ * writes (prayer post, account delete/export) so a stale session can't act
+ * during a blip; leave off for reads/browsing to avoid mass logout.
+ */
+export async function getSession({ strict = false } = {}) {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   try {
@@ -59,11 +65,15 @@ export async function getSession() {
     if (!payload.sub) return null;
 
     // Revocation: the JWT's tokenVersion must still match the account's.
-    // It's bumped on password reset, so stale sessions stop working. On a DB
-    // outage we fail open (keep the session) rather than log everyone out.
+    // Bumped on password reset, so stale sessions stop working. On a DB outage
+    // we fail open by default (keep the session); strict callers fail closed.
     const fresh = await currentTokenVersion(payload.sub);
     if (fresh === "missing") return null;
-    if (fresh !== "error" && fresh !== Number(payload.tv ?? 0)) return null;
+    if (fresh === "error") {
+      if (strict) return null;
+    } else if (fresh !== Number(payload.tv ?? 0)) {
+      return null;
+    }
 
     return {
       sub: payload.sub,
