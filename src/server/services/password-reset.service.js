@@ -7,6 +7,7 @@ import { User } from "@/server/models/user.model";
 import { ResetToken } from "@/server/models/reset-token.model";
 import { ApiError } from "@/server/utils/api-error";
 import { requireSiteUrl } from "@/lib/site";
+import { logError } from "@/server/utils/logger";
 
 const TTL_MINUTES = 60;
 
@@ -83,13 +84,18 @@ export async function requestReset(email) {
   const link = `${requireSiteUrl()}/reset-password?token=${token}`;
   const { text, html } = emailBody(user.name.split(" ")[0] || "friend", link);
 
-  await mailer().sendMail({
-    from: mailFrom(),
-    to: user.email,
-    subject: "Reset your CYA Daily Verse password",
-    text,
-    html,
-  });
+  // Fire-and-forget: the response is the same whether or not an account exists
+  // (anti-enumeration), so it need not wait on the SMTP round-trip. Awaiting
+  // would let a slow mail server stall the request.
+  void mailer()
+    .sendMail({
+      from: mailFrom(),
+      to: user.email,
+      subject: "Reset your CYA Daily Verse password",
+      text,
+      html,
+    })
+    .catch((err) => logError("passwordReset.send", err, { userId: user._id.toString() }));
 
   return { sent: true };
 }
