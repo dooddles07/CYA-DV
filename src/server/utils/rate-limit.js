@@ -48,6 +48,9 @@ export async function rateLimit(req, { name, limit, windowMs, message }) {
 
   try {
     await dbConnect();
+    // Accepted TOCTOU: count then insert isn't atomic, so concurrent bursts can
+    // overshoot the limit by up to (concurrency - 1). Fine here — these limits are
+    // abuse-friction, not hard quotas. Revisit with an atomic reserve if that changes.
     const used = await RateHit.countDocuments({ key, at: { $gte: since } });
     if (used >= limit) throw new ApiError(429, tooMany);
     await RateHit.create({ key, at: new Date() });
