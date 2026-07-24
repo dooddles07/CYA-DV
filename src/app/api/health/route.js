@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
-import { missingEnv } from "@/server/config/env";
+import { status } from "@/server/server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const missing = missingEnv();
-  if (missing.length)
-    return NextResponse.json({ ok: false, missingEnv: missing }, { status: 503 });
-  return NextResponse.json({ ok: true });
+  const result = await status();
+  return NextResponse.json(result, { status: result.ok ? 200 : 503 });
 }
