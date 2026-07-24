@@ -1,18 +1,15 @@
 import "server-only";
 import { dbConnect } from "@/server/config/db";
 import { assertEnv, missingEnv } from "@/server/config/env";
-import { routes } from "@/server/routes";
 
 /**
  * Backend entry point.
  *
  * This is not a custom HTTP server — Next.js owns the HTTP layer, and replacing
  * it would disable static optimization. This module boots the backend: env
- * checks and DB warmup. The route registry lives in @/server/routes.
+ * checks and DB warmup. Routing lives entirely in src/app/api/**\/route.js,
+ * which delegate to the controllers in @/server/controllers.
  */
-
-// Re-exported so existing importers keep working.
-export { routes };
 
 let booted = null;
 
@@ -35,7 +32,7 @@ export async function status() {
   if (missing.length) return { ok: false, db: "not attempted", missingEnv: missing };
   try {
     await boot();
-    return { ok: true, db: "connected", routes: Object.keys(routes).length };
+    return { ok: true, db: "connected" };
   } catch (err) {
     return { ok: false, db: "unreachable", error: err.message };
   }
