@@ -49,12 +49,20 @@ export async function syncVerses() {
   };
 }
 
-/** Seeds on first use only; syncVerses() handles top-ups after that. */
-async function ensureSeeded() {
+// Reconcile the DB with the bundled seed once per process. Because syncVerses()
+// upserts by reference with $set, this propagates seed edits (e.g. a WEB -> BSB
+// text/version change) to an already-populated deployment on the first request
+// after a redeploy — no manual admin sync needed. Idempotent; guarded so
+// concurrent requests share the single run, and a failure resets for retry.
+let reconcile = null;
+async function ensureSynced() {
+  reconcile ??= syncVerses().catch((err) => {
+    reconcile = null;
+    logError("verse.ensureSynced", err);
+  });
+  await reconcile;
   const count = await Verse.countDocuments();
-  if (count > 0) return count;
-  await syncVerses();
-  return verseSeed.length;
+  return count > 0 ? count : verseSeed.length;
 }
 
 // Identical for every user and stable for a whole Manila day. The day key is a
@@ -62,7 +70,7 @@ async function ensureSeeded() {
 const cachedVerseOfDay = unstable_cache(
   async (dayKey) => {
     await dbConnect();
-    const count = await ensureSeeded();
+    const count = await ensureSynced();
     const idx = dayNumber(dayKey) % count;
     const doc = await Verse.findOne().sort({ reference: 1 }).skip(idx).lean();
     // Throw so the DB-empty/down case falls back and is never cached.
@@ -116,7 +124,7 @@ export async function getVerseArchive(days = 30) {
 
   try {
     await dbConnect();
-    await ensureSeeded();
+    await ensureSynced();
     const docs = await Verse.find().sort({ reference: 1 }).lean();
     if (!docs.length) throw new Error("no verses");
     return build(docs);
@@ -132,7 +140,7 @@ export async function searchVerses({ query = "", topic = "", limit = 60 } = {}) 
 
   try {
     await dbConnect();
-    await ensureSeeded();
+    await ensureSynced();
     const topicFilter = topic ? { topic } : {};
 
     if (!query) {

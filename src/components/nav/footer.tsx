@@ -2,14 +2,25 @@ import Image from "next/image";
 import Link from "next/link";
 import { Mail } from "lucide-react";
 
-const brandIcons = {
-  Facebook:
-    "M13.5 21.9v-7.4h2.5l.4-2.9h-2.9V9.75c0-.84.23-1.41 1.44-1.41h1.54V5.74c-.27-.04-1.18-.11-2.24-.11-2.22 0-3.74 1.35-3.74 3.83v2.14H8v2.9h2.5v7.4h3Z",
-  Instagram:
-    "M12 7.3a4.7 4.7 0 1 0 0 9.4 4.7 4.7 0 0 0 0-9.4Zm0 7.75a3.05 3.05 0 1 1 0-6.1 3.05 3.05 0 0 1 0 6.1ZM16.95 5.9a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2ZM21.4 12c0-1.3.01-2.59-.06-3.88-.07-1.5-.41-2.83-1.51-3.92-1.1-1.1-2.42-1.44-3.92-1.51C14.6 2.6 13.3 2.62 12 2.62s-2.59-.01-3.88.06c-1.5.07-2.83.41-3.92 1.51-1.1 1.1-1.44 2.42-1.51 3.92C2.6 9.4 2.62 10.7 2.62 12s-.01 2.59.06 3.88c.07 1.5.41 2.83 1.51 3.92 1.1 1.1 2.42 1.44 3.92 1.51 1.3.07 2.59.06 3.88.06s2.59.01 3.88-.06c1.5-.07 2.83-.41 3.92-1.51 1.1-1.1 1.44-2.42 1.51-3.92.08-1.29.06-2.58.06-3.88Zm-2.06 5.54a3.06 3.06 0 0 1-1.72 1.72c-1.19.47-4.02.37-5.62.37s-4.43.1-5.62-.37a3.06 3.06 0 0 1-1.72-1.72c-.47-1.2-.37-4.03-.37-5.62s-.1-4.43.37-5.62a3.06 3.06 0 0 1 1.72-1.72c1.2-.47 4.02-.37 5.62-.37s4.43-.1 5.62.37a3.06 3.06 0 0 1 1.72 1.72c.47 1.19.37 4.02.37 5.62s.1 4.42-.37 5.62Z",
-  YouTube:
-    "M21.58 7.19a2.5 2.5 0 0 0-1.76-1.77C18.25 5 12 5 12 5s-6.25 0-7.82.42A2.5 2.5 0 0 0 2.42 7.2 26 26 0 0 0 2 12a26 26 0 0 0 .42 4.81 2.5 2.5 0 0 0 1.76 1.77C5.75 19 12 19 12 19s6.25 0 7.82-.42a2.5 2.5 0 0 0 1.76-1.77A26 26 0 0 0 22 12a26 26 0 0 0-.42-4.81ZM10 15.13V8.87L15.25 12 10 15.13Z",
-} as const;
+// Paste the real profile URLs here. Icons with a "#" href are hidden, so an
+// unset network simply doesn't render rather than linking nowhere.
+const socials = [
+  {
+    label: "Facebook",
+    href: "#",
+    path: "M13.5 21.9v-7.4h2.5l.4-2.9h-2.9V9.75c0-.84.23-1.41 1.44-1.41h1.54V5.74c-.27-.04-1.18-.11-2.24-.11-2.22 0-3.74 1.35-3.74 3.83v2.14H8v2.9h2.5v7.4h3Z",
+  },
+  {
+    label: "Instagram",
+    href: "#",
+    path: "M12 7.3a4.7 4.7 0 1 0 0 9.4 4.7 4.7 0 0 0 0-9.4Zm0 7.75a3.05 3.05 0 1 1 0-6.1 3.05 3.05 0 0 1 0 6.1ZM16.95 5.9a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2ZM21.4 12c0-1.3.01-2.59-.06-3.88-.07-1.5-.41-2.83-1.51-3.92-1.1-1.1-2.42-1.44-3.92-1.51C14.6 2.6 13.3 2.62 12 2.62s-2.59-.01-3.88.06c-1.5.07-2.83.41-3.92 1.51-1.1 1.1-1.44 2.42-1.51 3.92C2.6 9.4 2.62 10.7 2.62 12s-.01 2.59.06 3.88c.07 1.5.41 2.83 1.51 3.92 1.1 1.1 2.42 1.44 3.92 1.51 1.3.07 2.59.06 3.88.06s2.59.01 3.88-.06c1.5-.07 2.83-.41 3.92-1.51 1.1-1.1 1.44-2.42 1.51-3.92.08-1.29.06-2.58.06-3.88Zm-2.06 5.54a3.06 3.06 0 0 1-1.72 1.72c-1.19.47-4.02.37-5.62.37s-4.43.1-5.62-.37a3.06 3.06 0 0 1-1.72-1.72c-.47-1.2-.37-4.03-.37-5.62s-.1-4.43.37-5.62a3.06 3.06 0 0 1 1.72-1.72c1.2-.47 4.02-.37 5.62-.37s4.43-.1 5.62.37a3.06 3.06 0 0 1 1.72 1.72c.47 1.19.37 4.02.37 5.62s.1 4.42-.37 5.62Z",
+  },
+  {
+    label: "YouTube",
+    href: "#",
+    path: "M21.58 7.19a2.5 2.5 0 0 0-1.76-1.77C18.25 5 12 5 12 5s-6.25 0-7.82.42A2.5 2.5 0 0 0 2.42 7.2 26 26 0 0 0 2 12a26 26 0 0 0 .42 4.81 2.5 2.5 0 0 0 1.76 1.77C5.75 19 12 19 12 19s6.25 0 7.82-.42a2.5 2.5 0 0 0 1.76-1.77A26 26 0 0 0 22 12a26 26 0 0 0-.42-4.81ZM10 15.13V8.87L15.25 12 10 15.13Z",
+  },
+] as const;
 
 const groups = [
   {
@@ -67,18 +78,22 @@ export function Footer() {
               Kay Kristo Buong Buhay, Habambuhay!
             </p>
             <div className="mt-5 flex gap-2">
-              {(Object.keys(brandIcons) as (keyof typeof brandIcons)[]).map((label) => (
-                <a
-                  key={label}
-                  href="#"
-                  aria-label={label}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:text-primary motion-reduce:hover:translate-y-0"
-                >
-                  <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden>
-                    <path d={brandIcons[label]} />
-                  </svg>
-                </a>
-              ))}
+              {socials
+                .filter((s) => s.href !== "#")
+                .map((s) => (
+                  <a
+                    key={s.label}
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={s.label}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:text-primary motion-reduce:hover:translate-y-0"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden>
+                      <path d={s.path} />
+                    </svg>
+                  </a>
+                ))}
               <a
                 href="mailto:hello@cya.ph"
                 aria-label="Email us"
