@@ -3,7 +3,7 @@ import { isValidObjectId } from "mongoose";
 import { dbConnect } from "@/server/config/db";
 import { User } from "@/server/models/user.model";
 import { ApiError } from "@/server/utils/api-error";
-import { dayNumber, manilaDayKey } from "@/server/utils/dates";
+import { dayNumber, keyFromDayNumber, manilaDayKey } from "@/server/utils/dates";
 import { XP_PER_READ, levelFor, xpToNext } from "@/server/utils/gamification";
 import { challenges } from "@/lib/data";
 import { logError } from "@/server/utils/logger";
@@ -55,26 +55,34 @@ export async function getUserStats(session) {
 /** Marks today's verse as read: extends or resets the streak, awards XP. Idempotent per day. */
 export async function markVerseRead(userId) {
   await dbConnect();
-  const user = await User.findById(userId);
-  if (!user) throw new ApiError(404, "Account not found.");
 
   const today = manilaDayKey();
-  let alreadyRead = false;
+  const yesterday = keyFromDayNumber(dayNumber(today) - 1);
 
-  if (user.lastReadDate === today) {
-    alreadyRead = true;
-  } else {
-    const consecutive =
-      user.lastReadDate && dayNumber(today) - dayNumber(user.lastReadDate) === 1;
-    user.streak = consecutive ? user.streak + 1 : 1;
-    user.bestStreak = Math.max(user.bestStreak, user.streak);
-    user.lastReadDate = today;
-    user.totalReads += 1;
-    user.xp += XP_PER_READ;
-    await user.save();
-  }
+  // Single conditional write: the { lastReadDate: { $ne: today } } filter is the
+  // day-guard, so two concurrent POSTs can never both award XP / bump the streak.
+  const user = await User.findOneAndUpdate(
+    { _id: userId, lastReadDate: { $ne: today } },
+    [
+      { $set: { streak: { $cond: [{ $eq: ["$lastReadDate", yesterday] }, { $add: ["$streak", 1] }, 1] } } },
+      {
+        $set: {
+          bestStreak: { $max: ["$bestStreak", "$streak"] },
+          lastReadDate: today,
+          totalReads: { $add: ["$totalReads", 1] },
+          xp: { $add: ["$xp", XP_PER_READ] },
+        },
+      },
+    ],
+    { new: true }
+  );
 
-  return { alreadyRead, ...stats(user) };
+  if (user) return { alreadyRead: false, ...stats(user) };
+
+  // Filter matched nothing: either already read today, or the account is gone.
+  const existing = await User.findById(userId).lean();
+  if (!existing) throw new ApiError(404, "Account not found.");
+  return { alreadyRead: true, ...stats(existing) };
 }
 
 /**
