@@ -38,13 +38,20 @@ const groups = [
       { href: "/dashboard", label: "My Dashboard" },
     ],
   },
+  {
+    title: "Legal",
+    links: [
+      { href: "/privacy", label: "Privacy Policy" },
+      { href: "/terms", label: "Terms of Use" },
+    ],
+  },
 ];
 
 export function Footer() {
   return (
     <footer className="relative border-t border-line bg-sky-soft pb-28 lg:pb-12">
       <div className="mx-auto max-w-7xl px-4 pt-14 sm:px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div>
             <Link href="/" className="flex items-center gap-2.5">
               <Image src="/media/cya-logo.png" alt="" width={40} height={40} className="rounded-xl" />

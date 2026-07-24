@@ -15,6 +15,7 @@ import { savedRoutes } from "@/server/routes/saved.routes";
 import { planRoutes } from "@/server/routes/plan.routes";
 import { pushRoutes } from "@/server/routes/push.routes";
 import { eventRoutes } from "@/server/routes/event.routes";
+import { accountRoutes } from "@/server/routes/account.routes";
 import { adminRoutes } from "@/server/routes/admin.routes";
 
 export const routes = {
@@ -27,5 +28,6 @@ export const routes = {
   ...planRoutes,
   ...pushRoutes,
   ...eventRoutes,
+  ...accountRoutes,
   ...adminRoutes,
 };

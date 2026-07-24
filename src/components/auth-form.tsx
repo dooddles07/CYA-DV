@@ -184,6 +184,14 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             "Create account"
           )}
         </Button>
+
+        {!isLogin && (
+          <p className="mt-4 text-center text-xs leading-relaxed text-ink-faint">
+            By creating an account you agree to our{" "}
+            <Link href="/terms" className="font-semibold text-primary-700 hover:underline">Terms</Link> and{" "}
+            <Link href="/privacy" className="font-semibold text-primary-700 hover:underline">Privacy Policy</Link>.
+          </p>
+        )}
       </form>
 
       <p className="mt-7 text-center text-sm text-ink-soft">

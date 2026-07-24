@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Award, BookOpen, Bookmark, Flame, Star, Trophy } from "lucide-react";
+import { AccountControls } from "@/components/account-controls";
 import { Counter, Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { Card, ProgressBar, SectionHeading } from "@/components/ui";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -160,6 +162,20 @@ export default async function DashboardPage() {
           </Card>
         </Reveal>
       </div>
+
+      <Reveal className="mt-10">
+        <Card hover={false} className="p-8">
+          <h2 className="text-xl font-extrabold text-ink">Account &amp; privacy</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
+            Download a copy of everything we hold about you, or delete your account for good. See our{" "}
+            <Link href="/privacy" className="font-bold text-primary hover:underline">Privacy Policy</Link> and{" "}
+            <Link href="/terms" className="font-bold text-primary hover:underline">Terms</Link>.
+          </p>
+          <div className="mt-5">
+            <AccountControls />
+          </div>
+        </Card>
+      </Reveal>
     </div>
   );
 }
