@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui";
 import { toast } from "@/components/toast";
@@ -14,6 +15,7 @@ export function VerifyClient({ token }: { token: string }) {
   );
   const ran = useRef(false);
   const [resending, setResending] = useState(false);
+  const router = useRouter();
 
   const resend = async () => {
     if (resending) return;
@@ -43,6 +45,8 @@ export function VerifyClient({ token }: { token: string }) {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error ?? "Could not verify your email.");
         setStatus("ok");
+        // Repaint server components (navbar, verified state) without a full reload.
+        router.refresh();
       })
       .catch((err) => {
         setStatus("error");
