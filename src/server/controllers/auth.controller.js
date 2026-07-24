@@ -2,6 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { loginUser, registerUser } from "@/server/services/auth.service";
 import { completeReset, requestReset } from "@/server/services/password-reset.service";
+import { resendVerification, sendVerificationEmail, verifyEmail } from "@/server/services/email-verification.service";
 import { getUserStats } from "@/server/services/user.service";
 import { createSession, destroySession, getSession } from "@/server/utils/session";
 import { toResponse } from "@/server/utils/api-error";
@@ -20,6 +21,8 @@ export async function register(req) {
     await rateLimit(req, { name: "auth:register", limit: 5, windowMs: 60 * 60_000 });
     const user = await registerUser(await readJson(req));
     await createSession(user);
+    // Best-effort — never fail registration if the mail send hiccups.
+    await sendVerificationEmail(user);
     return NextResponse.json({ user: { name: user.name, email: user.email } }, { status: 201 });
   } catch (err) {
     return toResponse(err);
@@ -69,6 +72,32 @@ export async function resetPassword(req) {
     return NextResponse.json({ user: { name: user.name, email: user.email } });
   } catch (err) {
     return toResponse(err, "Could not reset your password.");
+  }
+}
+
+export async function verifyEmailAddress(req) {
+  try {
+    await rateLimit(req, { name: "auth:verify", limit: 10, windowMs: 15 * 60_000 });
+    const body = await readJson(req);
+    return NextResponse.json(await verifyEmail(body.token));
+  } catch (err) {
+    return toResponse(err, "Could not verify your email.");
+  }
+}
+
+export async function resendVerificationEmail(req) {
+  try {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+    await rateLimit(req, {
+      name: "auth:verify-resend",
+      limit: 3,
+      windowMs: 15 * 60_000,
+      message: "Too many requests — please wait a few minutes.",
+    });
+    return NextResponse.json(await resendVerification(session.sub));
+  } catch (err) {
+    return toResponse(err, "Could not send the verification email.");
   }
 }
 

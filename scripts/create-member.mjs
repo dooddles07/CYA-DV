@@ -30,6 +30,7 @@ const UserSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true, maxlength: 60 },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, maxlength: 120 },
     passwordHash: { type: String, required: true },
+    emailVerified: { type: Boolean, default: false },
     role: { type: String, enum: ["member", "admin"], default: "member" },
   },
   { timestamps: true, strict: false }
@@ -69,7 +70,7 @@ async function main() {
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await User.findOneAndUpdate(
     { email },
-    { $set: { name, passwordHash, role: "member" }, $setOnInsert: { email } },
+    { $set: { name, passwordHash, role: "member", emailVerified: true }, $setOnInsert: { email } },
     { new: true, upsert: true }
   );
   console.log(`Account ready: ${user.email} (${user.role}) — id ${user._id}`);

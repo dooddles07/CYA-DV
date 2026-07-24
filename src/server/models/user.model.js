@@ -5,6 +5,9 @@ const UserSchema = new Schema(
     name: { type: String, required: true, trim: true, maxlength: 60 },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, maxlength: 120 },
     passwordHash: { type: String, required: true },
+    // Set once the user confirms ownership of their address via the emailed
+    // link. Gates actions that need accountability, e.g. posting to the wall.
+    emailVerified: { type: Boolean, default: false },
     // Bumped on password reset to invalidate every existing JWT session.
     tokenVersion: { type: Number, default: 0 },
     role: { type: String, enum: ["member", "admin"], default: "member" },

@@ -26,6 +26,8 @@ export const routes = {
   "POST /api/streak/challenge": "streak.controller#challenge",
   "POST /api/auth/forgot": "auth.controller#forgotPassword",
   "POST /api/auth/reset": "auth.controller#resetPassword",
+  "POST /api/auth/verify": "auth.controller#verifyEmailAddress",
+  "POST /api/auth/verify/resend": "auth.controller#resendVerificationEmail",
   "GET  /api/saved": "saved-verse.controller#index",
   "POST /api/saved": "saved-verse.controller#toggle",
   "DELETE /api/saved": "saved-verse.controller#remove",

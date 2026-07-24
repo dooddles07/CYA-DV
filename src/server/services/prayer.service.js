@@ -3,6 +3,7 @@ import { isValidObjectId } from "mongoose";
 import { dbConnect } from "@/server/config/db";
 import { Prayer } from "@/server/models/prayer.model";
 import { PrayerHit } from "@/server/models/prayer-hit.model";
+import { User } from "@/server/models/user.model";
 import { ApiError } from "@/server/utils/api-error";
 import { logError } from "@/server/utils/logger";
 
@@ -102,6 +103,11 @@ export async function createPrayer({ name, request, anonymous }, author) {
     throw new ApiError(400, "Please keep requests under 1000 characters.");
 
   await dbConnect();
+  // Verified email required so wall posts carry real accountability.
+  const account = await User.findById(author.sub).select("emailVerified").lean();
+  if (!account?.emailVerified)
+    throw new ApiError(403, "Please confirm your email before posting to the prayer wall.");
+
   const doc = await Prayer.create({
     userId: author.sub,
     name: display.slice(0, 60),
