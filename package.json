@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "seed": "node scripts/seed.mjs",
+    "purge:seed": "node scripts/purge-seed.mjs",
     "member:create": "node scripts/create-member.mjs",
     "verses:fetch": "node scripts/fetch-verses.mjs"
   },
