@@ -107,10 +107,12 @@ export async function completeReset(token, password) {
   if (!user) throw new ApiError(400, "This reset link is no longer valid.");
 
   user.passwordHash = await bcrypt.hash(password, 10);
+  // Invalidate every existing session so a compromised login is logged out.
+  user.tokenVersion = (user.tokenVersion ?? 0) + 1;
   await user.save();
 
   record.usedAt = new Date();
   await record.save();
 
-  return { id: user._id.toString(), name: user.name, email: user.email };
+  return { id: user._id.toString(), name: user.name, email: user.email, tokenVersion: user.tokenVersion };
 }

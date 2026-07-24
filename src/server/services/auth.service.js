@@ -19,7 +19,7 @@ export async function registerUser({ name, email, password }) {
 
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await User.create({ name, email, passwordHash });
-  return { id: user._id.toString(), name: user.name, email: user.email };
+  return { id: user._id.toString(), name: user.name, email: user.email, tokenVersion: user.tokenVersion ?? 0 };
 }
 
 export async function loginUser({ email, password }) {
@@ -32,5 +32,5 @@ export async function loginUser({ email, password }) {
   const ok = user && (await bcrypt.compare(password, user.passwordHash));
   if (!ok) throw new ApiError(401, "Invalid email or password.");
 
-  return { id: user._id.toString(), name: user.name, email: user.email };
+  return { id: user._id.toString(), name: user.name, email: user.email, tokenVersion: user.tokenVersion ?? 0 };
 }

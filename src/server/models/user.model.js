@@ -5,6 +5,8 @@ const UserSchema = new Schema(
     name: { type: String, required: true, trim: true, maxlength: 60 },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, maxlength: 120 },
     passwordHash: { type: String, required: true },
+    // Bumped on password reset to invalidate every existing JWT session.
+    tokenVersion: { type: Number, default: 0 },
     role: { type: String, enum: ["member", "admin"], default: "member" },
     xp: { type: Number, default: 0 },
     streak: { type: Number, default: 0 },
