@@ -7,15 +7,25 @@ import { ApiError } from "@/server/utils/api-error";
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_BYTES = 2 * 1024 * 1024;
 
-/** First bytes of each format, so a renamed .exe can't pass as an image. */
+/**
+ * Magic bytes per format, so a renamed .exe can't pass as an image. Each entry
+ * maps { offset: [bytes] }; every group must match. WebP is a RIFF container, so
+ * RIFF at 0 alone also matches WAV/AVI — the "WEBP" marker at 8 rules those out.
+ */
 const SIGNATURES = [
-  { type: "image/jpeg", bytes: [0xff, 0xd8, 0xff] },
-  { type: "image/png", bytes: [0x89, 0x50, 0x4e, 0x47] },
-  { type: "image/webp", bytes: [0x52, 0x49, 0x46, 0x46] },
+  { type: "image/jpeg", groups: { 0: [0xff, 0xd8, 0xff] } },
+  { type: "image/png", groups: { 0: [0x89, 0x50, 0x4e, 0x47] } },
+  { type: "image/webp", groups: { 0: [0x52, 0x49, 0x46, 0x46], 8: [0x57, 0x45, 0x42, 0x50] } },
 ];
 
 function detectType(buffer) {
-  return SIGNATURES.find((sig) => sig.bytes.every((b, i) => buffer[i] === b))?.type ?? null;
+  return (
+    SIGNATURES.find((sig) =>
+      Object.entries(sig.groups).every(([offset, bytes]) =>
+        bytes.every((b, i) => buffer[Number(offset) + i] === b)
+      )
+    )?.type ?? null
+  );
 }
 
 export async function saveEventImage(file) {
