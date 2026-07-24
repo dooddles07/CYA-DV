@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { Clock } from "lucide-react";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { Badge, ButtonLink, Card, SectionHeading } from "@/components/ui";
@@ -29,7 +30,7 @@ export default function DevotionPage() {
           <div className="relative h-64 sm:h-96">
             <Image
               src={featured.image}
-              alt="CYA members resting together under a tree with a guitar"
+              alt={featured.imageAlt}
               fill
               sizes="(min-width:1024px) 70vw, 100vw"
               className="object-cover"
@@ -60,32 +61,20 @@ export default function DevotionPage() {
             </div>
 
             <div className="mt-6 space-y-5 text-[16px] leading-relaxed text-ink-soft">
-              <p>
-                There is a specific kind of tiredness that sleep doesn&apos;t fix. You know it — the
-                exam week that blurs into the next, the family situation you can&apos;t solve, the
-                serving schedule that quietly emptied your tank. Isaiah 40 was written to people that
-                tired.
-              </p>
-              <p>
-                And notice what God <em>doesn&apos;t</em> say. He doesn&apos;t say “try harder.” He
-                says{" "}
-                <span className="font-semibold text-ink">hope in Me, and I will renew you.</span> The
-                eagle doesn&apos;t flap harder to soar — it finds the wind and spreads its wings.
-              </p>
-              <p>
-                Waiting on God is not passive. It is choosing, every morning, to put your expectation
-                in the only One whose strength never runs out. That&apos;s what this app is for.
-                That&apos;s what this morning is for.
-              </p>
+              {featured.body.map((paragraph, i) => (
+                <p key={i}>{paragraph}</p>
+              ))}
               <blockquote className="verse-text rounded-2xl bg-sky-soft p-6 text-lg italic text-ink">
-                “But those who hope in the LORD will renew their strength.” — Isaiah 40:31
+                “{featured.verseText}” — {featured.verse}
               </blockquote>
               <p>
-                <span className="font-semibold text-ink">Today, try this:</span> before you open any
-                other app, sit for one minute of silence and pray five words: “Lord, I am waiting on
-                You.”
+                <span className="font-semibold text-ink">Today, try this:</span> {featured.practice}
               </p>
             </div>
+
+            <ButtonLink href={`/devotion/${featured.slug}`} variant="secondary" className="mt-8">
+              Open full devotional
+            </ButtonLink>
           </article>
         </Card>
       </Reveal>
@@ -97,31 +86,33 @@ export default function DevotionPage() {
       <Stagger className="mt-6 grid gap-4 md:grid-cols-2">
         {rest.map((d) => (
           <StaggerItem key={d.slug}>
-            <Card className="flex h-full flex-col overflow-hidden">
-              <div className="relative h-40 overflow-hidden">
-                <Image
-                  src={d.image}
-                  alt=""
-                  fill
-                  sizes="(min-width:768px) 50vw, 100vw"
-                  className="object-cover"
-                />
-              </div>
-              <div className="flex flex-1 flex-col p-7">
-                <Badge tone="sky" className="self-start">
-                  {d.verse}
-                </Badge>
-                <h3 className="mt-4 text-xl font-extrabold leading-snug text-ink">{d.title}</h3>
-                <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-soft">{d.excerpt}</p>
-                <div className="mt-5 flex items-center justify-between text-xs font-semibold text-ink-faint">
-                  <span>{d.author}</span>
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" aria-hidden />
-                    {d.readTime}
-                  </span>
+            <Link href={`/devotion/${d.slug}`} className="block h-full">
+              <Card className="flex h-full flex-col overflow-hidden">
+                <div className="relative h-40 overflow-hidden">
+                  <Image
+                    src={d.image}
+                    alt=""
+                    fill
+                    sizes="(min-width:768px) 50vw, 100vw"
+                    className="object-cover"
+                  />
                 </div>
-              </div>
-            </Card>
+                <div className="flex flex-1 flex-col p-7">
+                  <Badge tone="sky" className="self-start">
+                    {d.verse}
+                  </Badge>
+                  <h3 className="mt-4 text-xl font-extrabold leading-snug text-ink">{d.title}</h3>
+                  <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-soft">{d.excerpt}</p>
+                  <div className="mt-5 flex items-center justify-between text-xs font-semibold text-ink-faint">
+                    <span>{d.author}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" aria-hidden />
+                      {d.readTime}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            </Link>
           </StaggerItem>
         ))}
       </Stagger>

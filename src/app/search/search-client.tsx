@@ -1,35 +1,58 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { BookOpen, Search as SearchIcon, Shuffle, X } from "lucide-react";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { cx } from "@/lib/cx";
-import { categories, verseLibrary } from "@/lib/data";
+import { categories, type Verse } from "@/lib/data";
 import { EASE } from "@/lib/motion";
 
 const topics = ["Strength", "Hope", "Peace", "Love", "Wisdom", "Faith", "Youth", "Grace", "Courage", "Rest"];
 
-export function SearchClient() {
-  const params = useSearchParams();
+export function SearchClient({
+  initialQuery,
+  initialTopic,
+  initialResults,
+}: {
+  initialQuery: string;
+  initialTopic: string;
+  initialResults: Verse[];
+}) {
   const reduce = useReducedMotion();
-  const [query, setQuery] = useState(params.get("q") ?? "");
-  const [topic, setTopic] = useState(params.get("topic") ?? "");
+  const [query, setQuery] = useState(initialQuery);
+  const [topic, setTopic] = useState(initialTopic);
+  const [results, setResults] = useState<Verse[]>(initialResults);
+  const skipFirst = useRef(true);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return verseLibrary.filter((v) => {
-      const matchQ =
-        !q || v.text.toLowerCase().includes(q) || v.reference.toLowerCase().includes(q);
-      const matchTopic = !topic || v.topic === topic;
-      return matchQ && matchTopic;
-    });
+  // Debounced server search so results cover the whole collection, not just what shipped to the client.
+  useEffect(() => {
+    if (skipFirst.current) {
+      skipFirst.current = false;
+      return;
+    }
+    const controller = new AbortController();
+    const id = window.setTimeout(() => {
+      const params = new URLSearchParams();
+      if (query.trim()) params.set("q", query.trim());
+      if (topic) params.set("topic", topic);
+      fetch(`/api/verse/search?${params}`, { signal: controller.signal })
+        .then((r) => r.json())
+        .then((d) => setResults(d.verses ?? []))
+        .catch(() => {});
+    }, 250);
+    return () => {
+      window.clearTimeout(id);
+      controller.abort();
+    };
   }, [query, topic]);
 
-  const randomVerse = () => {
-    const v = verseLibrary[Math.floor(Math.random() * verseLibrary.length)];
-    setQuery(v.reference);
+  // Picks from the full collection, not the current filtered view.
+  const randomVerse = async () => {
+    const res = await fetch("/api/verse/search").catch(() => null);
+    const all: Verse[] = res ? ((await res.json()).verses ?? []) : [];
+    if (all.length === 0) return;
+    setQuery(all[Math.floor(Math.random() * all.length)].reference);
     setTopic("");
   };
 

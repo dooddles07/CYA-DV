@@ -9,6 +9,7 @@ import { ScrollProgress } from "@/components/motion/scroll-progress";
 import { CursorGlow } from "@/components/motion/cursor-glow";
 import { PageTransition } from "@/components/motion/page-transition";
 import { Toaster } from "@/components/toast";
+import { SITE_URL as SITE } from "@/lib/site";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -24,8 +25,6 @@ const lora = Lora({
   variable: "--font-lora",
   display: "swap",
 });
-
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cya-daily-verses-production.up.railway.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),

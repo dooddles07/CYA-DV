@@ -58,7 +58,22 @@ export const moods = [
   { feeling: "I need peace", verse: verseLibrary[4], tint: "#eafaff" },
 ];
 
-export const devotions = [
+export type Devotion = {
+  slug: string;
+  title: string;
+  excerpt: string;
+  author: string;
+  readTime: string;
+  date: string;
+  verse: string;
+  verseText: string;
+  image: string;
+  imageAlt: string;
+  body: string[];
+  practice: string;
+};
+
+export const devotions: Devotion[] = [
   {
     slug: "wings-like-eagles",
     title: "Wings Like Eagles: Strength for the Waiting Season",
@@ -67,7 +82,15 @@ export const devotions = [
     readTime: "4 min",
     date: "July 17, 2026",
     verse: "Isaiah 40:31",
+    verseText: "But those who wait for the LORD will renew their strength. They will mount up with wings like eagles.",
     image: "/media/tree-guitar.jpg",
+    imageAlt: "CYA members resting together under a tree with a guitar",
+    body: [
+      "There is a specific kind of tiredness that sleep doesn't fix. You know it — the exam week that blurs into the next, the family situation you can't solve, the serving schedule that quietly emptied your tank. Isaiah 40 was written to people that tired.",
+      "And notice what God doesn't say. He doesn't say try harder. He says wait on Me, and I will renew you. The eagle doesn't flap harder to soar — it finds the wind and spreads its wings.",
+      "Waiting on God is not passive. It is choosing, every morning, to put your expectation in the only One whose strength never runs out. That's what this app is for. That's what this morning is for.",
+    ],
+    practice: "Before you open any other app, sit for one minute of silence and pray five words: “Lord, I am waiting on You.”",
   },
   {
     slug: "new-every-morning",
@@ -77,7 +100,15 @@ export const devotions = [
     readTime: "3 min",
     date: "July 16, 2026",
     verse: "Lamentations 3:22-23",
+    verseText: "They are new every morning. Great is your faithfulness.",
     image: "/media/golden-selfie.jpg",
+    imageAlt: "A CYA member smiling in golden morning light",
+    body: [
+      "Lamentations is a book of grief. Jeremiah is watching his city burn, and in the middle of that ruin he writes one of the most hopeful lines in Scripture: his compassions never fail, they are new every morning.",
+      "Not recycled. New. Whatever you spent yesterday — the patience you ran out of, the grace you failed to give, the prayer you never finished — none of it drains tomorrow's supply.",
+      "That means today does not inherit yesterday's verdict. You are not behind with God. You are simply at the start of a morning that already has mercy waiting in it.",
+    ],
+    practice: "Name one thing from yesterday you're still carrying. Say it out loud to God, then leave it in yesterday where His mercy already covered it.",
   },
   {
     slug: "young-and-called",
@@ -87,7 +118,15 @@ export const devotions = [
     readTime: "5 min",
     date: "July 15, 2026",
     verse: "1 Timothy 4:12",
+    verseText: "Let no man despise your youth; but be an example to those who believe.",
     image: "/media/cya-shirts.jpg",
+    imageAlt: "CYA members in matching shirts at a youth gathering",
+    body: [
+      "Timothy was leading a church while people twice his age questioned whether he should be. Paul's answer was not wait your turn. It was: don't let anyone look down on you — and then he raised the standard instead of lowering it.",
+      "Notice the five areas Paul lists: speech, conduct, love, faith, purity. None of them require a title, a platform, or a stage. Every one of them is available to you today, in your group chat, your classroom, your home.",
+      "Your generation is not the church of tomorrow waiting to be activated. You are the church of this morning. The question was never whether you're old enough. It's whether you'll be an example where you already are.",
+    ],
+    practice: "Pick one of the five — speech, conduct, love, faith, purity — and choose a single concrete way to lead in it before the day ends.",
   },
 ];
 

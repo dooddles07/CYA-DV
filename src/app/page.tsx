@@ -81,7 +81,7 @@ export default async function HomePage() {
               <div className="relative h-52 overflow-hidden">
                 <Image
                   src={featured.image}
-                  alt="CYA members resting together under a tree with a guitar"
+                  alt={featured.imageAlt}
                   fill
                   sizes="(min-width:1024px) 50vw, 100vw"
                   className="object-cover transition-transform duration-700 hover:scale-105 motion-reduce:transition-none"
@@ -105,7 +105,7 @@ export default async function HomePage() {
                 <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-soft">{featured.excerpt}</p>
                 <div className="mt-6 flex items-center justify-between gap-4">
                   <span className="text-sm font-bold text-ink">{featured.author}</span>
-                  <ButtonLink href="/devotion" variant="secondary" size="sm">
+                  <ButtonLink href={`/devotion/${featured.slug}`} variant="secondary" size="sm">
                     Continue reading
                     <ArrowRight className="h-4 w-4" aria-hidden />
                   </ButtonLink>
