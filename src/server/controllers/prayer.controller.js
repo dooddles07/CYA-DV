@@ -1,15 +1,26 @@
 import "server-only";
 import { NextResponse } from "next/server";
-import { createPrayer, listPrayers, togglePrayed } from "@/server/services/prayer.service";
+import { createPrayer, listPrayersPage, togglePrayed } from "@/server/services/prayer.service";
 import { toResponse } from "@/server/utils/api-error";
 import { rateLimit } from "@/server/utils/rate-limit";
+import { getSession } from "@/server/utils/session";
 
-export async function index() {
-  return NextResponse.json({ prayers: await listPrayers() });
+export async function index(req) {
+  const { searchParams } = new URL(req.url);
+  return NextResponse.json(
+    await listPrayersPage({
+      limit: searchParams.get("limit") ?? 20,
+      cursor: searchParams.get("cursor"),
+    })
+  );
 }
 
 export async function create(req) {
   try {
+    const session = await getSession();
+    if (!session)
+      return NextResponse.json({ error: "Sign in to share a prayer request." }, { status: 401 });
+
     await rateLimit(req, {
       name: "prayer:create",
       limit: 5,
@@ -17,7 +28,7 @@ export async function create(req) {
       message: "You've shared several requests already — please wait a few minutes.",
     });
     const body = await req.json().catch(() => ({}));
-    const prayer = await createPrayer(body);
+    const prayer = await createPrayer(body, session);
     return NextResponse.json({ prayer }, { status: 201 });
   } catch (err) {
     return toResponse(err, "Could not share right now. Please try again.");

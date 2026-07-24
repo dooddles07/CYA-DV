@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, CalendarCheck, Check, Flame, Loader2, Sunrise } from "lucide-react";
+import { BookOpen, CalendarCheck, Check, Flame, Loader2, LogOut, RotateCcw, Sunrise } from "lucide-react";
 import { Badge, Button, ButtonLink, Card, ProgressBar } from "@/components/ui";
 import { Stagger, StaggerItem } from "@/components/motion";
 import { toast } from "@/components/toast";
@@ -61,6 +61,13 @@ export function PlansClient({
     const day = plan.nextDay;
     const next = await call("/api/plans/day", { day, complete: true }, "day");
     if (next) toast(`Day ${day} complete — ${next.completedCount}/${next.totalDays}`, "success");
+  };
+
+  const leave = async (reset: boolean) => {
+    if (reset && !confirm(`Reset your progress in ${plan.name}? Completed days will be cleared.`))
+      return;
+    const next = await call("/api/plans/leave", { reset }, "leave");
+    if (next) toast(reset ? "Progress reset" : "Left the plan — progress kept", "info");
   };
 
   const percent = Math.round((plan.completedCount / plan.totalDays) * 100);
@@ -128,6 +135,29 @@ export function PlansClient({
                 View my stats
               </ButtonLink>
             </div>
+
+            {plan.enrolled && (
+              <div className="mt-5 flex flex-wrap gap-4 text-sm">
+                <button
+                  type="button"
+                  onClick={() => leave(false)}
+                  disabled={busy !== ""}
+                  className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 font-semibold text-ink-faint transition-colors hover:text-primary-700 disabled:opacity-40"
+                >
+                  <LogOut className="h-4 w-4" aria-hidden />
+                  Leave plan (keep progress)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => leave(true)}
+                  disabled={busy !== ""}
+                  className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 font-semibold text-ink-faint transition-colors hover:text-danger disabled:opacity-40"
+                >
+                  <RotateCcw className="h-4 w-4" aria-hidden />
+                  Reset progress
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col justify-center gap-4 bg-sky-soft p-8 sm:p-10">

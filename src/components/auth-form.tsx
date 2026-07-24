@@ -112,12 +112,22 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         </Field>
 
         <div>
-          <label htmlFor="auth-pw" className="text-sm font-bold text-ink">
-            Password
-            <span aria-hidden className="ml-1 text-danger">
-              *
-            </span>
-          </label>
+          <div className="flex items-center justify-between">
+            <label htmlFor="auth-pw" className="text-sm font-bold text-ink">
+              Password
+              <span aria-hidden className="ml-1 text-danger">
+                *
+              </span>
+            </label>
+            {isLogin && (
+              <Link
+                href="/forgot-password"
+                className="text-xs font-bold text-primary-700 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            )}
+          </div>
           <div className="relative mt-2">
             <input
               id="auth-pw"

@@ -48,6 +48,16 @@ export async function toggleSaved(userId, verse) {
   return { saved: true };
 }
 
+export async function removeSaved(userId, reference) {
+  reference = String(reference ?? "").trim();
+  if (!reference) throw new ApiError(400, "A verse reference is required.");
+
+  await dbConnect();
+  const result = await SavedVerse.deleteOne({ userId, reference });
+  if (result.deletedCount === 0) throw new ApiError(404, "That verse isn't in your saved list.");
+  return { removed: true, reference };
+}
+
 /**
  * References the user has saved, as a Set-friendly array.
  * @returns {Promise<string[]>}

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { PrayerClient } from "./prayer-client";
 import { Reveal } from "@/components/motion";
 import { SectionHeading } from "@/components/ui";
-import { listPrayers } from "@/server/services/prayer.service";
+import { listPrayersPage } from "@/server/services/prayer.service";
+import { getSession } from "@/server/utils/session";
 
 export const metadata: Metadata = {
   title: "Prayer Wall",
@@ -12,7 +13,9 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function PrayerPage() {
-  const prayers = await listPrayers();
+  const session = await getSession();
+  const { prayers, nextCursor, total } = await listPrayersPage({ limit: 20 });
+
   return (
     <div className="mx-auto max-w-6xl px-4 pb-28 pt-28 sm:px-6 lg:px-8">
       <Reveal>
@@ -23,7 +26,13 @@ export default async function PrayerPage() {
           className="mb-10"
         />
       </Reveal>
-      <PrayerClient initialPrayers={prayers} />
+      <PrayerClient
+        initialPrayers={prayers}
+        initialCursor={nextCursor}
+        total={total}
+        signedIn={!!session}
+        displayName={session?.name ?? ""}
+      />
     </div>
   );
 }

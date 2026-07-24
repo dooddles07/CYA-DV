@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Award, BookOpen, Bookmark, Flame, Star, Trophy } from "lucide-react";
 import { Counter, Reveal, Stagger, StaggerItem } from "@/components/motion";
-import { Badge, ButtonLink, Card, ProgressBar, SectionHeading } from "@/components/ui";
+import { ButtonLink, Card, ProgressBar, SectionHeading } from "@/components/ui";
 import { SignOutButton } from "@/components/sign-out-button";
 import { NotifyToggle } from "@/components/pwa/notify-toggle";
+import { SavedVerses } from "@/components/saved-verses";
 import { cx } from "@/lib/cx";
 import { getSession } from "@/server/utils/session";
 import { getUserStats } from "@/server/services/user.service";
@@ -128,32 +129,7 @@ export default async function DashboardPage() {
       <div className="mt-10 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <Reveal>
           <Card hover={false} className="h-full p-8">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-extrabold text-ink">Saved verses</h2>
-              <Badge tone="sky">{saved.length} saved</Badge>
-            </div>
-            {saved.length === 0 ? (
-              <p className="mt-5 rounded-2xl bg-sky-soft p-5 text-[15px] leading-relaxed text-ink-soft">
-                Nothing saved yet. Tap <span className="font-bold text-ink">Save</span> on any verse
-                and it will wait for you here.
-              </p>
-            ) : (
-              <ul className="mt-5 space-y-3">
-                {saved.slice(0, 6).map((v) => (
-                  <li key={v.reference} className="rounded-2xl bg-sky-soft p-5">
-                    <p className="verse-text text-[15px] leading-relaxed text-ink">
-                      “{v.text.length > 120 ? v.text.slice(0, 120) + "…" : v.text}”
-                    </p>
-                    <p className="mt-2.5 text-sm font-extrabold text-primary-700">
-                      {v.reference} · {v.version}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <ButtonLink href="/search" variant="secondary" className="mt-6">
-              Find more verses
-            </ButtonLink>
+            <SavedVerses initial={saved} />
           </Card>
         </Reveal>
 

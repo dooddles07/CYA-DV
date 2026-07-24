@@ -1,6 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { loginUser, registerUser } from "@/server/services/auth.service";
+import { completeReset, requestReset } from "@/server/services/password-reset.service";
 import { getUserStats } from "@/server/services/user.service";
 import { createSession, destroySession, getSession } from "@/server/utils/session";
 import { toResponse } from "@/server/utils/api-error";
@@ -39,6 +40,35 @@ export async function login(req) {
     return NextResponse.json({ user: { name: user.name, email: user.email } });
   } catch (err) {
     return toResponse(err);
+  }
+}
+
+export async function forgotPassword(req) {
+  try {
+    // Tight limit: this endpoint sends mail on someone else's behalf.
+    await rateLimit(req, {
+      name: "auth:forgot",
+      limit: 3,
+      windowMs: 15 * 60_000,
+      message: "Too many reset requests — please wait a few minutes.",
+    });
+    const body = await readJson(req);
+    return NextResponse.json(await requestReset(body.email));
+  } catch (err) {
+    return toResponse(err, "Could not send the reset email.");
+  }
+}
+
+export async function resetPassword(req) {
+  try {
+    await rateLimit(req, { name: "auth:reset", limit: 10, windowMs: 15 * 60_000 });
+    const body = await readJson(req);
+    const user = await completeReset(body.token, body.password);
+    // Sign them straight in — the token proved control of the mailbox.
+    await createSession(user);
+    return NextResponse.json({ user: { name: user.name, email: user.email } });
+  } catch (err) {
+    return toResponse(err, "Could not reset your password.");
   }
 }
 

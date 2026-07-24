@@ -51,24 +51,61 @@ async function seedIfEmpty() {
 }
 
 /** @returns {Promise<PrayerItem[]>} */
-export async function listPrayers(limit = 50) {
+export async function listPrayers(limit = 20) {
+  const { prayers } = await listPrayersPage({ limit });
+  return prayers;
+}
+
+/**
+ * One page of the wall, newest first. Uses createdAt as a cursor rather than
+ * skip/limit so new posts never shift rows into or out of a later page.
+ * @returns {Promise<{ prayers: PrayerItem[], nextCursor: string | null, total: number }>}
+ */
+export async function listPrayersPage({ limit = 20, cursor = null } = {}) {
+  limit = Math.min(Math.max(Number(limit) || 20, 1), 50);
+
   try {
     await dbConnect();
     await seedIfEmpty();
-    const docs = await Prayer.find({ status: "approved" })
+
+    const filter = { status: "approved" };
+    if (cursor) {
+      const at = new Date(cursor);
+      if (!Number.isNaN(at.getTime())) filter.createdAt = { $lt: at };
+    }
+
+    // Fetch one extra row to learn whether another page exists.
+    const docs = await Prayer.find(filter)
       .sort({ createdAt: -1 })
-      .limit(limit)
+      .limit(limit + 1)
       .lean();
-    return docs.map(serialize);
+
+    const hasMore = docs.length > limit;
+    const page = hasMore ? docs.slice(0, limit) : docs;
+
+    return {
+      prayers: page.map(serialize),
+      nextCursor: hasMore ? new Date(page[page.length - 1].createdAt).toISOString() : null,
+      total: await Prayer.countDocuments({ status: "approved" }),
+    };
   } catch {
     // DB down — show the static wall read-only rather than an empty page.
-    return staticWall();
+    const all = staticWall();
+    return { prayers: all.slice(0, limit), nextCursor: null, total: all.length };
   }
 }
 
-export async function createPrayer({ name, request, anonymous }) {
+/**
+ * Posting requires a signed-in user. `anonymous` only hides the display name —
+ * the author is still stored so moderation can act on repeat abuse.
+ */
+export async function createPrayer({ name, request, anonymous }, author) {
+  if (!author) throw new ApiError(401, "Sign in to share a prayer request.");
+
   request = String(request ?? "").trim();
-  name = anonymous ? "Anonymous" : String(name ?? "").trim() || "Anonymous";
+  const display = anonymous
+    ? "Anonymous"
+    : String(name ?? "").trim() || author.name || "Anonymous";
 
   if (request.length < 10)
     throw new ApiError(400, "Please write at least a short sentence so people know how to pray.");
@@ -76,7 +113,12 @@ export async function createPrayer({ name, request, anonymous }) {
     throw new ApiError(400, "Please keep requests under 1000 characters.");
 
   await dbConnect();
-  const doc = await Prayer.create({ name: name.slice(0, 60), request, tag: "New" });
+  const doc = await Prayer.create({
+    userId: author.sub,
+    name: display.slice(0, 60),
+    request,
+    tag: "New",
+  });
   return serialize(doc);
 }
 

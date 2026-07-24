@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, HandHelping, Loader2, Send } from "lucide-react";
-import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
+import { Check, HandHelping, Loader2, LogIn, Send } from "lucide-react";
+import { Badge, Button, ButtonLink, Card, Field, inputClass } from "@/components/ui";
 import { cx } from "@/lib/cx";
 import { toast } from "@/components/toast";
 import { spring } from "@/lib/motion";
@@ -18,15 +19,30 @@ function relTime(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export function PrayerClient({ initialPrayers }: { initialPrayers: PrayerItem[] }) {
+export function PrayerClient({
+  initialPrayers,
+  initialCursor,
+  total,
+  signedIn,
+  displayName,
+}: {
+  initialPrayers: PrayerItem[];
+  initialCursor: string | null;
+  total: number;
+  signedIn: boolean;
+  displayName: string;
+}) {
   const reduce = useReducedMotion();
   const [items, setItems] = useState<PrayerItem[]>(initialPrayers);
+  const [cursor, setCursor] = useState(initialCursor);
+  const [count, setCount] = useState(total);
   const [prayed, setPrayed] = useState<Record<string, boolean>>({});
-  const [name, setName] = useState("");
+  const [name, setName] = useState(displayName);
   const [request, setRequest] = useState("");
   const [anonymous, setAnonymous] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
@@ -51,8 +67,8 @@ export function PrayerClient({ initialPrayers }: { initialPrayers: PrayerItem[] 
         return;
       }
       setItems((list) => [data.prayer, ...list]);
+      setCount((n) => n + 1);
       setRequest("");
-      setName("");
       setSubmitted(true);
       toast("Shared with the family", "success");
       window.setTimeout(() => setSubmitted(false), 3000);
@@ -60,6 +76,21 @@ export function PrayerClient({ initialPrayers }: { initialPrayers: PrayerItem[] 
       setError("Network error — check your connection and try again.");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const loadMore = async () => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(`/api/prayers?cursor=${encodeURIComponent(cursor)}`);
+      const data = await res.json();
+      setItems((list) => [...list, ...(data.prayers ?? [])]);
+      setCursor(data.nextCursor ?? null);
+    } catch {
+      toast("Could not load more right now.", "error");
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -85,66 +116,88 @@ export function PrayerClient({ initialPrayers }: { initialPrayers: PrayerItem[] 
             Share what&apos;s on your heart. The CYA family will stand with you.
           </p>
 
-          <form onSubmit={onSubmit} className="mt-6 space-y-5" noValidate>
-            <Field label="Your name" id="pr-name">
-              <input
-                id="pr-name"
-                type="text"
-                value={name}
-                disabled={anonymous}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="name"
-                placeholder="e.g. Kim"
-                className={cx(inputClass, "disabled:bg-sky-soft disabled:text-ink-faint")}
-              />
-            </Field>
+          {!signedIn ? (
+            <div className="mt-6 rounded-2xl bg-sky-soft p-6 text-center">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-surface text-primary">
+                <LogIn className="h-5 w-5" aria-hidden />
+              </span>
+              <p className="mt-4 text-sm font-bold text-ink">Sign in to share a request</p>
+              <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+                An account keeps our wall safe for everyone. You can still post anonymously — your
+                name stays hidden from the wall.
+              </p>
+              <div className="mt-5 flex flex-wrap justify-center gap-3">
+                <ButtonLink href="/login" size="sm">
+                  Sign in
+                </ButtonLink>
+                <ButtonLink href="/register" variant="outline" size="sm">
+                  Create a free account
+                </ButtonLink>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={onSubmit} className="mt-6 space-y-5" noValidate>
+              <Field label="Your name" id="pr-name">
+                <input
+                  id="pr-name"
+                  type="text"
+                  value={anonymous ? "" : name}
+                  disabled={anonymous}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                  placeholder={anonymous ? "Anonymous" : "e.g. Kim"}
+                  className={cx(inputClass, "disabled:bg-sky-soft disabled:text-ink-faint")}
+                />
+              </Field>
 
-            <Field
-              label="Prayer request"
-              id="pr-request"
-              required
-              error={error}
-              help="Please avoid full names of other people for their privacy."
-            >
-              <textarea
+              <Field
+                label="Prayer request"
                 id="pr-request"
                 required
-                value={request}
-                onChange={(e) => setRequest(e.target.value)}
-                rows={4}
-                aria-invalid={!!error}
-                aria-describedby={error ? "pr-request-err" : "pr-request-help"}
-                placeholder="How can we pray for you?"
-                className="w-full resize-none rounded-2xl border border-line bg-surface p-4 text-[15px] leading-relaxed text-ink outline-none transition-colors duration-200 placeholder:text-ink-faint focus:border-primary"
-              />
-            </Field>
+                error={error}
+                help="Please avoid full names of other people for their privacy."
+              >
+                <textarea
+                  id="pr-request"
+                  required
+                  value={request}
+                  onChange={(e) => setRequest(e.target.value)}
+                  rows={4}
+                  maxLength={1000}
+                  aria-invalid={!!error}
+                  aria-describedby={error ? "pr-request-err" : "pr-request-help"}
+                  placeholder="How can we pray for you?"
+                  className="w-full resize-none rounded-2xl border border-line bg-surface p-4 text-[15px] leading-relaxed text-ink outline-none transition-colors duration-200 placeholder:text-ink-faint focus:border-primary"
+                />
+              </Field>
 
-            <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold text-ink-soft">
-              <input
-                type="checkbox"
-                checked={anonymous}
-                onChange={(e) => setAnonymous(e.target.checked)}
-                className="h-5 w-5 cursor-pointer rounded accent-[#0095ff]"
-              />
-              Post anonymously
-            </label>
+              <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold text-ink-soft">
+                <input
+                  type="checkbox"
+                  checked={anonymous}
+                  onChange={(e) => setAnonymous(e.target.checked)}
+                  className="h-5 w-5 cursor-pointer rounded accent-[#0095ff]"
+                />
+                Post anonymously
+              </label>
 
-            <Button type="submit" className="w-full" size="lg" disabled={busy}>
-              {busy ? (
-                <>
-                  <Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden /> Sharing…
-                </>
-              ) : submitted ? (
-                <>
-                  <Check className="h-[18px] w-[18px]" aria-hidden /> Shared with the family
-                </>
-              ) : (
-                <>
-                  <Send className="h-[18px] w-[18px]" aria-hidden /> Share prayer request
-                </>
-              )}
-            </Button>
-          </form>
+              <Button type="submit" className="w-full" size="lg" disabled={busy}>
+                {busy ? (
+                  <>
+                    <Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden /> Sharing…
+                  </>
+                ) : submitted ? (
+                  <>
+                    <Check className="h-[18px] w-[18px]" aria-hidden /> Shared with the family
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-[18px] w-[18px]" aria-hidden /> Share prayer request
+                  </>
+                )}
+              </Button>
+            </form>
+          )}
         </Card>
       </div>
 
@@ -153,7 +206,7 @@ export function PrayerClient({ initialPrayers }: { initialPrayers: PrayerItem[] 
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-extrabold text-ink">Community wall</h2>
           <span className="text-sm font-semibold text-ink-faint" aria-live="polite">
-            {items.length} requests
+            {count} request{count === 1 ? "" : "s"}
           </span>
         </div>
 
@@ -223,6 +276,22 @@ export function PrayerClient({ initialPrayers }: { initialPrayers: PrayerItem[] 
             })}
           </AnimatePresence>
         </motion.div>
+
+        {cursor && (
+          <div className="mt-6 flex justify-center">
+            <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+              {loadingMore && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+              Load more requests
+            </Button>
+          </div>
+        )}
+
+        <p className="mt-8 text-center text-xs leading-relaxed text-ink-faint">
+          Requests are public to everyone who visits this page.{" "}
+          <Link href="/about" className="font-bold text-primary-700 hover:underline">
+            Read our community guidelines
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -109,6 +109,23 @@ export async function setDayComplete(userId, day, complete) {
   return shape(plan, doc.completedDays);
 }
 
+/**
+ * Leaves the active plan. `resetProgress` also clears completed days, so the
+ * user can start the same plan fresh later instead of resuming mid-way.
+ * @returns {Promise<ActivePlan>}
+ */
+export async function leavePlan(userId, resetProgress = false) {
+  await dbConnect();
+  const doc = await UserPlan.findOne({ userId, active: true });
+  if (!doc) throw new ApiError(404, "You aren't in a reading plan right now.");
+
+  doc.active = false;
+  if (resetProgress) doc.completedDays = [];
+  await doc.save();
+
+  return previewPlan();
+}
+
 /** @returns {PlanSummary[]} */
 export function listPlans() {
   return readingPlans.map((p) => ({
