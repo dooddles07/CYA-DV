@@ -1,14 +1,8 @@
 import "server-only";
 import { NextResponse } from "next/server";
-import { enrollPlan, getActivePlan, leavePlan, setDayComplete } from "@/server/services/plan.service";
+import { enrollPlan, leavePlan, setDayComplete } from "@/server/services/plan.service";
 import { getSession } from "@/server/utils/session";
 import { toResponse } from "@/server/utils/api-error";
-
-export async function active() {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ plan: null });
-  return NextResponse.json({ plan: await getActivePlan(session.sub) });
-}
 
 export async function enroll(req) {
   const session = await getSession();

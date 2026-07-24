@@ -14,10 +14,6 @@ export type Verse = {
 
 export const verseLibrary: Verse[] = verses;
 
-/** Fallback only — the live verse of the day comes from the database. */
-export const todaysVerse: Verse =
-  verseLibrary.find((v) => v.reference === "Isaiah 40:31") ?? verseLibrary[0];
-
 /** Topic names must match the `topic` values in verses.json, or a grid tile shows no verses. */
 export const categories = [
   { name: "Faith", icon: "Sparkles" },
@@ -230,8 +226,6 @@ export const testimonials = [
     image: "/media/worship-practice.jpg",
   },
 ];
-
-export const streak = { current: 12, best: 30, xp: 1840, level: 7 };
 
 export const reflectionQuestions = [
   "What does this verse show you about who God is?",

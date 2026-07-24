@@ -334,38 +334,6 @@ export function TextReveal({
 }
 
 /* ------------------------------------------------------------------
-   Spotlight — a radial highlight that follows the pointer across a
-   surface. Writes CSS vars directly on the node, so tracking costs
-   zero React renders. Pair with the .spotlight class in globals.css.
------------------------------------------------------------------- */
-export function Spotlight({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  return (
-    <div
-      ref={ref}
-      className={`spotlight ${className ?? ""}`}
-      onPointerMove={(e) => {
-        if (e.pointerType !== "mouse") return;
-        const el = ref.current;
-        if (!el) return;
-        const r = el.getBoundingClientRect();
-        el.style.setProperty("--spot-x", `${e.clientX - r.left}px`);
-        el.style.setProperty("--spot-y", `${e.clientY - r.top}px`);
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------
    ScrollScale — subtle zoom/fade as a block passes through view.
 ------------------------------------------------------------------ */
 export function useScrollScale(ref: React.RefObject<HTMLElement | null>): {

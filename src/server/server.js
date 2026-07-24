@@ -29,7 +29,6 @@ export const routes = {
   "GET  /api/saved": "saved-verse.controller#index",
   "POST /api/saved": "saved-verse.controller#toggle",
   "DELETE /api/saved": "saved-verse.controller#remove",
-  "GET  /api/plans/active": "plan.controller#active",
   "POST /api/plans/enroll": "plan.controller#enroll",
   "POST /api/plans/day": "plan.controller#completeDay",
   "POST /api/plans/leave": "plan.controller#leave",
