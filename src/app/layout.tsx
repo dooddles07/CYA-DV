@@ -2,14 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Manrope, Lora } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/nav/navbar";
-import { BottomNav } from "@/components/nav/bottom-nav";
-import { Footer } from "@/components/nav/footer";
-import { ScrollProgress } from "@/components/motion/scroll-progress";
-import { CursorGlow } from "@/components/motion/cursor-glow";
-import { PageTransition } from "@/components/motion/page-transition";
 import { Toaster } from "@/components/toast";
-import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { SITE_URL as SITE } from "@/lib/site";
 
 const manrope = Manrope({
@@ -75,6 +68,11 @@ const themeScript = `
 })();
 `;
 
+/**
+ * Shell only. The public site chrome lives in (site)/layout.tsx and the
+ * admin console has its own in (admin)/layout.tsx, so neither leaks into
+ * the other.
+ */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${manrope.variable} ${lora.variable}`} suppressHydrationWarning>
@@ -82,22 +80,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Script id="cya-theme-init" strategy="beforeInteractive">
           {themeScript}
         </Script>
-        <a
-          href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-full focus:bg-primary focus:px-5 focus:py-3 focus:text-sm focus:font-bold focus:text-white"
-        >
-          Skip to content
-        </a>
-        <ScrollProgress />
-        <CursorGlow />
-        <Navbar />
-        <main id="main">
-          <PageTransition>{children}</PageTransition>
-        </main>
-        <Footer />
-        <BottomNav />
+        {children}
         <Toaster />
-        <InstallPrompt />
       </body>
     </html>
   );

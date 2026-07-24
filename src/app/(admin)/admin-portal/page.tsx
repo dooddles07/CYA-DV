@@ -22,7 +22,7 @@ export default async function AdminPortalPage({
   const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/admin";
 
   return (
-    <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center px-4 pb-28 pt-28">
+    <div className="flex min-h-dvh items-center justify-center px-4 py-16">
       <PortalClient next={safeNext} />
     </div>
   );

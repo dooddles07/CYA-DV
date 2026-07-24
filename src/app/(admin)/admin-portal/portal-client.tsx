@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import { Button, inputClass } from "@/components/ui";
 import { cx } from "@/lib/cx";
@@ -47,15 +48,25 @@ export function PortalClient({ next }: { next: string }) {
   return (
     <div className="w-full max-w-sm">
       <div className="flex flex-col items-center text-center">
-        <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-ink text-surface">
-          <ShieldCheck className="h-7 w-7" aria-hidden />
+        <span className="relative inline-flex">
+          <Image
+            src="/media/cya-logo.png"
+            alt="Christ's Youth in Action"
+            width={64}
+            height={64}
+            className="rounded-2xl"
+            priority
+          />
+          <span className="absolute -bottom-1.5 -right-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-bg bg-ink text-bg">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
+          </span>
         </span>
         <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.25em] text-ink-faint">
           Restricted area
         </p>
         <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink">Admin portal</h1>
         <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-          For CYA leaders managing events and the prayer wall.
+          For CYA leaders managing the events calendar.
         </p>
       </div>
 

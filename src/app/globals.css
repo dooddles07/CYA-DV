@@ -57,6 +57,42 @@
   --scrim: rgba(3, 9, 16, 0.6);
 }
 
+/* ============================================================
+   Admin console. Overrides the same semantic variables on a
+   wrapper element, so every shared component restyles itself
+   without any component-level changes. Wins over .dark on
+   <html>, keeping the back office dark in either site theme.
+   ============================================================ */
+/* Body stays the site's colour otherwise, which would flash white on overscroll. */
+body:has(.admin-shell) {
+  background: #020617;
+}
+
+.admin-shell {
+  color-scheme: dark;
+  --bg: #020617;
+  --surface: #0f172a;
+  --sky-tint: #1e293b;
+  --sky-soft: #111e33;
+  --sky-mist: #334155;
+  --ink: #f8fafc;
+  --ink-soft: #cbd5e1;
+  --ink-faint: #94a3b8;
+  --line: #1e293b;
+  --primary: #38bdf8;
+  --primary-600: #0ea5e9;
+  --primary-700: #7dd3fc;
+  --amber-soft: #3a2c0c;
+  --amber-strong: #fcd34d;
+  --mint-soft: #0d2f24;
+  --mint-strong: #4ade80;
+  --glass-bg: rgba(15, 23, 42, 0.78);
+  --glass-border: rgba(30, 41, 59, 0.9);
+  --skeleton-a: #16233a;
+  --skeleton-b: #1e2d47;
+  --scrim: rgba(2, 6, 23, 0.7);
+}
+
 /* ---- Tailwind tokens mapped to runtime vars ---- */
 @theme inline {
   --color-bg: var(--bg);
