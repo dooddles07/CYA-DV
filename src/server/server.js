@@ -23,6 +23,23 @@ export const routes = {
   "POST /api/prayers": "prayer.controller#create",
   "POST /api/prayers/:id/pray": "prayer.controller#pray",
   "POST /api/streak/read": "streak.controller#markRead",
+  "POST /api/streak/challenge": "streak.controller#challenge",
+  "POST /api/auth/forgot": "auth.controller#forgotPassword",
+  "POST /api/auth/reset": "auth.controller#resetPassword",
+  "GET  /api/saved": "saved-verse.controller#index",
+  "POST /api/saved": "saved-verse.controller#toggle",
+  "DELETE /api/saved": "saved-verse.controller#remove",
+  "GET  /api/plans/active": "plan.controller#active",
+  "POST /api/plans/enroll": "plan.controller#enroll",
+  "POST /api/plans/day": "plan.controller#completeDay",
+  "POST /api/plans/leave": "plan.controller#leave",
+  "GET  /api/push/key": "push.controller#publicKey",
+  "POST /api/push/subscribe": "push.controller#subscribe",
+  "DELETE /api/push/subscribe": "push.controller#unsubscribe",
+  "POST /api/cron/daily-verse": "push.controller#sendDaily",
+  "GET  /api/admin/prayers": "admin.controller#prayers",
+  "PATCH /api/admin/prayers/:id": "admin.controller#moderatePrayer",
+  "POST /api/admin/sync-verses": "sync.controller#syncVerseCorpus",
 };
 
 let booted = null;
