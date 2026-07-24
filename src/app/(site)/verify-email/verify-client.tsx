@@ -52,7 +52,7 @@ export function VerifyClient({ token }: { token: string }) {
         setStatus("error");
         setMessage(err.message);
       });
-  }, [token]);
+  }, [token, router]);
 
   if (status === "verifying")
     return (

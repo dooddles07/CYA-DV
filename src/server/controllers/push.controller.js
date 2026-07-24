@@ -1,8 +1,16 @@
 import "server-only";
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { removeSubscription, saveSubscription, sendDailyVerse } from "@/server/services/push.service";
 import { getSession } from "@/server/middleware/session";
 import { ApiError, toResponse } from "@/server/utils/api-error";
+
+/** Constant-time string compare so response time can't leak the cron secret. */
+function secretMatches(provided, expected) {
+  const a = crypto.createHash("sha256").update(String(provided ?? "")).digest();
+  const b = crypto.createHash("sha256").update(String(expected)).digest();
+  return crypto.timingSafeEqual(a, b);
+}
 
 /** The browser needs the public key to build a subscription. */
 export async function publicKey() {
@@ -22,7 +30,8 @@ export async function subscribe(req) {
 export async function unsubscribe(req) {
   try {
     const body = await req.json().catch(() => ({}));
-    return NextResponse.json(await removeSubscription(body.endpoint));
+    const session = await getSession();
+    return NextResponse.json(await removeSubscription(body.endpoint, session?.sub ?? null));
   } catch (err) {
     return toResponse(err, "Could not turn off reminders.");
   }
@@ -39,7 +48,7 @@ export async function sendDaily(req) {
     const provided = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
 
     if (!secret) throw new ApiError(503, "CRON_SECRET is not configured.");
-    if (provided !== secret) throw new ApiError(401, "Not authorized.");
+    if (!provided || !secretMatches(provided, secret)) throw new ApiError(401, "Not authorized.");
 
     return NextResponse.json(await sendDailyVerse());
   } catch (err) {

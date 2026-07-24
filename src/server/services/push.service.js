@@ -45,9 +45,23 @@ export async function saveSubscription(subscription, userId = null) {
   return { subscribed: true };
 }
 
-export async function removeSubscription(endpoint) {
+/**
+ * Removes a push subscription. A subscription owned by an account can only be
+ * removed by that account, so knowing someone else's endpoint can't silence
+ * their reminders. Anonymous (signed-out) subscriptions stay removable by
+ * endpoint alone, since that device has no session to prove ownership.
+ */
+export async function removeSubscription(endpoint, userId = null) {
+  endpoint = String(endpoint ?? "");
+  if (!endpoint) return { subscribed: false };
+
   await dbConnect();
-  await PushSubscription.deleteOne({ endpoint: String(endpoint ?? "") });
+  const sub = await PushSubscription.findOne({ endpoint }).select("userId").lean();
+  if (!sub) return { subscribed: false };
+  if (sub.userId && String(sub.userId) !== String(userId ?? ""))
+    throw new ApiError(403, "That subscription belongs to another account.");
+
+  await PushSubscription.deleteOne({ endpoint });
   return { subscribed: false };
 }
 
