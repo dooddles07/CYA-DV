@@ -10,6 +10,8 @@ import type { ModeratedPrayer } from "@/lib/types";
 export function AdminClient({ initialPrayers }: { initialPrayers: ModeratedPrayer[] }) {
   const [items, setItems] = useState(initialPrayers);
   const [busy, setBusy] = useState("");
+  // Snapshot once so the "New" cutoff is stable across re-renders.
+  const [freshCutoff] = useState(() => Date.now() - 86_400_000);
 
   const setStatus = async (p: ModeratedPrayer) => {
     const status = p.status === "approved" ? "hidden" : "approved";
@@ -50,6 +52,9 @@ export function AdminClient({ initialPrayers }: { initialPrayers: ModeratedPraye
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-extrabold text-ink">{p.name}</p>
             <div className="flex items-center gap-2">
+              {new Date(p.createdAt).getTime() > freshCutoff && (
+                <Badge tone="sky">New</Badge>
+              )}
               <Badge tone={p.status === "hidden" ? "gold" : "green"}>
                 {p.status === "hidden" ? "Hidden" : "Visible"}
               </Badge>

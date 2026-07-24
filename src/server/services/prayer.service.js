@@ -127,6 +127,17 @@ export async function listAllPrayers(limit = 200) {
   return docs.map((d) => ({ ...serialize(d), status: d.status }));
 }
 
+/** Count of prayer posts created in the last `hours`, for the admin nudge. */
+export async function recentPrayerCount(hours = 24) {
+  try {
+    await dbConnect();
+    return await Prayer.countDocuments({ createdAt: { $gte: new Date(Date.now() - hours * 3_600_000) } });
+  } catch (err) {
+    logError("prayer.recentPrayerCount", err);
+    return 0;
+  }
+}
+
 export async function setPrayerStatus(id, status) {
   if (!isValidObjectId(id)) throw new ApiError(404, "Not found.");
   if (!["approved", "hidden"].includes(status)) throw new ApiError(400, "Invalid status.");

@@ -14,8 +14,9 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 /**
- * Kept but intentionally unlinked: the prayer wall belongs to members, so the
- * console does not surface it. Reachable by URL when moderation is needed.
+ * Linked from the console with a badge showing new posts in the last 24 hours,
+ * so the wall is actually watched. New requests still appear immediately for
+ * members; this screen is for hiding anything that shouldn't be public.
  */
 export default async function AdminPrayersPage() {
   if (!(await isAdmin())) redirect("/admin-portal?next=/admin/prayers");
