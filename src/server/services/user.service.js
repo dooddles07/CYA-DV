@@ -59,27 +59,30 @@ export async function markVerseRead(userId) {
   const today = manilaDayKey();
   const yesterday = keyFromDayNumber(dayNumber(today) - 1);
 
-  // Single conditional write: the { lastReadDate: { $ne: today } } filter is the
-  // day-guard, so two concurrent POSTs can never both award XP / bump the streak.
+  // Read current state, then commit with a conditional write. The next streak /
+  // best are computed in JS rather than an aggregation-pipeline update, which
+  // isn't portable across MongoDB versions. Atomicity of the once-per-day award
+  // still comes from the { lastReadDate: { $ne: today } } filter below.
+  const current = await User.findById(userId).select("streak bestStreak lastReadDate").lean();
+  if (!current) throw new ApiError(404, "Account not found.");
+
+  const nextStreak = current.lastReadDate === yesterday ? (current.streak ?? 0) + 1 : 1;
+  const nextBest = Math.max(current.bestStreak ?? 0, nextStreak);
+
+  // The filter is the day-guard: two concurrent POSTs can't both award, because
+  // the first flips lastReadDate to today and the second no longer matches.
   const user = await User.findOneAndUpdate(
     { _id: userId, lastReadDate: { $ne: today } },
-    [
-      { $set: { streak: { $cond: [{ $eq: ["$lastReadDate", yesterday] }, { $add: ["$streak", 1] }, 1] } } },
-      {
-        $set: {
-          bestStreak: { $max: ["$bestStreak", "$streak"] },
-          lastReadDate: today,
-          totalReads: { $add: ["$totalReads", 1] },
-          xp: { $add: ["$xp", XP_PER_READ] },
-        },
-      },
-    ],
+    {
+      $set: { streak: nextStreak, bestStreak: nextBest, lastReadDate: today },
+      $inc: { totalReads: 1, xp: XP_PER_READ },
+    },
     { new: true }
   );
 
   if (user) return { alreadyRead: false, ...stats(user) };
 
-  // Filter matched nothing: either already read today, or the account is gone.
+  // Filter matched nothing: already read today (the account exists — checked above).
   const existing = await User.findById(userId).lean();
   if (!existing) throw new ApiError(404, "Account not found.");
   return { alreadyRead: true, ...stats(existing) };

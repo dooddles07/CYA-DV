@@ -13,9 +13,14 @@ export function mailer() {
   const pass = process.env.SMTP_PASS;
   if (!user || !pass) throw new ApiError(503, "Email is not configured on this server.");
 
+  // Bounded timeouts so a stalled SMTP handshake or send can never hang a
+  // request. Without these, nodemailer waits on the OS TCP timeout (minutes).
   cached ??= nodemailer.createTransport({
     service: "gmail",
     auth: { user, pass },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
   });
   return cached;
 }

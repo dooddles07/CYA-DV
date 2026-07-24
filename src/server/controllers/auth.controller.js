@@ -21,8 +21,9 @@ export async function register(req) {
     await rateLimit(req, { name: "auth:register", limit: 5, windowMs: 60 * 60_000 });
     const user = await registerUser(await readJson(req));
     await createSession(user);
-    // Best-effort — never fail registration if the mail send hiccups.
-    await sendVerificationEmail(user);
+    // Fire-and-forget: the send owns its own errors, and awaiting it would block
+    // the response for the full SMTP round-trip (or hang on a stalled server).
+    void sendVerificationEmail(user).catch(() => {});
     return NextResponse.json({ user: { name: user.name, email: user.email } }, { status: 201 });
   } catch (err) {
     return toResponse(err);
