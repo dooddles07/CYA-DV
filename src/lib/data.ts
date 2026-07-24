@@ -281,6 +281,7 @@ export const reflectionQuestions = [
 
 export function getTodayLabel(): string {
   return new Date().toLocaleDateString("en-US", {
+    timeZone: "Asia/Manila",
     weekday: "long",
     month: "long",
     day: "numeric",
