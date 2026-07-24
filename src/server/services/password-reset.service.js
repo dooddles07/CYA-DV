@@ -12,7 +12,11 @@ const TTL_MINUTES = 60;
 
 const hash = (token) => crypto.createHash("sha256").update(token).digest("hex");
 
+const escapeHtml = (s) =>
+  String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
 function emailBody(name, link) {
+  const safeName = escapeHtml(name);
   return {
     text: [
       `Hi ${name},`,
@@ -32,7 +36,7 @@ function emailBody(name, link) {
           CYA Daily Verse
         </p>
         <h1 style="font-size:22px;margin:16px 0 0">Reset your password</h1>
-        <p style="line-height:1.6;color:#44586b">Hi ${name}, we received a request to reset your password. Choose a new one here:</p>
+        <p style="line-height:1.6;color:#44586b">Hi ${safeName}, we received a request to reset your password. Choose a new one here:</p>
         <p style="margin:28px 0">
           <a href="${link}" style="background:#0095ff;color:#fff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:999px;display:inline-block">
             Choose a new password
