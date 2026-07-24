@@ -3,12 +3,9 @@ import { isValidObjectId } from "mongoose";
 import { dbConnect } from "@/server/config/db";
 import { Prayer } from "@/server/models/prayer.model";
 import { ApiError } from "@/server/utils/api-error";
-import { prayerWall } from "@/lib/data";
 
 /** @typedef {import("@/lib/types").PrayerItem} PrayerItem */
 /** @typedef {import("@/lib/types").ModeratedPrayer} ModeratedPrayer */
-
-const HOUR = 3_600_000;
 
 /** @returns {PrayerItem} */
 function serialize(doc) {
@@ -20,34 +17,6 @@ function serialize(doc) {
     prayedCount: doc.prayedCount,
     createdAt: new Date(doc.createdAt).toISOString(),
   };
-}
-
-function staticWall() {
-  const now = Date.now();
-  return prayerWall.map((p, i) => ({
-    id: `static-${i}`,
-    name: p.name,
-    request: p.request,
-    tag: p.tag,
-    prayedCount: p.prayedCount,
-    createdAt: new Date(now - (i + 1) * 3 * HOUR).toISOString(),
-  }));
-}
-
-/** Seed the wall from the original mock content so it never launches empty. */
-async function seedIfEmpty() {
-  const count = await Prayer.countDocuments();
-  if (count > 0) return;
-  const now = Date.now();
-  await Prayer.insertMany(
-    prayerWall.map((p, i) => ({
-      name: p.name,
-      request: p.request,
-      tag: p.tag,
-      prayedCount: p.prayedCount,
-      createdAt: new Date(now - (i + 1) * 3 * HOUR),
-    }))
-  );
 }
 
 /** @returns {Promise<PrayerItem[]>} */
@@ -66,7 +35,6 @@ export async function listPrayersPage({ limit = 20, cursor = null } = {}) {
 
   try {
     await dbConnect();
-    await seedIfEmpty();
 
     const filter = { status: "approved" };
     if (cursor) {
@@ -89,9 +57,8 @@ export async function listPrayersPage({ limit = 20, cursor = null } = {}) {
       total: await Prayer.countDocuments({ status: "approved" }),
     };
   } catch {
-    // DB down — show the static wall read-only rather than an empty page.
-    const all = staticWall();
-    return { prayers: all.slice(0, limit), nextCursor: null, total: all.length };
+    // DB down — return an empty page rather than fabricated content.
+    return { prayers: [], nextCursor: null, total: 0 };
   }
 }
 

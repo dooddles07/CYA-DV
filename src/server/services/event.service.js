@@ -5,7 +5,6 @@ import { Event } from "@/server/models/event.model";
 import { ApiError } from "@/server/utils/api-error";
 import { deleteEventImageIfUnused } from "@/server/services/event-image.service";
 import { manilaDayKey } from "@/server/utils/dates";
-import { events as seedEvents } from "@/lib/data";
 
 /** @typedef {import("@/lib/types").EventItem} EventItem */
 
@@ -39,23 +38,6 @@ function serialize(doc) {
     image: doc.image,
     published: doc.published,
   };
-}
-
-/** Keeps the page populated on a fresh database. */
-async function seedIfEmpty() {
-  if (await Event.countDocuments()) return;
-  await Event.insertMany(
-    seedEvents.map((e) => ({
-      title: e.title,
-      date: e.date,
-      time: e.time,
-      location: e.location,
-      speaker: e.speaker,
-      tag: e.tag,
-      image: e.image,
-      published: true,
-    }))
-  );
 }
 
 function validate(input) {
@@ -98,7 +80,6 @@ function validate(input) {
 export async function listUpcomingEvents(limit = 24) {
   try {
     await dbConnect();
-    await seedIfEmpty();
     const docs = await Event.find({ published: true, date: { $gte: manilaDayKey() } })
       .sort({ date: 1 })
       .limit(limit)
@@ -112,7 +93,6 @@ export async function listUpcomingEvents(limit = 24) {
 /** Admin list: everything, including drafts and past events. */
 export async function listAllEvents() {
   await dbConnect();
-  await seedIfEmpty();
   const docs = await Event.find().sort({ date: -1 }).lean();
   return docs.map(serialize);
 }

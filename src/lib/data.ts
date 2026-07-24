@@ -196,13 +196,6 @@ export function getPlan(slug: string): ReadingPlan | undefined {
   return readingPlans.find((p) => p.slug === slug);
 }
 
-export const prayerWall = [
-  { name: "Kim", request: "Please pray for my upcoming board exams. I'm nervous but trusting God's plan.", prayedCount: 47, time: "2h ago", tag: "Studies" },
-  { name: "MJ", request: "Praying for my father's healing and full recovery from surgery.", prayedCount: 132, time: "5h ago", tag: "Healing" },
-  { name: "Ralph", request: "For our youth camp this August — that many young people will encounter Christ.", prayedCount: 89, time: "8h ago", tag: "Ministry" },
-  { name: "Julie", request: "Struggling with anxiety lately. Pray that I find peace in God's presence.", prayedCount: 64, time: "12h ago", tag: "Peace" },
-];
-
 export const challenges = [
   { type: "Memorize", title: "Hide Isaiah 40:31 in your heart", xp: 50, icon: "Brain" },
   { type: "Kindness", title: "Encourage one friend with a verse today", xp: 30, icon: "HandHeart" },
@@ -215,39 +208,6 @@ export const quotes = [
   { text: "You are never too young to be used by God, and never too old to be renewed by Him.", author: "Ralph" },
   { text: "Prayer is not a backup plan. It is the battle plan.", author: "CYA Youth Camp 2025" },
   { text: "Kay Kristo Buong Buhay, Habambuhay!", author: "CYA — Christ's Youth in Action" },
-];
-
-export const events = [
-  {
-    title: "Step In, Shine Out: Youth Encounter",
-    date: "2026-08-08",
-    displayDate: "Aug 8, 2026",
-    time: "1:00 PM",
-    location: "CYA Main Hall, Quezon City",
-    speaker: "Ralph",
-    image: "/media/greatest-love.jpg",
-    tag: "Youth Camp",
-  },
-  {
-    title: "KKBBH Worship & Fellowship Night",
-    date: "2026-07-25",
-    displayDate: "Jul 25, 2026",
-    time: "6:00 PM",
-    location: "Fellowship Center, Room 204",
-    speaker: "Gwen & the CYA Worship Team",
-    image: "/media/stage-event.jpg",
-    tag: "Fellowship",
-  },
-  {
-    title: "Servant Leaders Training Day",
-    date: "2026-08-22",
-    displayDate: "Aug 22, 2026",
-    time: "9:00 AM",
-    location: "CYA Training Room",
-    speaker: "Julie",
-    image: "/media/leader-teaching.jpg",
-    tag: "Leadership",
-  },
 ];
 
 export const testimonials = [
