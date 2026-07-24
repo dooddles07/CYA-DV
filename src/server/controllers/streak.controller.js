@@ -21,7 +21,7 @@ export async function challenge(req) {
     return NextResponse.json({ error: "Sign in to earn XP." }, { status: 401 });
   try {
     const body = await req.json().catch(() => ({}));
-    return NextResponse.json(await claimChallenge(session.sub, body.id, body.xp));
+    return NextResponse.json(await claimChallenge(session.sub, body.id));
   } catch (err) {
     return toResponse(err, "Could not save your progress.");
   }

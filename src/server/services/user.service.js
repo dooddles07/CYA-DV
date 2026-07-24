@@ -4,6 +4,7 @@ import { User } from "@/server/models/user.model";
 import { ApiError } from "@/server/utils/api-error";
 import { dayNumber, manilaDayKey } from "@/server/utils/dates";
 import { XP_PER_READ, levelFor, xpToNext } from "@/server/utils/gamification";
+import { challenges } from "@/lib/data";
 
 /** @typedef {import("@/lib/types").UserStats} UserStats */
 
@@ -74,12 +75,16 @@ export async function markVerseRead(userId) {
 }
 
 /**
- * Awards XP for a daily challenge. Capped at one claim per challenge per day
- * so the button cannot be farmed by clicking repeatedly.
+ * Awards XP for a daily challenge. The challenge id must match one in the
+ * server-side catalog and the XP is taken from that definition — never from
+ * the client — so the reward cannot be inflated or farmed with fake ids.
+ * Capped at one claim per challenge per day.
  */
-export async function claimChallenge(userId, challengeId, xp) {
-  xp = Math.min(Math.max(Number(xp) || 0, 0), 50);
-  const key = `${manilaDayKey()}:${String(challengeId ?? "").slice(0, 40)}`;
+export async function claimChallenge(userId, challengeId) {
+  const challenge = challenges.find((c) => c.title === challengeId);
+  if (!challenge) throw new ApiError(400, "Unknown challenge.");
+  const xp = challenge.xp;
+  const key = `${manilaDayKey()}:${challenge.title.slice(0, 40)}`;
 
   await dbConnect();
   const user = await User.findById(userId);
