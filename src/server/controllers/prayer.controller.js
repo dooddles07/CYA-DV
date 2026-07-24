@@ -10,7 +10,7 @@ export async function index() {
 
 export async function create(req) {
   try {
-    rateLimit(req, {
+    await rateLimit(req, {
       name: "prayer:create",
       limit: 5,
       windowMs: 10 * 60_000,
@@ -26,7 +26,7 @@ export async function create(req) {
 
 export async function pray(req, id) {
   try {
-    rateLimit(req, { name: "prayer:pray", limit: 60, windowMs: 60_000 });
+    await rateLimit(req, { name: "prayer:pray", limit: 60, windowMs: 60_000 });
     const body = await req.json().catch(() => ({}));
     const prayedCount = await togglePrayed(id, Boolean(body?.undo));
     return NextResponse.json({ prayedCount });

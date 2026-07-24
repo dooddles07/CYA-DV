@@ -9,6 +9,7 @@ import { ScrollProgress } from "@/components/motion/scroll-progress";
 import { CursorGlow } from "@/components/motion/cursor-glow";
 import { PageTransition } from "@/components/motion/page-transition";
 import { Toaster } from "@/components/toast";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { SITE_URL as SITE } from "@/lib/site";
 
 const manrope = Manrope({
@@ -48,7 +49,9 @@ export const metadata: Metadata = {
     title: "CYA Daily Verse",
     description: "God's Word, every morning. Built by Christ's Youth in Action.",
   },
-  icons: { icon: "/media/cya-logo.png", apple: "/media/cya-logo.png" },
+  icons: { icon: "/icon-192.png", apple: "/apple-icon.png" },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "CYA Verse", statusBarStyle: "default" },
   robots: { index: true, follow: true },
 };
 
@@ -94,6 +97,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Footer />
         <BottomNav />
         <Toaster />
+        <InstallPrompt />
       </body>
     </html>
   );

@@ -1,0 +1,22 @@
+name: Daily verse push
+
+# 6:00 AM Manila (UTC+8) = 22:00 UTC the previous day.
+on:
+  schedule:
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send daily verse notification
+        run: |
+          code=$(curl -s -o /tmp/out.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.SITE_URL }}/api/cron/daily-verse")
+          cat /tmp/out.json
+          if [ "$code" != "200" ]; then
+            echo "Request failed with HTTP $code"
+            exit 1
+          fi

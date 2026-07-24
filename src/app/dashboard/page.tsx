@@ -4,6 +4,7 @@ import { Award, BookOpen, Bookmark, Flame, Star, Trophy } from "lucide-react";
 import { Counter, Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { Badge, ButtonLink, Card, ProgressBar, SectionHeading } from "@/components/ui";
 import { SignOutButton } from "@/components/sign-out-button";
+import { NotifyToggle } from "@/components/pwa/notify-toggle";
 import { cx } from "@/lib/cx";
 import { getSession } from "@/server/utils/session";
 import { getUserStats } from "@/server/services/user.service";
@@ -48,7 +49,8 @@ export default async function DashboardPage() {
             title={`Good morning, ${firstName}`}
             sub="Read today's verse to keep your streak alive."
           />
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <NotifyToggle />
             {user.role === "admin" && (
               <ButtonLink href="/admin" variant="outline" size="sm">
                 Moderation

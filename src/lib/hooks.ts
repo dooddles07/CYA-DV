@@ -51,6 +51,18 @@ export function useDarkMode(): boolean {
 }
 
 /**
+ * True when this browser can receive web push.
+ * Returns `false` during SSR so markup matches the first client paint.
+ */
+export function usePushSupported(): boolean {
+  return useSyncExternalStore(
+    () => () => {},
+    () => "serviceWorker" in navigator && "PushManager" in window,
+    () => false
+  );
+}
+
+/**
  * A clock that ticks every `intervalMs`.
  * Returns `null` on the server so time-dependent UI renders nothing until hydrated.
  */
