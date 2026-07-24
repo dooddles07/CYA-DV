@@ -12,32 +12,43 @@ import {
 } from "@/components/home/sections";
 import { Reveal, Parallax, Stagger, StaggerItem } from "@/components/motion";
 import { Badge, ButtonLink, Card, ProgressBar, SectionHeading } from "@/components/ui";
-import {
-  devotions,
-  events,
-  getTodayLabel,
-  readingPlan,
-  testimonials,
-} from "@/lib/data";
+import { devotions, events, getTodayLabel, testimonials } from "@/lib/data";
 import { getVerseOfDay } from "@/server/services/verse.service";
+import { getCommunityStats, getTopicCounts } from "@/server/services/stats.service";
+import { listPrayers } from "@/server/services/prayer.service";
+import { getActivePlan, previewPlan } from "@/server/services/plan.service";
+import { savedReferences } from "@/server/services/saved-verse.service";
+import { getSession } from "@/server/utils/session";
 
 const days = ["M", "T", "W", "T", "F", "S", "S"];
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const todaysVerse = await getVerseOfDay();
+  const session = await getSession();
+  const [todaysVerse, stats, topicCounts, prayers, plan, saved] = await Promise.all([
+    getVerseOfDay(),
+    getCommunityStats(),
+    getTopicCounts(),
+    listPrayers(4),
+    session ? getActivePlan(session.sub) : previewPlan(),
+    session ? savedReferences(session.sub) : ([] as string[]),
+  ]);
   const [featured] = devotions;
 
   return (
     <>
-      <Hero verse={todaysVerse} />
+      <Hero verse={todaysVerse} stats={stats} />
 
       {/* ---------------------------------------------------- Today's verse */}
       <section id="today" className="relative scroll-mt-24 py-8" aria-label="Today's verse">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <Reveal>
-            <VerseCard verse={todaysVerse} dateLabel={getTodayLabel()} />
+            <VerseCard
+              verse={todaysVerse}
+              dateLabel={getTodayLabel()}
+              initialSaved={saved.includes(todaysVerse.reference)}
+            />
           </Reveal>
         </div>
       </section>
@@ -53,7 +64,7 @@ export default async function HomePage() {
               sub="Fifteen curated topics — from faith to family — so the right word finds you at the right time."
             />
           </Reveal>
-          <CategoryGrid />
+          <CategoryGrid counts={topicCounts} />
         </div>
       </section>
 
@@ -116,33 +127,34 @@ export default async function HomePage() {
 
           <Reveal delay={0.06}>
             <Card hover={false} className="flex h-full flex-col p-8 sm:p-9">
-              <Badge tone="green">Reading plan · Day {readingPlan.day} of {readingPlan.totalDays}</Badge>
-              <h3 className="mt-4 text-2xl font-extrabold tracking-tight text-ink">
-                {readingPlan.name}
-              </h3>
+              <Badge tone="green">
+                {plan.enrolled
+                  ? `Reading plan · Day ${plan.nextDay} of ${plan.totalDays}`
+                  : `Reading plan · ${plan.totalDays} days`}
+              </Badge>
+              <h3 className="mt-4 text-2xl font-extrabold tracking-tight text-ink">{plan.name}</h3>
               <p className="mt-2 text-sm text-ink-soft">
-                Today: <span className="font-bold text-ink">{readingPlan.todayReading}</span> —{" "}
-                {readingPlan.todayTheme}
+                Today: <span className="font-bold text-ink">{plan.todayReading}</span> — {plan.desc}
               </p>
 
               <div className="mt-6">
                 <div className="flex items-center justify-between text-xs font-bold">
                   <span className="text-ink-faint">Overall progress</span>
                   <span className="text-primary-700">
-                    {Math.round((readingPlan.day / readingPlan.totalDays) * 100)}%
+                    {Math.round((plan.completedCount / plan.totalDays) * 100)}%
                   </span>
                 </div>
                 <ProgressBar
                   className="mt-2"
-                  value={readingPlan.day}
-                  max={readingPlan.totalDays}
+                  value={plan.completedCount}
+                  max={plan.totalDays}
                   label="Plan progress"
                 />
               </div>
 
-              <p className="mt-6 text-xs font-bold text-ink-faint">This week</p>
+              <p className="mt-6 text-xs font-bold text-ink-faint">First week</p>
               <div className="mt-2 flex gap-2">
-                {readingPlan.weekProgress.map((done, i) => (
+                {plan.weekProgress.map((done, i) => (
                   <span
                     key={i}
                     aria-label={`${days[i]}: ${done ? "read" : "not yet"}`}
@@ -156,7 +168,7 @@ export default async function HomePage() {
               </div>
 
               <ul className="mt-6 flex-1 space-y-2">
-                {readingPlan.upcoming.map((u) => (
+                {plan.upcoming.map((u) => (
                   <li
                     key={u.day}
                     className="flex items-center justify-between rounded-2xl bg-sky-soft px-4 py-3 text-sm"
@@ -191,7 +203,7 @@ export default async function HomePage() {
             </div>
           </Reveal>
           <Reveal delay={0.06} className="mt-10">
-            <PrayerPreview />
+            <PrayerPreview prayers={prayers} />
           </Reveal>
         </div>
       </section>

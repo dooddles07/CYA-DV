@@ -5,8 +5,12 @@ import { Prayer } from "@/server/models/prayer.model";
 import { ApiError } from "@/server/utils/api-error";
 import { prayerWall } from "@/lib/data";
 
+/** @typedef {import("@/lib/types").PrayerItem} PrayerItem */
+/** @typedef {import("@/lib/types").ModeratedPrayer} ModeratedPrayer */
+
 const HOUR = 3_600_000;
 
+/** @returns {PrayerItem} */
 function serialize(doc) {
   return {
     id: doc._id.toString(),
@@ -46,6 +50,7 @@ async function seedIfEmpty() {
   );
 }
 
+/** @returns {Promise<PrayerItem[]>} */
 export async function listPrayers(limit = 50) {
   try {
     await dbConnect();
@@ -73,6 +78,26 @@ export async function createPrayer({ name, request, anonymous }) {
   await dbConnect();
   const doc = await Prayer.create({ name: name.slice(0, 60), request, tag: "New" });
   return serialize(doc);
+}
+
+/**
+ * Admin view: every request, including hidden ones.
+ * @returns {Promise<ModeratedPrayer[]>}
+ */
+export async function listAllPrayers(limit = 200) {
+  await dbConnect();
+  const docs = await Prayer.find().sort({ createdAt: -1 }).limit(limit).lean();
+  return docs.map((d) => ({ ...serialize(d), status: d.status }));
+}
+
+export async function setPrayerStatus(id, status) {
+  if (!isValidObjectId(id)) throw new ApiError(404, "Not found.");
+  if (!["approved", "hidden"].includes(status)) throw new ApiError(400, "Invalid status.");
+
+  await dbConnect();
+  const doc = await Prayer.findByIdAndUpdate(id, { $set: { status } }, { new: true }).lean();
+  if (!doc) throw new ApiError(404, "Not found.");
+  return { ...serialize(doc), status: doc.status };
 }
 
 export async function togglePrayed(id, undo) {

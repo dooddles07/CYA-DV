@@ -130,26 +130,79 @@ export const devotions: Devotion[] = [
   },
 ];
 
-export const readingPlan = {
-  name: "Through the Gospels in 90 Days",
-  todayReading: "John 15:1–17",
-  todayTheme: "The Vine and the Branches",
-  day: 42,
-  totalDays: 90,
-  weekProgress: [true, true, true, true, false, false, false],
-  upcoming: [
-    { day: 43, passage: "John 15:18–27", theme: "The World's Hatred" },
-    { day: 44, passage: "John 16:1–15", theme: "The Work of the Spirit" },
-    { day: 45, passage: "John 16:16–33", theme: "Grief Will Turn to Joy" },
-  ],
+/** Expands a book into one chapter per day, e.g. chapters("Acts", 28). */
+function chapters(book: string, count: number): string[] {
+  return Array.from({ length: count }, (_, i) => `${book} ${i + 1}`);
+}
+
+export type ReadingPlan = {
+  slug: string;
+  name: string;
+  tag: string;
+  desc: string;
+  readings: string[];
 };
 
-export const otherPlans = [
-  { name: "Psalms of Peace", days: 30, tag: "Calm", desc: "One psalm a day for anxious seasons." },
-  { name: "Proverbs for Students", days: 31, tag: "Wisdom", desc: "Practical wisdom for school, friends, and choices." },
-  { name: "First Steps: New Believer", days: 21, tag: "Foundations", desc: "The essentials of following Jesus, from day one." },
-  { name: "Acts: The Church on Fire", days: 28, tag: "Mission", desc: "Watch the early church turn the world upside down." },
+/**
+ * Plans are real chapter schedules — day N is simply readings[N-1], so the
+ * progress a user sees always matches the passage they were asked to read.
+ */
+export const readingPlans: ReadingPlan[] = [
+  {
+    slug: "through-the-gospels",
+    name: "Through the Gospels",
+    tag: "Core",
+    desc: "One chapter a day through Matthew, Mark, Luke, and John.",
+    readings: [
+      ...chapters("Matthew", 28),
+      ...chapters("Mark", 16),
+      ...chapters("Luke", 24),
+      ...chapters("John", 21),
+    ],
+  },
+  {
+    slug: "psalms-of-peace",
+    name: "Psalms of Peace",
+    tag: "Calm",
+    desc: "One psalm a day for anxious seasons.",
+    readings: [
+      1, 3, 4, 8, 16, 18, 20, 23, 27, 30, 34, 37, 40, 42, 46, 51, 55, 62, 63, 71, 84, 86, 91, 100,
+      103, 116, 121, 130, 139, 145,
+    ].map((n) => `Psalm ${n}`),
+  },
+  {
+    slug: "proverbs-for-students",
+    name: "Proverbs for Students",
+    tag: "Wisdom",
+    desc: "Practical wisdom for school, friends, and choices — one chapter a day.",
+    readings: chapters("Proverbs", 31),
+  },
+  {
+    slug: "acts-church-on-fire",
+    name: "Acts: The Church on Fire",
+    tag: "Mission",
+    desc: "Watch the early church turn the world upside down.",
+    readings: chapters("Acts", 28),
+  },
+  {
+    slug: "first-steps",
+    name: "First Steps: New Believer",
+    tag: "Foundations",
+    desc: "The essentials of following Jesus, from day one.",
+    readings: [
+      "John 1", "John 3", "John 14", "Romans 3", "Romans 5", "Romans 6", "Romans 8",
+      "Ephesians 1", "Ephesians 2", "Ephesians 4", "Philippians 2", "Colossians 3",
+      "1 John 1", "1 John 3", "1 John 4", "James 1", "Matthew 5", "Matthew 6",
+      "Matthew 7", "Acts 2", "Psalm 1",
+    ],
+  },
 ];
+
+export const defaultPlanSlug = "through-the-gospels";
+
+export function getPlan(slug: string): ReadingPlan | undefined {
+  return readingPlans.find((p) => p.slug === slug);
+}
 
 export const prayerWall = [
   { name: "Kim", request: "Please pray for my upcoming board exams. I'm nervous but trusting God's plan.", prayedCount: 47, time: "2h ago", tag: "Studies" },

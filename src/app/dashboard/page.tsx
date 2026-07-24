@@ -5,9 +5,10 @@ import { Counter, Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { Badge, ButtonLink, Card, ProgressBar, SectionHeading } from "@/components/ui";
 import { SignOutButton } from "@/components/sign-out-button";
 import { cx } from "@/lib/cx";
-import { readingPlan, verseLibrary } from "@/lib/data";
 import { getSession } from "@/server/utils/session";
 import { getUserStats } from "@/server/services/user.service";
+import { listSaved } from "@/server/services/saved-verse.service";
+import { getActivePlan } from "@/server/services/plan.service";
 
 export const metadata: Metadata = {
   title: "My Dashboard",
@@ -20,19 +21,22 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const user = await getUserStats(session);
+  const [user, saved, plan] = await Promise.all([
+    getUserStats(session),
+    listSaved(session.sub),
+    getActivePlan(session.sub),
+  ]);
   if (!user) redirect("/login");
 
   const badges = [
     { name: "7-Day Streak", icon: Flame, earned: user.bestStreak >= 7 },
-    { name: "First Verse Read", icon: Bookmark, earned: user.xp > 0 },
-    { name: "Prayer Warrior", icon: Star, earned: false },
+    { name: "First Verse Saved", icon: Bookmark, earned: saved.length > 0 },
+    { name: "Ten Verses Read", icon: Star, earned: user.totalReads >= 10 },
     { name: "30-Day Streak", icon: Trophy, earned: user.bestStreak >= 30 },
-    { name: "Plan Finisher", icon: Award, earned: false },
+    { name: "Plan Finisher", icon: Award, earned: plan.completedCount >= plan.totalDays },
     { name: "Scripture Scholar", icon: BookOpen, earned: user.level >= 5 },
   ];
 
-  const suggested = verseLibrary.slice(0, 3);
   const firstName = user.name.split(" ")[0] || "friend";
 
   return (
@@ -44,7 +48,14 @@ export default async function DashboardPage() {
             title={`Good morning, ${firstName}`}
             sub="Read today's verse to keep your streak alive."
           />
-          <SignOutButton />
+          <div className="flex items-center gap-2">
+            {user.role === "admin" && (
+              <ButtonLink href="/admin" variant="outline" size="sm">
+                Moderation
+              </ButtonLink>
+            )}
+            <SignOutButton />
+          </div>
         </div>
       </Reveal>
 
@@ -101,9 +112,11 @@ export default async function DashboardPage() {
               </span>
               <div>
                 <p className="text-3xl font-extrabold text-ink">
-                  <Counter to={readingPlan.day} />
+                  <Counter to={plan.completedCount} />
                 </p>
-                <p className="text-xs font-bold text-ink-faint">chapters read this plan</p>
+                <p className="text-xs font-bold text-ink-faint">
+                  {plan.enrolled ? `of ${plan.totalDays} days in ${plan.name}` : "start a reading plan"}
+                </p>
               </div>
             </div>
           </Card>
@@ -114,21 +127,28 @@ export default async function DashboardPage() {
         <Reveal>
           <Card hover={false} className="h-full p-8">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-extrabold text-ink">Verses for you</h2>
-              <Badge tone="sky">{suggested.length} picks</Badge>
+              <h2 className="text-xl font-extrabold text-ink">Saved verses</h2>
+              <Badge tone="sky">{saved.length} saved</Badge>
             </div>
-            <ul className="mt-5 space-y-3">
-              {suggested.map((v) => (
-                <li key={v.reference} className="rounded-2xl bg-sky-soft p-5">
-                  <p className="verse-text text-[15px] leading-relaxed text-ink">
-                    “{v.text.length > 120 ? v.text.slice(0, 120) + "…" : v.text}”
-                  </p>
-                  <p className="mt-2.5 text-sm font-extrabold text-primary-700">
-                    {v.reference} · {v.version}
-                  </p>
-                </li>
-              ))}
-            </ul>
+            {saved.length === 0 ? (
+              <p className="mt-5 rounded-2xl bg-sky-soft p-5 text-[15px] leading-relaxed text-ink-soft">
+                Nothing saved yet. Tap <span className="font-bold text-ink">Save</span> on any verse
+                and it will wait for you here.
+              </p>
+            ) : (
+              <ul className="mt-5 space-y-3">
+                {saved.slice(0, 6).map((v) => (
+                  <li key={v.reference} className="rounded-2xl bg-sky-soft p-5">
+                    <p className="verse-text text-[15px] leading-relaxed text-ink">
+                      “{v.text.length > 120 ? v.text.slice(0, 120) + "…" : v.text}”
+                    </p>
+                    <p className="mt-2.5 text-sm font-extrabold text-primary-700">
+                      {v.reference} · {v.version}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
             <ButtonLink href="/search" variant="secondary" className="mt-6">
               Find more verses
             </ButtonLink>

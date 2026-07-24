@@ -7,6 +7,8 @@ import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { Card, SectionHeading } from "@/components/ui";
 import { getTodayLabel, reflectionQuestions, verseLibrary } from "@/lib/data";
 import { getVerseOfDay } from "@/server/services/verse.service";
+import { savedReferences } from "@/server/services/saved-verse.service";
+import { getSession } from "@/server/utils/session";
 
 export const metadata: Metadata = {
   title: "Daily Verse",
@@ -27,7 +29,11 @@ const panels = [
 ];
 
 export default async function VersePage() {
-  const todaysVerse = await getVerseOfDay();
+  const session = await getSession();
+  const [todaysVerse, saved] = await Promise.all([
+    getVerseOfDay(),
+    session ? savedReferences(session.sub) : ([] as string[]),
+  ]);
   return (
     <div className="pb-28 pt-28">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
@@ -43,7 +49,12 @@ export default async function VersePage() {
 
       <div className="mx-auto mt-12 max-w-4xl px-4 sm:px-6 lg:px-8">
         <Reveal>
-          <VerseCard verse={todaysVerse} dateLabel={getTodayLabel()} compact />
+          <VerseCard
+            verse={todaysVerse}
+            dateLabel={getTodayLabel()}
+            compact
+            initialSaved={saved.includes(todaysVerse.reference)}
+          />
           <MarkRead />
         </Reveal>
       </div>

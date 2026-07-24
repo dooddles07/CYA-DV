@@ -7,15 +7,7 @@ import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { cx } from "@/lib/cx";
 import { toast } from "@/components/toast";
 import { spring } from "@/lib/motion";
-
-export type PrayerItem = {
-  id: string;
-  name: string;
-  request: string;
-  tag: string;
-  prayedCount: number;
-  createdAt: string;
-};
+import type { PrayerItem } from "@/lib/types";
 
 function relTime(iso: string): string {
   const mins = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 60_000));

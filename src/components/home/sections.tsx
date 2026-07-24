@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -31,8 +32,9 @@ import { Badge, ButtonLink, Card } from "@/components/ui";
 import { cx } from "@/lib/cx";
 import { Stagger, StaggerItem } from "@/components/motion";
 import { toast } from "@/components/toast";
-import { categories, challenges, prayerWall, quotes } from "@/lib/data";
+import { categories, challenges, quotes } from "@/lib/data";
 import { spring } from "@/lib/motion";
+import type { PrayerItem } from "@/lib/types";
 
 const iconMap: Record<string, LucideIcon> = {
   Sparkles, Sunrise, Heart, Lightbulb, Leaf, Mountain, HandHeart, Church,
@@ -42,11 +44,13 @@ const iconMap: Record<string, LucideIcon> = {
 
 /* ---------------------------------------------------------- Categories */
 
-export function CategoryGrid() {
+/** `counts` comes from the verse collection, so the numbers match what search returns. */
+export function CategoryGrid({ counts }: { counts: Record<string, number> }) {
   return (
     <Stagger className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {categories.map((c) => {
         const Icon = iconMap[c.icon] ?? Sparkles;
+        const count = counts[c.name] ?? 0;
         return (
           <StaggerItem key={c.name}>
             <Link
@@ -58,7 +62,9 @@ export function CategoryGrid() {
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-extrabold text-ink">{c.name}</span>
-                <span className="block text-xs text-ink-faint">{c.count} verses</span>
+                <span className="block text-xs text-ink-faint">
+                  {count > 0 ? `${count} verse${count === 1 ? "" : "s"}` : "Browse"}
+                </span>
               </span>
             </Link>
           </StaggerItem>
@@ -97,31 +103,49 @@ export function MoodChips() {
 
 /* ------------------------------------------------------- Prayer preview */
 
-export function PrayerPreview() {
+function relTime(iso: string): string {
+  const mins = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 60_000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+/** Shows the same live requests as /prayer, so the two pages never disagree. */
+export function PrayerPreview({ prayers }: { prayers: PrayerItem[] }) {
   const reduce = useReducedMotion();
-  const [prayed, setPrayed] = useState<Record<number, boolean>>({});
+  const [prayed, setPrayed] = useState<Record<string, boolean>>({});
+
+  const onPray = (p: PrayerItem, done: boolean) => {
+    setPrayed((s) => ({ ...s, [p.id]: !done }));
+    if (!done) toast(`Praying with ${p.name}`, "success");
+    if (p.id.startsWith("static-")) return;
+    fetch(`/api/prayers/${p.id}/pray`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ undo: done }),
+    }).catch(() => {});
+  };
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {prayerWall.map((p, i) => {
-        const done = prayed[i];
+      {prayers.map((p) => {
+        const done = prayed[p.id];
         return (
-          <Card key={p.name + i} spotlight className="flex flex-col p-6">
+          <Card key={p.id} spotlight className="flex flex-col p-6">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-extrabold text-ink">{p.name}</p>
               <Badge tone="sky">{p.tag}</Badge>
             </div>
             <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-soft">{p.request}</p>
             <div className="mt-5 flex items-center justify-between">
-              <span className="text-xs text-ink-faint">{p.time}</span>
+              <span className="text-xs text-ink-faint">{relTime(p.createdAt)}</span>
               <motion.button
                 type="button"
                 whileTap={reduce ? undefined : { scale: 0.94 }}
                 transition={spring}
-                onClick={() => {
-                  setPrayed((s) => ({ ...s, [i]: !s[i] }));
-                  if (!done) toast(`Praying with ${p.name}`, "success");
-                }}
+                onClick={() => onPray(p, !!done)}
                 aria-pressed={!!done}
                 className={cx(
                   "relative inline-flex h-11 cursor-pointer items-center gap-2 rounded-full px-4 text-sm font-bold transition-all duration-200",
@@ -163,7 +187,33 @@ export function PrayerPreview() {
 
 export function ChallengeGrid() {
   const reduce = useReducedMotion();
+  const router = useRouter();
   const [done, setDone] = useState<Record<number, boolean>>({});
+
+  const claim = async (i: number, c: (typeof challenges)[number]) => {
+    if (done[i]) return;
+    const res = await fetch("/api/streak/challenge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: c.title, xp: c.xp }),
+    }).catch(() => null);
+
+    if (res?.status === 401) {
+      toast("Sign in to earn XP", "info");
+      router.push("/login");
+      return;
+    }
+    if (!res?.ok) {
+      toast("Could not save that just now.", "error");
+      return;
+    }
+    const data = await res.json();
+    setDone((s) => ({ ...s, [i]: true }));
+    toast(
+      data.alreadyClaimed ? "Already claimed today — come back tomorrow!" : `+${c.xp} XP — nice work!`,
+      "success"
+    );
+  };
 
   return (
     <Stagger className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -192,10 +242,8 @@ export function ChallengeGrid() {
                   whileTap={reduce ? undefined : { scale: 0.94 }}
                   transition={spring}
                   aria-pressed={!!complete}
-                  onClick={() => {
-                    setDone((s) => ({ ...s, [i]: !s[i] }));
-                    if (!complete) toast(`+${c.xp} XP — nice work!`, "success");
-                  }}
+                  disabled={!!complete}
+                  onClick={() => claim(i, c)}
                   className={cx(
                     "inline-flex h-11 cursor-pointer items-center rounded-full px-4 text-xs font-bold transition-colors duration-200",
                     complete

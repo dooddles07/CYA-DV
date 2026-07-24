@@ -8,10 +8,11 @@ import { ButtonLink } from "@/components/ui";
 import { Aurora } from "@/components/motion/aurora";
 import { Counter, Magnetic, TextReveal } from "@/components/motion";
 import { LightScene } from "@/components/three/light-scene";
-import { streak, type Verse } from "@/lib/data";
+import { type Verse } from "@/lib/data";
 import { EASE } from "@/lib/motion";
+import type { CommunityStats } from "@/lib/types";
 
-export function Hero({ verse }: { verse: Verse }) {
+export function Hero({ verse, stats }: { verse: Verse; stats: CommunityStats }) {
   const reduce = useReducedMotion();
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -77,27 +78,35 @@ export function Hero({ verse }: { verse: Verse }) {
             </Magnetic>
           </motion.div>
 
-          <motion.dl {...rise(0.24)} className="mt-10 flex flex-wrap gap-8 text-sm">
-            <div>
-              <dt className="text-ink-faint">Community streak</dt>
-              <dd className="mt-1 flex items-center gap-1.5 text-xl font-extrabold text-ink">
-                <Flame className="h-5 w-5 text-warning" aria-hidden />
-                <Counter to={streak.best} /> days
-              </dd>
-            </div>
-            <div>
-              <dt className="text-ink-faint">Verses shared</dt>
-              <dd className="mt-1 text-xl font-extrabold text-ink">
-                <Counter to={12400} suffix="+" />
-              </dd>
-            </div>
-            <div>
-              <dt className="text-ink-faint">Young readers</dt>
-              <dd className="mt-1 text-xl font-extrabold text-ink">
-                <Counter to={2300} suffix="+" />
-              </dd>
-            </div>
-          </motion.dl>
+          {/* Real community numbers. Before anyone signs up there is nothing
+              honest to count, so we show an invitation instead of zeros. */}
+          {stats.readers > 0 ? (
+            <motion.dl {...rise(0.24)} className="mt-10 flex flex-wrap gap-8 text-sm">
+              <div>
+                <dt className="text-ink-faint">Longest streak</dt>
+                <dd className="mt-1 flex items-center gap-1.5 text-xl font-extrabold text-ink">
+                  <Flame className="h-5 w-5 text-warning" aria-hidden />
+                  <Counter to={stats.bestStreak} /> days
+                </dd>
+              </div>
+              <div>
+                <dt className="text-ink-faint">Verses read together</dt>
+                <dd className="mt-1 text-xl font-extrabold text-ink">
+                  <Counter to={stats.versesRead} />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-ink-faint">Young readers</dt>
+                <dd className="mt-1 text-xl font-extrabold text-ink">
+                  <Counter to={stats.readers} />
+                </dd>
+              </div>
+            </motion.dl>
+          ) : (
+            <motion.p {...rise(0.24)} className="mt-10 text-sm font-semibold text-ink-faint">
+              Be the first to start a streak — the community numbers grow from here.
+            </motion.p>
+          )}
         </div>
 
         {/* Glass verse preview + photo */}

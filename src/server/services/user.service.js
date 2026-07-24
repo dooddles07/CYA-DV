@@ -5,6 +5,20 @@ import { ApiError } from "@/server/utils/api-error";
 import { dayNumber, manilaDayKey } from "@/server/utils/dates";
 import { XP_PER_READ, levelFor, xpToNext } from "@/server/utils/gamification";
 
+/** @typedef {import("@/lib/types").UserStats} UserStats */
+
+function stats(user) {
+  return {
+    streak: user.streak,
+    bestStreak: user.bestStreak,
+    totalReads: user.totalReads,
+    xp: user.xp,
+    level: levelFor(user.xp),
+    xpToNext: xpToNext(user.xp),
+  };
+}
+
+/** @returns {Promise<UserStats | null>} */
 export async function getUserStats(session) {
   try {
     await dbConnect();
@@ -13,24 +27,23 @@ export async function getUserStats(session) {
     return {
       name: user.name,
       email: user.email,
-      xp: user.xp,
-      level: levelFor(user.xp),
-      xpToNext: xpToNext(user.xp),
-      streak: user.streak,
-      bestStreak: user.bestStreak,
+      role: user.role,
       lastReadDate: user.lastReadDate,
+      ...stats(user),
     };
   } catch {
     // DB down — still report the session identity so the UI stays logged in.
     return {
       name: session.name,
       email: session.email,
+      role: "member",
+      lastReadDate: null,
+      streak: 0,
+      bestStreak: 0,
+      totalReads: 0,
       xp: 0,
       level: 1,
       xpToNext: 250,
-      streak: 0,
-      bestStreak: 0,
-      lastReadDate: null,
     };
   }
 }
@@ -52,16 +65,38 @@ export async function markVerseRead(userId) {
     user.streak = consecutive ? user.streak + 1 : 1;
     user.bestStreak = Math.max(user.bestStreak, user.streak);
     user.lastReadDate = today;
+    user.totalReads += 1;
     user.xp += XP_PER_READ;
     await user.save();
   }
 
-  return {
-    alreadyRead,
-    streak: user.streak,
-    bestStreak: user.bestStreak,
-    xp: user.xp,
-    level: levelFor(user.xp),
-    xpToNext: xpToNext(user.xp),
-  };
+  return { alreadyRead, ...stats(user) };
+}
+
+/**
+ * Awards XP for a daily challenge. Capped at one claim per challenge per day
+ * so the button cannot be farmed by clicking repeatedly.
+ */
+export async function claimChallenge(userId, challengeId, xp) {
+  xp = Math.min(Math.max(Number(xp) || 0, 0), 50);
+  const key = `${manilaDayKey()}:${String(challengeId ?? "").slice(0, 40)}`;
+
+  await dbConnect();
+  const user = await User.findById(userId);
+  if (!user) throw new ApiError(404, "Account not found.");
+
+  if (user.challengeDates.includes(key)) return { alreadyClaimed: true, ...stats(user) };
+
+  user.challengeDates = [...user.challengeDates.slice(-40), key];
+  user.xp += xp;
+  await user.save();
+
+  return { alreadyClaimed: false, ...stats(user) };
+}
+
+export async function requireAdmin(session) {
+  await dbConnect();
+  const user = await User.findById(session.sub).select("role").lean();
+  if (user?.role !== "admin") throw new ApiError(403, "Admins only.");
+  return true;
 }

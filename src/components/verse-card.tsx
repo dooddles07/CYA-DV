@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Bookmark, BookOpen, Check, Copy, HandHelping, Share2, Volume2 } from "lucide-react";
@@ -18,13 +19,16 @@ export function VerseCard({
   verse,
   dateLabel,
   compact = false,
+  initialSaved = false,
 }: {
   verse: Verse;
   dateLabel: string;
   compact?: boolean;
+  initialSaved?: boolean;
 }) {
   const reduce = useReducedMotion();
-  const [saved, setSaved] = useState(false);
+  const router = useRouter();
+  const [saved, setSaved] = useState(initialSaved);
   const [speaking, setSpeaking] = useState(false);
   const [burst, setBurst] = useState(0);
 
@@ -68,11 +72,32 @@ export function VerseCard({
     setSpeaking(true);
   };
 
-  const onSave = () => {
+  const onSave = async () => {
+    // Optimistic: flip immediately, roll back if the server disagrees.
     const next = !saved;
     setSaved(next);
     if (next) setBurst((b) => b + 1);
-    toast(next ? "Saved to your verses" : "Removed from your verses", next ? "success" : "info");
+
+    const res = await fetch("/api/saved", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(verse),
+    }).catch(() => null);
+
+    if (res?.status === 401) {
+      setSaved(!next);
+      toast("Sign in to save verses", "info");
+      router.push("/login");
+      return;
+    }
+    if (!res?.ok) {
+      setSaved(!next);
+      toast("Could not save that verse — try again.", "error");
+      return;
+    }
+    const data = await res.json();
+    setSaved(data.saved);
+    toast(data.saved ? "Saved to your verses" : "Removed from your verses", data.saved ? "success" : "info");
   };
 
   const actions = [
