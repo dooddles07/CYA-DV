@@ -13,6 +13,8 @@ const EventSchema = new Schema(
     // Either a bundled /media asset or an uploaded /api/images/<id> pubmat.
     image: { type: String, default: "/media/stage-event.jpg", trim: true, maxlength: 300 },
     published: { type: Boolean, default: true },
+    // Denormalised RSVP headcount; the source of truth is the EventRsvp rows.
+    rsvpCount: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true }
 );

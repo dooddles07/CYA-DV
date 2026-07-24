@@ -5,14 +5,29 @@ import {
   deleteEvent,
   listAllEvents,
   listUpcomingEvents,
+  toggleRsvp,
   updateEvent,
 } from "@/server/services/event.service";
 import { assertAdmin as guard } from "@/server/utils/require-admin";
+import { getSession } from "@/server/utils/session";
 import { toResponse } from "@/server/utils/api-error";
 
-/** Public — upcoming published events only. */
+/** Public — upcoming published events only. RSVP state reflects the viewer. */
 export async function upcoming() {
-  return NextResponse.json({ events: await listUpcomingEvents() });
+  const session = await getSession();
+  return NextResponse.json({ events: await listUpcomingEvents(24, session?.sub ?? null) });
+}
+
+export async function rsvp(req, id) {
+  try {
+    const session = await getSession();
+    if (!session)
+      return NextResponse.json({ error: "Sign in to RSVP." }, { status: 401 });
+    const body = await req.json().catch(() => ({}));
+    return NextResponse.json(await toggleRsvp(id, session.sub, Boolean(body?.going)));
+  } catch (err) {
+    return toResponse(err, "Could not update your RSVP.");
+  }
 }
 
 export async function index() {

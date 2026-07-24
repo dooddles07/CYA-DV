@@ -3,6 +3,7 @@ import { EventsClient } from "./events-client";
 import { Reveal } from "@/components/motion";
 import { SectionHeading } from "@/components/ui";
 import { listUpcomingEvents } from "@/server/services/event.service";
+import { getSession } from "@/server/utils/session";
 
 export const metadata: Metadata = {
   title: "Events",
@@ -12,7 +13,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function EventsPage() {
-  const events = await listUpcomingEvents();
+  const session = await getSession();
+  const events = await listUpcomingEvents(24, session?.sub ?? null);
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-28 pt-28 sm:px-6 lg:px-8">
@@ -25,7 +27,7 @@ export default async function EventsPage() {
           className="mb-12"
         />
       </Reveal>
-      <EventsClient events={events} />
+      <EventsClient events={events} signedIn={!!session} />
     </div>
   );
 }

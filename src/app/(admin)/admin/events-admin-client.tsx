@@ -15,6 +15,7 @@ import {
   Pencil,
   Trash2,
   Upload,
+  Users,
   X,
 } from "lucide-react";
 import { Badge, Button, Card, EmptyState, Field, inputClass } from "@/components/ui";
@@ -24,7 +25,7 @@ import { cx } from "@/lib/cx";
 import { eventTags } from "@/lib/media";
 import type { EventItem } from "@/lib/types";
 
-type Draft = Omit<EventItem, "id" | "displayDate">;
+type Draft = Omit<EventItem, "id" | "displayDate" | "rsvpCount" | "rsvped">;
 
 const DESCRIPTION_MAX = 800;
 
@@ -653,6 +654,10 @@ function EventSection({
                           {e.speaker}
                         </span>
                       )}
+                      <span className="inline-flex items-center gap-1 font-semibold text-primary-700">
+                        <Users className="h-3.5 w-3.5" aria-hidden />
+                        {e.rsvpCount} going
+                      </span>
                     </p>
                   </div>
 

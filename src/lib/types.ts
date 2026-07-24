@@ -74,6 +74,10 @@ export type EventItem = {
   /** `/media/<file>` for a bundled asset, `/api/images/<id>` for an upload. */
   image: string;
   published: boolean;
+  /** RSVP headcount. */
+  rsvpCount: number;
+  /** Whether the current signed-in user has RSVP'd. */
+  rsvped: boolean;
 };
 
 export type UserStats = {

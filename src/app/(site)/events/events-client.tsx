@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Calendar, Check, MapPin, Mic } from "lucide-react";
+import { Calendar, Check, MapPin, Mic, Users } from "lucide-react";
 import { Badge, Card, EmptyState } from "@/components/ui";
 import { cx } from "@/lib/cx";
 import { toast } from "@/components/toast";
@@ -26,10 +26,44 @@ function useCountdown(target: string) {
   };
 }
 
-function EventCard({ event }: { event: EventItem }) {
+function EventCard({ event, signedIn }: { event: EventItem; signedIn: boolean }) {
   const reduce = useReducedMotion();
   const cd = useCountdown(event.date);
-  const [going, setGoing] = useState(false);
+  const [going, setGoing] = useState(event.rsvped);
+  const [count, setCount] = useState(event.rsvpCount);
+  const [busy, setBusy] = useState(false);
+
+  const onRsvp = async () => {
+    if (!signedIn) {
+      toast("Sign in to RSVP.", "info");
+      return;
+    }
+    if (busy) return;
+    const next = !going;
+    setBusy(true);
+    // Optimistic; reconciled from the server response.
+    setGoing(next);
+    setCount((c) => c + (next ? 1 : -1));
+    if (next) toast(`You're going to ${event.title}!`, "success");
+
+    try {
+      const res = await fetch(`/api/events/${event.id}/rsvp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ going: next }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setGoing(data.rsvped);
+      setCount(data.rsvpCount);
+    } catch {
+      setGoing(!next);
+      setCount((c) => c + (next ? -1 : 1));
+      toast("Could not update your RSVP.", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <Card className="group flex h-full flex-col overflow-hidden">
@@ -79,12 +113,10 @@ function EventCard({ event }: { event: EventItem }) {
           whileTap={reduce ? undefined : { scale: 0.97 }}
           transition={spring}
           aria-pressed={going}
-          onClick={() => {
-            setGoing((g) => !g);
-            if (!going) toast(`You're going to ${event.tag}!`, "success");
-          }}
+          disabled={busy}
+          onClick={onRsvp}
           className={cx(
-            "mt-6 inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full text-sm font-bold transition-colors duration-200",
+            "mt-6 inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full text-sm font-bold transition-colors duration-200 disabled:opacity-60",
             going
               ? "bg-mint-soft text-mint-strong"
               : "bg-sky-tint text-primary-700 hover:bg-sky-mist"
@@ -93,12 +125,18 @@ function EventCard({ event }: { event: EventItem }) {
           {going && <Check className="h-4 w-4" aria-hidden />}
           {going ? "You're coming" : "I'm coming"}
         </motion.button>
+        {count > 0 && (
+          <p className="mt-2.5 flex items-center justify-center gap-1.5 text-xs font-semibold text-ink-faint">
+            <Users className="h-3.5 w-3.5" aria-hidden />
+            {count} {count === 1 ? "person is" : "people are"} coming
+          </p>
+        )}
       </div>
     </Card>
   );
 }
 
-export function EventsClient({ events }: { events: EventItem[] }) {
+export function EventsClient({ events, signedIn }: { events: EventItem[]; signedIn: boolean }) {
   if (events.length === 0)
     return (
       <EmptyState
@@ -112,7 +150,7 @@ export function EventsClient({ events }: { events: EventItem[] }) {
     <Stagger className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {events.map((e) => (
         <StaggerItem key={e.id}>
-          <EventCard event={e} />
+          <EventCard event={e} signedIn={signedIn} />
         </StaggerItem>
       ))}
     </Stagger>

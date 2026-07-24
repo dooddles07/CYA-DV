@@ -2,6 +2,7 @@ import "server-only";
 import { isValidObjectId } from "mongoose";
 import { dbConnect } from "@/server/config/db";
 import { Event } from "@/server/models/event.model";
+import { EventRsvp } from "@/server/models/event-rsvp.model";
 import { ApiError } from "@/server/utils/api-error";
 import { deleteEventImageIfUnused } from "@/server/services/event-image.service";
 import { manilaDayKey } from "@/server/utils/dates";
@@ -25,7 +26,7 @@ function displayDate(date) {
 }
 
 /** @returns {EventItem} */
-function serialize(doc) {
+function serialize(doc, rsvped = false) {
   return {
     id: doc._id.toString(),
     title: doc.title,
@@ -38,7 +39,21 @@ function serialize(doc) {
     tag: doc.tag,
     image: doc.image,
     published: doc.published,
+    rsvpCount: doc.rsvpCount ?? 0,
+    rsvped,
   };
+}
+
+/** Set of eventId strings the user has RSVP'd to, among `docs`. */
+async function rsvpedSet(docs, userId) {
+  if (!userId || docs.length === 0) return new Set();
+  const rows = await EventRsvp.find({
+    userId,
+    eventId: { $in: docs.map((d) => d._id) },
+  })
+    .select("eventId")
+    .lean();
+  return new Set(rows.map((r) => r.eventId.toString()));
 }
 
 function validate(input) {
@@ -77,15 +92,20 @@ function validate(input) {
   };
 }
 
-/** Public list: published, still upcoming, soonest first. */
-export async function listUpcomingEvents(limit = 24) {
+/**
+ * Public list: published, still upcoming, soonest first.
+ * @param {number} [limit]
+ * @param {string | null} [userId]
+ */
+export async function listUpcomingEvents(limit = 24, userId = null) {
   try {
     await dbConnect();
     const docs = await Event.find({ published: true, date: { $gte: manilaDayKey() } })
       .sort({ date: 1 })
       .limit(limit)
       .lean();
-    return docs.map(serialize);
+    const mine = await rsvpedSet(docs, userId);
+    return docs.map((d) => serialize(d, mine.has(d._id.toString())));
   } catch (err) {
     logError("event.listUpcomingEvents", err);
     return [];
@@ -96,7 +116,56 @@ export async function listUpcomingEvents(limit = 24) {
 export async function listAllEvents() {
   await dbConnect();
   const docs = await Event.find().sort({ date: -1 }).lean();
-  return docs.map(serialize);
+  return docs.map((d) => serialize(d));
+}
+
+/**
+ * Toggles the signed-in user's RSVP. The per-user EventRsvp row is the source
+ * of truth: the count only moves when a row is created or removed, so repeat
+ * calls are idempotent and the headcount can't be inflated.
+ * @returns {Promise<{ rsvpCount: number, rsvped: boolean }>}
+ */
+export async function toggleRsvp(eventId, userId, going) {
+  if (!userId) throw new ApiError(401, "Sign in to RSVP.");
+  if (!isValidObjectId(eventId)) throw new ApiError(404, "That event no longer exists.");
+  await dbConnect();
+
+  if (!going) {
+    const removed = await EventRsvp.findOneAndDelete({ eventId, userId });
+    if (!removed) {
+      const doc = await Event.findById(eventId).select("rsvpCount").lean();
+      if (!doc) throw new ApiError(404, "That event no longer exists.");
+      return { rsvpCount: doc.rsvpCount ?? 0, rsvped: false };
+    }
+    const doc = await Event.findOneAndUpdate(
+      { _id: eventId, rsvpCount: { $gt: 0 } },
+      { $inc: { rsvpCount: -1 } },
+      { new: true }
+    ).lean();
+    return { rsvpCount: doc?.rsvpCount ?? 0, rsvped: false };
+  }
+
+  try {
+    await EventRsvp.create({ eventId, userId });
+  } catch (err) {
+    if (err?.code === 11000) {
+      const doc = await Event.findById(eventId).select("rsvpCount").lean();
+      if (!doc) throw new ApiError(404, "That event no longer exists.");
+      return { rsvpCount: doc.rsvpCount ?? 0, rsvped: true };
+    }
+    throw err;
+  }
+  const doc = await Event.findOneAndUpdate(
+    { _id: eventId },
+    { $inc: { rsvpCount: 1 } },
+    { new: true }
+  ).lean();
+  if (!doc) {
+    // Event removed between the two writes — drop the orphan RSVP.
+    await EventRsvp.deleteOne({ eventId, userId }).catch(() => {});
+    throw new ApiError(404, "That event no longer exists.");
+  }
+  return { rsvpCount: doc.rsvpCount, rsvped: true };
 }
 
 export async function createEvent(input) {
@@ -118,7 +187,8 @@ export async function deleteEvent(id) {
   await dbConnect();
   const doc = await Event.findByIdAndDelete(id).lean();
   if (!doc) throw new ApiError(404, "That event no longer exists.");
-  // Drop the uploaded pubmat too, unless another event still uses it.
+  // Drop this event's RSVP rows and the uploaded pubmat (unless still in use).
+  await EventRsvp.deleteMany({ eventId: id }).catch(() => {});
   await deleteEventImageIfUnused(doc.image, Event).catch(() => {});
   return { deleted: true, id };
 }
