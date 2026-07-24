@@ -1,11 +1,18 @@
 /* Service worker: offline shell + push notifications. */
 
-const CACHE = "cya-v1";
+const CACHE = "cya-v2";
 const OFFLINE_URL = "/offline.html";
+const VERSE_URL = "/verse";
+const VERSE_API = "/api/verse/today";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll([OFFLINE_URL, "/icon-192.png"]))
+    // Precache the shell plus today's verse page and data so reading works offline.
+    // addAll is atomic; if the verse fetch fails, precache today's verse next visit.
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll([OFFLINE_URL, "/icon-192.png", VERSE_URL, VERSE_API]))
+      .catch(() => caches.open(CACHE).then((cache) => cache.addAll([OFFLINE_URL, "/icon-192.png"])))
   );
   self.skipWaiting();
 });
@@ -19,12 +26,33 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Network-first for navigations, falling back to the offline page.
-// Everything else is left to the browser so Next's own caching still applies.
+// Network-first with cache refresh. Successful responses for the verse page and
+// its data are stored so today's verse stays readable offline; navigations fall
+// back to the cached page, then the offline shell. Other requests: browser default.
 self.addEventListener("fetch", (event) => {
-  if (event.request.mode !== "navigate") return;
+  const { request } = event;
+  if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
+  const isVerseData = url.origin === self.location.origin && url.pathname === VERSE_API;
+
+  if (request.mode !== "navigate" && !isVerseData) return;
+
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(OFFLINE_URL))
+    fetch(request)
+      .then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy));
+        }
+        return res;
+      })
+      .catch(async () => {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        if (request.mode === "navigate") return caches.match(OFFLINE_URL);
+        return Response.error();
+      })
   );
 });
 
