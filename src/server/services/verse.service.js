@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { dbConnect } from "@/server/config/db";
 import { Verse } from "@/server/models/verse.model";
 import { dayNumber, manilaDayKey } from "@/server/utils/dates";
@@ -55,6 +56,22 @@ async function ensureSeeded() {
   return verseSeed.length;
 }
 
+// Identical for every user and stable for a whole Manila day. The day key is a
+// cache-key arg, so the entry rolls over at midnight; the TTL is a safety net.
+const cachedVerseOfDay = unstable_cache(
+  async (dayKey) => {
+    await dbConnect();
+    const count = await ensureSeeded();
+    const idx = dayNumber(dayKey) % count;
+    const doc = await Verse.findOne().sort({ reference: 1 }).skip(idx).lean();
+    // Throw so the DB-empty/down case falls back and is never cached.
+    if (!doc) throw new Error("no verse");
+    return { reference: doc.reference, text: doc.text, version: doc.version, topic: doc.topic };
+  },
+  ["verse-of-day"],
+  { revalidate: 3600, tags: ["verses"] }
+);
+
 /**
  * Verse of the day: deterministic rotation over the DB collection,
  * keyed by Manila date. Falls back to the bundled seed if the DB
@@ -62,12 +79,7 @@ async function ensureSeeded() {
  */
 export async function getVerseOfDay() {
   try {
-    await dbConnect();
-    const count = await ensureSeeded();
-    const idx = dayNumber(manilaDayKey()) % count;
-    const doc = await Verse.findOne().sort({ reference: 1 }).skip(idx).lean();
-    if (!doc) return fallbackVerse();
-    return { reference: doc.reference, text: doc.text, version: doc.version, topic: doc.topic };
+    return await cachedVerseOfDay(manilaDayKey());
   } catch {
     return fallbackVerse();
   }

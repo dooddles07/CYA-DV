@@ -1,5 +1,6 @@
 import "server-only";
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { syncVerses } from "@/server/services/verse.service";
 import { assertAdmin } from "@/server/utils/require-admin";
 import { toResponse } from "@/server/utils/api-error";
@@ -19,7 +20,10 @@ export async function syncVerseCorpus(req) {
 
     if (!secret || provided !== secret) await assertAdmin();
 
-    return NextResponse.json(await syncVerses());
+    const result = await syncVerses();
+    // New corpus content must show up in the cached verse-of-day / topic counts.
+    revalidateTag("verses");
+    return NextResponse.json(result);
   } catch (err) {
     return toResponse(err, "Could not sync verses.");
   }
