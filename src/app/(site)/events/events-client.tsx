@@ -40,6 +40,7 @@ function EventCard({ event }: { event: EventItem }) {
           fill
           sizes="(min-width:1024px) 33vw, (min-width:768px) 50vw, 100vw"
           className="object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none"
+          unoptimized={event.image.startsWith("/api/images/")}
         />
         <Badge tone="white" className="absolute left-4 top-4">
           {event.tag}
@@ -53,6 +54,9 @@ function EventCard({ event }: { event: EventItem }) {
 
       <div className="flex flex-1 flex-col p-7">
         <h2 className="text-xl font-extrabold leading-snug text-ink">{event.title}</h2>
+        {event.description && (
+          <p className="mt-3 text-sm leading-relaxed text-ink-soft">{event.description}</p>
+        )}
         <ul className="mt-4 flex-1 space-y-2.5 text-sm text-ink-soft">
           <li className="flex items-center gap-2.5">
             <Calendar className="h-4 w-4 shrink-0 text-primary" aria-hidden />
@@ -62,10 +66,12 @@ function EventCard({ event }: { event: EventItem }) {
             <MapPin className="h-4 w-4 shrink-0 text-primary" aria-hidden />
             {event.location}
           </li>
-          <li className="flex items-center gap-2.5">
-            <Mic className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            {event.speaker}
-          </li>
+          {event.speaker && (
+            <li className="flex items-center gap-2.5">
+              <Mic className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+              {event.speaker}
+            </li>
+          )}
         </ul>
 
         <motion.button

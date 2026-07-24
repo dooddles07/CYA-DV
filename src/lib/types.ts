@@ -57,8 +57,10 @@ export type EventItem = {
   displayDate: string;
   time: string;
   location: string;
+  description: string;
   speaker: string;
   tag: string;
+  /** `/media/<file>` for a bundled asset, `/api/images/<id>` for an upload. */
   image: string;
   published: boolean;
 };

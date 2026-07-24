@@ -40,6 +40,8 @@ export const routes = {
   "POST /api/admin/portal/login": "admin-auth.controller#portalLogin",
   "POST /api/admin/portal/logout": "admin-auth.controller#portalLogout",
   "GET  /api/events": "event.controller#upcoming",
+  "GET  /api/images/:id": "image.controller#serve",
+  "POST /api/admin/events/image": "image.controller#upload",
   "GET  /api/admin/events": "event.controller#index",
   "POST /api/admin/events": "event.controller#create",
   "PATCH /api/admin/events/:id": "event.controller#update",

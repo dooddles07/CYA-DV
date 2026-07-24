@@ -260,6 +260,7 @@ export default async function HomePage() {
                       fill
                       sizes="(min-width:1024px) 33vw, (min-width:768px) 50vw, 100vw"
                       className="object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none"
+                      unoptimized={e.image.startsWith("/api/images/")}
                     />
                     <Badge tone="white" className="absolute left-4 top-4">
                       {e.tag}
@@ -276,10 +277,12 @@ export default async function HomePage() {
                         <MapPin className="h-4 w-4 shrink-0 text-primary" aria-hidden />
                         {e.location}
                       </li>
-                      <li className="flex items-center gap-2.5">
-                        <Mic className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                        {e.speaker}
-                      </li>
+                      {e.speaker && (
+                        <li className="flex items-center gap-2.5">
+                          <Mic className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                          {e.speaker}
+                        </li>
+                      )}
                     </ul>
                     <ButtonLink href="/events" variant="secondary" className="mt-6 w-full">
                       I&apos;m coming

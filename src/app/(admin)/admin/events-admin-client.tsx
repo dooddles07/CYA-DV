@@ -8,31 +8,39 @@ import {
   CalendarX,
   Eye,
   EyeOff,
+  ImagePlus,
   Loader2,
   MapPin,
   Mic,
   Pencil,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import { Badge, Button, Card, EmptyState, Field, inputClass } from "@/components/ui";
 import { toast } from "@/components/toast";
+import { compressImage } from "@/lib/compress-image";
 import { cx } from "@/lib/cx";
-import { eventTags, mediaLibrary } from "@/lib/media";
+import { eventTags } from "@/lib/media";
 import type { EventItem } from "@/lib/types";
 
 type Draft = Omit<EventItem, "id" | "displayDate">;
+
+const DESCRIPTION_MAX = 800;
 
 const EMPTY: Draft = {
   title: "",
   date: "",
   time: "",
   location: "",
+  description: "",
   speaker: "",
   tag: "Event",
-  image: mediaLibrary[0].path,
+  image: "",
   published: true,
 };
+
+const hasImage = (src: string) => Boolean(src);
 
 const todayKey = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
 
@@ -43,6 +51,7 @@ function toDraft(event: EventItem): Draft {
     date: event.date,
     time: event.time,
     location: event.location,
+    description: event.description ?? "",
     speaker: event.speaker,
     tag: event.tag,
     image: event.image,
@@ -60,7 +69,9 @@ export function EventsAdminClient({ initialEvents }: { initialEvents: EventItem[
   const [serverError, setServerError] = useState("");
   const [busy, setBusy] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<EventItem | null>(null);
+  const [uploading, setUploading] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const today = todayKey();
   const { upcoming, past } = useMemo(() => {
@@ -99,12 +110,44 @@ export function EventsAdminClient({ initialEvents }: { initialEvents: EventItem[
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
+  const onPickFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast("Choose an image file (JPG, PNG, or WebP).", "error");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Shrink first: a phone photo or pubmat export is usually far over the limit.
+      const compressed = await compressImage(file);
+      const body = new FormData();
+      body.append("file", compressed);
+
+      const res = await fetch("/api/admin/events/image", { method: "POST", body });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast(data.error ?? "Could not upload that image.", "error");
+        return;
+      }
+      set("image", data.url);
+      const kb = Math.round(data.bytes / 1024);
+      toast(`Pubmat uploaded (${kb}KB)`, "success");
+    } catch {
+      toast("Could not read that image.", "error");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   const validate = () => {
     const next: Record<string, string> = {};
     if (draft.title.trim().length < 3) next.title = "Give the event a title (at least 3 characters).";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.date)) next.date = "Pick a date for this event.";
     if (!draft.time.trim()) next.time = "Add a start time, e.g. 1:00 PM.";
     if (draft.location.trim().length < 2) next.location = "Where is it happening?";
+    if (!draft.image) next.image = "Upload a pubmat for this event.";
     setErrors(next);
     const first = Object.keys(next)[0];
     if (first) document.getElementById(`ev-${first}`)?.focus();
@@ -291,6 +334,24 @@ export function EventsAdminClient({ initialEvents }: { initialEvents: EventItem[
                     />
                   </Field>
 
+                  <Field
+                    label="Description"
+                    id="ev-description"
+                    help={`What should people know before they come? ${
+                      DESCRIPTION_MAX - draft.description.length
+                    } characters left.`}
+                  >
+                    <textarea
+                      id="ev-description"
+                      value={draft.description}
+                      onChange={(e) => set("description", e.target.value.slice(0, DESCRIPTION_MAX))}
+                      rows={4}
+                      maxLength={DESCRIPTION_MAX}
+                      placeholder="Who it's for, what to bring, how to register…"
+                      className="w-full resize-none rounded-2xl border border-line bg-surface p-4 text-[15px] leading-relaxed text-ink outline-none transition-colors duration-200 placeholder:text-ink-faint focus:border-primary"
+                    />
+                  </Field>
+
                   <div className="grid gap-5 sm:grid-cols-2">
                     <Field label="Speaker or host" id="ev-speaker">
                       <input
@@ -318,40 +379,75 @@ export function EventsAdminClient({ initialEvents }: { initialEvents: EventItem[
                   </div>
 
                   <fieldset>
-                    <legend className="text-sm font-bold text-ink">Cover image</legend>
-                    <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-5">
-                      {mediaLibrary.map((m) => {
-                        const active = draft.image === m.path;
-                        return (
-                          <button
-                            key={m.path}
-                            type="button"
-                            onClick={() => set("image", m.path)}
-                            aria-pressed={active}
-                            aria-label={m.label}
-                            className={cx(
-                              "relative aspect-[4/3] cursor-pointer overflow-hidden rounded-2xl border-2 transition-all duration-200",
-                              active
-                                ? "border-primary shadow-glow"
-                                : "border-transparent opacity-70 hover:opacity-100"
-                            )}
-                          >
-                            <Image
-                              src={m.path}
-                              alt=""
-                              fill
-                              sizes="120px"
-                              className="object-cover"
-                            />
-                            {active && (
-                              <span className="absolute inset-x-0 bottom-0 bg-primary/90 py-1 text-[10px] font-extrabold text-white">
-                                Selected
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
+                    <legend className="text-sm font-bold text-ink">
+                      Pubmat
+                      <span aria-hidden className="ml-1 text-danger">
+                        *
+                      </span>
+                    </legend>
+
+                    <div
+                      className={cx(
+                        "mt-3 flex flex-wrap items-center gap-4 rounded-2xl border border-dashed p-4 transition-colors",
+                        errors.image ? "border-danger" : "border-line"
+                      )}
+                    >
+                      {hasImage(draft.image) ? (
+                        <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-xl">
+                          <Image
+                            src={draft.image}
+                            alt="Pubmat preview"
+                            fill
+                            sizes="128px"
+                            className="object-cover"
+                            unoptimized
+                          />
+                        </div>
+                      ) : (
+                        <span className="grid h-24 w-32 shrink-0 place-items-center rounded-xl bg-sky-soft text-ink-faint">
+                          <ImagePlus className="h-6 w-6" aria-hidden />
+                        </span>
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-ink">
+                          {hasImage(draft.image) ? "Pubmat ready" : "Upload the event pubmat"}
+                        </p>
+                        <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+                          JPG, PNG, or WebP from your device. Large images are shrunk automatically.
+                        </p>
+                      </div>
+
+                      <input
+                        ref={fileRef}
+                        id="ev-image"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        aria-invalid={!!errors.image}
+                        onChange={(e) => onPickFile(e.target.files?.[0])}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={uploading}
+                        onClick={() => fileRef.current?.click()}
+                      >
+                        {uploading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                        ) : (
+                          <Upload className="h-4 w-4" aria-hidden />
+                        )}
+                        {uploading ? "Uploading…" : hasImage(draft.image) ? "Replace" : "Choose file"}
+                      </Button>
                     </div>
+
+                    {errors.image && (
+                      <p role="alert" className="mt-2 text-sm font-semibold text-danger">
+                        {errors.image}
+                      </p>
+                    )}
                   </fieldset>
 
                   <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold text-ink-soft">
@@ -522,7 +618,14 @@ function EventSection({
                   className={cx("flex flex-col gap-4 p-4 sm:flex-row sm:items-center", muted && "opacity-70")}
                 >
                   <div className="relative h-20 w-full shrink-0 overflow-hidden rounded-2xl sm:w-28">
-                    <Image src={e.image} alt="" fill sizes="112px" className="object-cover" />
+                    <Image
+                      src={e.image}
+                      alt=""
+                      fill
+                      sizes="112px"
+                      className="object-cover"
+                      unoptimized={e.image.startsWith("/api/images/")}
+                    />
                   </div>
 
                   <div className="min-w-0 flex-1">
@@ -531,6 +634,11 @@ function EventSection({
                       {!e.published && <Badge tone="gold">Hidden</Badge>}
                     </div>
                     <h3 className="mt-1.5 truncate text-[15px] font-extrabold text-ink">{e.title}</h3>
+                    {e.description && (
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-soft">
+                        {e.description}
+                      </p>
+                    )}
                     <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
                       <span className="font-semibold text-ink">
                         {e.displayDate} · {e.time}
