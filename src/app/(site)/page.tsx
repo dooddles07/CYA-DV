@@ -59,7 +59,7 @@ export default async function HomePage() {
       </section>
 
       {/* ------------------------------------------------------- Categories */}
-      <section className="py-24" aria-label="Verse categories">
+      <section className="py-20" aria-label="Verse categories">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Reveal>
             <SectionHeading
@@ -90,7 +90,7 @@ export default async function HomePage() {
       </section>
 
       {/* -------------------------------------------- Devotion + reading plan */}
-      <section className="py-24" aria-label="Devotion and reading plan">
+      <section className="py-20" aria-label="Devotion and reading plan">
         <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
           {featured && (
           <Reveal>
@@ -210,7 +210,7 @@ export default async function HomePage() {
       </section>
 
       {/* ------------------------------------------------------- Challenges */}
-      <section className="py-24" aria-label="Daily challenges">
+      <section className="py-20" aria-label="Daily challenges">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Reveal>
             <SectionHeading
@@ -232,7 +232,7 @@ export default async function HomePage() {
       </section>
 
       {/* ----------------------------------------------------------- Events */}
-      <section className="py-24" aria-label="Upcoming events">
+      <section className="py-20" aria-label="Upcoming events">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Reveal>
             <div className="flex flex-wrap items-end justify-between gap-6">
@@ -331,7 +331,7 @@ export default async function HomePage() {
       </section>
 
       {/* -------------------------------------------------------------- CTA */}
-      <section className="py-24" aria-label="Get started">
+      <section className="py-20" aria-label="Get started">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Parallax distance={24}>
             <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary via-[#0089ec] to-[#33b1ff] px-6 py-20 text-center shadow-glow sm:px-16">

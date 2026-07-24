@@ -16,7 +16,8 @@
   --sky-mist: #d4ecff;
   --ink: #0f2233;
   --ink-soft: #45586b;
-  --ink-faint: #7d8fa0;
+  /* Darkened from #7d8fa0 (~3.2:1) to clear WCAG AA 4.5:1 on white surfaces. */
+  --ink-faint: #5f7488;
   --line: #e3edf5;
   --primary: #0095ff;
   --primary-600: #0077d6;
@@ -245,7 +246,7 @@ body {
   .text-gradient { color: var(--primary); }
 }
 
-/* Pointer-tracked spotlight surface — vars written by <Spotlight>. */
+/* Pointer-tracked spotlight surface — vars written by <Card spotlight>. */
 .spotlight {
   position: relative;
 }
