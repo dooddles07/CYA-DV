@@ -69,7 +69,7 @@ async function main() {
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await User.findOneAndUpdate(
     { email },
-    { $set: { name, passwordHash }, $setOnInsert: { email, role: "member" } },
+    { $set: { name, passwordHash, role: "member" }, $setOnInsert: { email } },
     { new: true, upsert: true }
   );
   console.log(`Account ready: ${user.email} (${user.role}) — id ${user._id}`);
