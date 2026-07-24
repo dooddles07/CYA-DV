@@ -36,6 +36,8 @@ export type PrayerItem = {
   request: string;
   tag: string;
   prayedCount: number;
+  // Whether the current signed-in user has prayed for this request.
+  prayed: boolean;
   createdAt: string;
 };
 

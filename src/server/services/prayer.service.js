@@ -2,35 +2,54 @@ import "server-only";
 import { isValidObjectId } from "mongoose";
 import { dbConnect } from "@/server/config/db";
 import { Prayer } from "@/server/models/prayer.model";
+import { PrayerHit } from "@/server/models/prayer-hit.model";
 import { ApiError } from "@/server/utils/api-error";
 
 /** @typedef {import("@/lib/types").PrayerItem} PrayerItem */
 /** @typedef {import("@/lib/types").ModeratedPrayer} ModeratedPrayer */
 
 /** @returns {PrayerItem} */
-function serialize(doc) {
+function serialize(doc, prayed = false) {
   return {
     id: doc._id.toString(),
     name: doc.name,
     request: doc.request,
     tag: doc.tag,
     prayedCount: doc.prayedCount,
+    prayed,
     createdAt: new Date(doc.createdAt).toISOString(),
   };
 }
 
+/** Set of prayerId strings the user has already prayed for, among `docs`. */
+async function prayedSet(docs, userId) {
+  if (!userId || docs.length === 0) return new Set();
+  const hits = await PrayerHit.find({
+    userId,
+    prayerId: { $in: docs.map((d) => d._id) },
+  })
+    .select("prayerId")
+    .lean();
+  return new Set(hits.map((h) => h.prayerId.toString()));
+}
+
 /** @returns {Promise<PrayerItem[]>} */
-export async function listPrayers(limit = 20) {
-  const { prayers } = await listPrayersPage({ limit });
+/**
+ * @param {number} [limit]
+ * @param {string | null} [userId]
+ */
+export async function listPrayers(limit = 20, userId = null) {
+  const { prayers } = await listPrayersPage({ limit, userId });
   return prayers;
 }
 
 /**
  * One page of the wall, newest first. Uses createdAt as a cursor rather than
  * skip/limit so new posts never shift rows into or out of a later page.
+ * @param {{ limit?: number, cursor?: string | null, userId?: string | null }} [opts]
  * @returns {Promise<{ prayers: PrayerItem[], nextCursor: string | null, total: number }>}
  */
-export async function listPrayersPage({ limit = 20, cursor = null } = {}) {
+export async function listPrayersPage({ limit = 20, cursor = null, userId = null } = {}) {
   limit = Math.min(Math.max(Number(limit) || 20, 1), 50);
 
   try {
@@ -50,9 +69,10 @@ export async function listPrayersPage({ limit = 20, cursor = null } = {}) {
 
     const hasMore = docs.length > limit;
     const page = hasMore ? docs.slice(0, limit) : docs;
+    const mine = await prayedSet(page, userId);
 
     return {
-      prayers: page.map(serialize),
+      prayers: page.map((d) => serialize(d, mine.has(d._id.toString()))),
       nextCursor: hasMore ? new Date(page[page.length - 1].createdAt).toISOString() : null,
       total: await Prayer.countDocuments({ status: "approved" }),
     };
@@ -109,15 +129,52 @@ export async function setPrayerStatus(id, status) {
   return { ...serialize(doc), status: doc.status };
 }
 
-export async function togglePrayed(id, undo) {
+/**
+ * Toggles the signed-in user's prayer for a request. The per-user PrayerHit row
+ * is the source of truth: the count only moves when a row is actually created
+ * or removed, so repeat calls are idempotent and the count can't be inflated.
+ * @returns {Promise<{ prayedCount: number, prayed: boolean }>}
+ */
+export async function togglePrayed(id, userId, undo) {
+  if (!userId) throw new ApiError(401, "Sign in to pray for a request.");
   if (!isValidObjectId(id)) throw new ApiError(404, "Not found.");
   await dbConnect();
+
+  if (undo) {
+    const removed = await PrayerHit.findOneAndDelete({ prayerId: id, userId });
+    if (!removed) {
+      const doc = await Prayer.findById(id).select("prayedCount").lean();
+      if (!doc) throw new ApiError(404, "Not found.");
+      return { prayedCount: doc.prayedCount, prayed: false };
+    }
+    const doc = await Prayer.findOneAndUpdate(
+      { _id: id, prayedCount: { $gt: 0 } },
+      { $inc: { prayedCount: -1 } },
+      { new: true }
+    ).lean();
+    return { prayedCount: doc?.prayedCount ?? 0, prayed: false };
+  }
+
+  try {
+    await PrayerHit.create({ prayerId: id, userId });
+  } catch (err) {
+    // Duplicate key — already prayed. Return the current count unchanged.
+    if (err?.code === 11000) {
+      const doc = await Prayer.findById(id).select("prayedCount").lean();
+      if (!doc) throw new ApiError(404, "Not found.");
+      return { prayedCount: doc.prayedCount, prayed: true };
+    }
+    throw err;
+  }
   const doc = await Prayer.findOneAndUpdate(
-    // Guard prevents decrementing below zero.
-    undo ? { _id: id, prayedCount: { $gt: 0 } } : { _id: id },
-    { $inc: { prayedCount: undo ? -1 : 1 } },
+    { _id: id },
+    { $inc: { prayedCount: 1 } },
     { new: true }
   ).lean();
-  if (!doc && !undo) throw new ApiError(404, "Not found.");
-  return doc?.prayedCount ?? 0;
+  if (!doc) {
+    // Prayer vanished between the two writes — drop the orphan hit.
+    await PrayerHit.deleteOne({ prayerId: id, userId }).catch(() => {});
+    throw new ApiError(404, "Not found.");
+  }
+  return { prayedCount: doc.prayedCount, prayed: true };
 }

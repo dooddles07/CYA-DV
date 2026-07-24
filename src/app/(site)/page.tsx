@@ -31,7 +31,7 @@ export default async function HomePage() {
     getVerseOfDay(),
     getCommunityStats(),
     getTopicCounts(),
-    listPrayers(4),
+    listPrayers(4, session?.sub ?? null),
     session ? getActivePlan(session.sub) : previewPlan(),
     session ? savedReferences(session.sub) : ([] as string[]),
     listUpcomingEvents(3),
@@ -205,7 +205,7 @@ export default async function HomePage() {
             </div>
           </Reveal>
           <Reveal delay={0.06} className="mt-10">
-            <PrayerPreview prayers={prayers} />
+            <PrayerPreview prayers={prayers} signedIn={!!session} />
           </Reveal>
         </div>
       </section>

@@ -36,7 +36,9 @@ export function PrayerClient({
   const [items, setItems] = useState<PrayerItem[]>(initialPrayers);
   const [cursor, setCursor] = useState(initialCursor);
   const [count, setCount] = useState(total);
-  const [prayed, setPrayed] = useState<Record<string, boolean>>({});
+  const [prayed, setPrayed] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(initialPrayers.map((p) => [p.id, p.prayed]))
+  );
   const [name, setName] = useState(displayName);
   const [request, setRequest] = useState("");
   const [anonymous, setAnonymous] = useState(false);
@@ -85,7 +87,9 @@ export function PrayerClient({
     try {
       const res = await fetch(`/api/prayers?cursor=${encodeURIComponent(cursor)}`);
       const data = await res.json();
-      setItems((list) => [...list, ...(data.prayers ?? [])]);
+      const more: PrayerItem[] = data.prayers ?? [];
+      setItems((list) => [...list, ...more]);
+      setPrayed((s) => ({ ...s, ...Object.fromEntries(more.map((p) => [p.id, p.prayed])) }));
       setCursor(data.nextCursor ?? null);
     } catch {
       toast("Could not load more right now.", "error");
@@ -94,16 +98,40 @@ export function PrayerClient({
     }
   };
 
-  const onPray = (p: PrayerItem, done: boolean) => {
-    setPrayed((s) => ({ ...s, [p.id]: !done }));
-    if (!done) toast(`Praying with ${p.name}`, "success");
-    // Static fallback items (DB offline) only update locally.
-    if (p.id.startsWith("static-")) return;
-    fetch(`/api/prayers/${p.id}/pray`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ undo: done }),
-    }).catch(() => {});
+  const onPray = async (p: PrayerItem, done: boolean) => {
+    if (!signedIn) {
+      toast("Sign in to pray for a request.", "info");
+      return;
+    }
+    const next = !done;
+    const delta = next ? 1 : -1;
+    // Optimistic; the server response is reconciled below.
+    setPrayed((s) => ({ ...s, [p.id]: next }));
+    setItems((list) =>
+      list.map((it) => (it.id === p.id ? { ...it, prayedCount: it.prayedCount + delta } : it))
+    );
+    if (next) toast(`Praying with ${p.name}`, "success");
+
+    try {
+      const res = await fetch(`/api/prayers/${p.id}/pray`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ undo: done }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setPrayed((s) => ({ ...s, [p.id]: data.prayed }));
+      setItems((list) =>
+        list.map((it) => (it.id === p.id ? { ...it, prayedCount: data.prayedCount } : it))
+      );
+    } catch {
+      // Revert on failure.
+      setPrayed((s) => ({ ...s, [p.id]: done }));
+      setItems((list) =>
+        list.map((it) => (it.id === p.id ? { ...it, prayedCount: it.prayedCount - delta } : it))
+      );
+      toast("Could not update right now.", "error");
+    }
   };
 
   return (
@@ -255,7 +283,7 @@ export function PrayerClient({
                           )}
                           style={{ fontVariantNumeric: "tabular-nums" }}
                         >
-                          {p.prayedCount + (done ? 1 : 0)}
+                          {p.prayedCount}
                         </span>
                         <AnimatePresence>
                           {done && !reduce && (

@@ -14,7 +14,10 @@ export const dynamic = "force-dynamic";
 
 export default async function PrayerPage() {
   const session = await getSession();
-  const { prayers, nextCursor, total } = await listPrayersPage({ limit: 20 });
+  const { prayers, nextCursor, total } = await listPrayersPage({
+    limit: 20,
+    userId: session?.sub ?? null,
+  });
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-28 pt-28 sm:px-6 lg:px-8">

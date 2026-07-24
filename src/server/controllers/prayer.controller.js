@@ -7,10 +7,12 @@ import { getSession } from "@/server/utils/session";
 
 export async function index(req) {
   const { searchParams } = new URL(req.url);
+  const session = await getSession();
   return NextResponse.json(
     await listPrayersPage({
       limit: searchParams.get("limit") ?? 20,
       cursor: searchParams.get("cursor"),
+      userId: session?.sub ?? null,
     })
   );
 }
@@ -37,10 +39,14 @@ export async function create(req) {
 
 export async function pray(req, id) {
   try {
+    const session = await getSession();
+    if (!session)
+      return NextResponse.json({ error: "Sign in to pray for a request." }, { status: 401 });
+
     await rateLimit(req, { name: "prayer:pray", limit: 60, windowMs: 60_000 });
     const body = await req.json().catch(() => ({}));
-    const prayedCount = await togglePrayed(id, Boolean(body?.undo));
-    return NextResponse.json({ prayedCount });
+    const result = await togglePrayed(id, session.sub, Boolean(body?.undo));
+    return NextResponse.json(result);
   } catch (err) {
     return toResponse(err, "Could not update right now.");
   }
