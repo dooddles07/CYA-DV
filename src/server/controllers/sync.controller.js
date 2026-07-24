@@ -13,10 +13,9 @@ import { toResponse } from "@/server/utils/api-error";
  */
 export async function syncVerseCorpus(req) {
   try {
+    // Header only — a query param would leak the secret into access logs.
     const secret = process.env.CRON_SECRET;
-    const provided =
-      req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
-      new URL(req.url).searchParams.get("secret");
+    const provided = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
 
     if (!secret || provided !== secret) await assertAdmin();
 
