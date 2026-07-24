@@ -3,6 +3,7 @@ import { dbConnect } from "@/server/config/db";
 import { UserPlan } from "@/server/models/user-plan.model";
 import { ApiError } from "@/server/utils/api-error";
 import { defaultPlanSlug, getPlan, readingPlans } from "@/lib/data";
+import { logError } from "@/server/utils/logger";
 
 /** @typedef {import("@/lib/types").ActivePlan} ActivePlan */
 /** @typedef {import("@/lib/types").PlanSummary} PlanSummary */
@@ -67,7 +68,8 @@ export async function getActivePlan(userId) {
     const plan = getPlan(doc.planSlug);
     if (!plan) return previewPlan();
     return shape(plan, doc.completedDays);
-  } catch {
+  } catch (err) {
+    logError("plan.getActivePlan", err);
     return previewPlan();
   }
 }

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import { dbConnect } from "@/server/config/db";
 import { User } from "@/server/models/user.model";
+import { logError } from "@/server/utils/logger";
 
 const COOKIE = "cya-session";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
@@ -43,7 +44,8 @@ async function currentTokenVersion(sub) {
     await dbConnect();
     const user = await User.findById(sub).select("tokenVersion").lean();
     return user ? user.tokenVersion ?? 0 : "missing";
-  } catch {
+  } catch (err) {
+    logError("session.currentTokenVersion", err);
     return "error";
   }
 }

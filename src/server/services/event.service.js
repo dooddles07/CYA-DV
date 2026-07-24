@@ -5,6 +5,7 @@ import { Event } from "@/server/models/event.model";
 import { ApiError } from "@/server/utils/api-error";
 import { deleteEventImageIfUnused } from "@/server/services/event-image.service";
 import { manilaDayKey } from "@/server/utils/dates";
+import { logError } from "@/server/utils/logger";
 
 /** @typedef {import("@/lib/types").EventItem} EventItem */
 
@@ -85,7 +86,8 @@ export async function listUpcomingEvents(limit = 24) {
       .limit(limit)
       .lean();
     return docs.map(serialize);
-  } catch {
+  } catch (err) {
+    logError("event.listUpcomingEvents", err);
     return [];
   }
 }

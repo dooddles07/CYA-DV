@@ -4,6 +4,7 @@ import { dbConnect } from "@/server/config/db";
 import { Prayer } from "@/server/models/prayer.model";
 import { PrayerHit } from "@/server/models/prayer-hit.model";
 import { ApiError } from "@/server/utils/api-error";
+import { logError } from "@/server/utils/logger";
 
 /** @typedef {import("@/lib/types").PrayerItem} PrayerItem */
 /** @typedef {import("@/lib/types").ModeratedPrayer} ModeratedPrayer */
@@ -76,8 +77,9 @@ export async function listPrayersPage({ limit = 20, cursor = null, userId = null
       nextCursor: hasMore ? new Date(page[page.length - 1].createdAt).toISOString() : null,
       total: await Prayer.countDocuments({ status: "approved" }),
     };
-  } catch {
+  } catch (err) {
     // DB down — return an empty page rather than fabricated content.
+    logError("prayer.listPrayersPage", err);
     return { prayers: [], nextCursor: null, total: 0 };
   }
 }

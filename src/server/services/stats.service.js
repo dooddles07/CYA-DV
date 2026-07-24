@@ -4,6 +4,7 @@ import { dbConnect } from "@/server/config/db";
 import { User } from "@/server/models/user.model";
 import { Prayer } from "@/server/models/prayer.model";
 import { Verse } from "@/server/models/verse.model";
+import { logError } from "@/server/utils/logger";
 
 /** @typedef {import("@/lib/types").CommunityStats} CommunityStats */
 
@@ -40,7 +41,8 @@ const cachedCommunityStats = unstable_cache(
 export async function getCommunityStats() {
   try {
     return await cachedCommunityStats();
-  } catch {
+  } catch (err) {
+    logError("stats.getCommunityStats", err);
     return EMPTY;
   }
 }
@@ -62,7 +64,8 @@ const cachedTopicCounts = unstable_cache(
 export async function getTopicCounts() {
   try {
     return await cachedTopicCounts();
-  } catch {
+  } catch (err) {
+    logError("stats.getTopicCounts", err);
     return {};
   }
 }

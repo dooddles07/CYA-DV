@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { dbConnect } from "@/server/config/db";
 import { Verse } from "@/server/models/verse.model";
 import { dayNumber, manilaDayKey } from "@/server/utils/dates";
+import { logError } from "@/server/utils/logger";
 import verseSeed from "../../data/verses.json" with { type: "json" };
 
 /** Deterministic fallback so the site works even if the DB is down. */
@@ -80,7 +81,8 @@ const cachedVerseOfDay = unstable_cache(
 export async function getVerseOfDay() {
   try {
     return await cachedVerseOfDay(manilaDayKey());
-  } catch {
+  } catch (err) {
+    logError("verse.getVerseOfDay", err);
     return fallbackVerse();
   }
 }
@@ -123,7 +125,8 @@ export async function searchVerses({ query = "", topic = "", limit = 60 } = {}) 
       .limit(limit)
       .lean();
     return docs.map(toVerse);
-  } catch {
+  } catch (err) {
+    logError("verse.searchVerses", err, { query, topic });
     return searchLibrary(query, topic);
   }
 }

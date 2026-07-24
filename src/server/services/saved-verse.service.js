@@ -2,6 +2,7 @@ import "server-only";
 import { dbConnect } from "@/server/config/db";
 import { SavedVerse } from "@/server/models/saved-verse.model";
 import { ApiError } from "@/server/utils/api-error";
+import { logError } from "@/server/utils/logger";
 
 /** @typedef {import("@/lib/types").SavedVerse} SavedVerse */
 
@@ -21,7 +22,8 @@ export async function listSaved(userId, limit = 100) {
     await dbConnect();
     const docs = await SavedVerse.find({ userId }).sort({ createdAt: -1 }).limit(limit).lean();
     return docs.map(serialize);
-  } catch {
+  } catch (err) {
+    logError("savedVerse.listSaved", err);
     return [];
   }
 }
@@ -67,7 +69,8 @@ export async function savedReferences(userId) {
     await dbConnect();
     const docs = await SavedVerse.find({ userId }).select("reference").lean();
     return docs.map((d) => d.reference);
-  } catch {
+  } catch (err) {
+    logError("savedVerse.savedReferences", err);
     return [];
   }
 }

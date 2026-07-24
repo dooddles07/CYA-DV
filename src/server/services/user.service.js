@@ -5,6 +5,7 @@ import { ApiError } from "@/server/utils/api-error";
 import { dayNumber, manilaDayKey } from "@/server/utils/dates";
 import { XP_PER_READ, levelFor, xpToNext } from "@/server/utils/gamification";
 import { challenges } from "@/lib/data";
+import { logError } from "@/server/utils/logger";
 
 /** @typedef {import("@/lib/types").UserStats} UserStats */
 
@@ -32,8 +33,9 @@ export async function getUserStats(session) {
       lastReadDate: user.lastReadDate,
       ...stats(user),
     };
-  } catch {
+  } catch (err) {
     // DB down — still report the session identity so the UI stays logged in.
+    logError("user.getUserStats", err);
     return {
       name: session.name,
       email: session.email,
