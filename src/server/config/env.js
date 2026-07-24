@@ -1,5 +1,7 @@
 // Fail fast with a clear message instead of a cryptic runtime error deep in a request.
-const REQUIRED = ["MONGO_URL", "AUTH_SECRET"];
+// NEXT_PUBLIC_SITE_URL is required: reset / verify-email links are built from it,
+// so an unset value must fail boot rather than silently fall back to the prod origin.
+const REQUIRED = ["MONGO_URL", "AUTH_SECRET", "NEXT_PUBLIC_SITE_URL"];
 
 let checked = false;
 

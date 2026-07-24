@@ -6,7 +6,7 @@ import { mailConfigured, mailFrom, mailer } from "@/server/config/mailer";
 import { User } from "@/server/models/user.model";
 import { ResetToken } from "@/server/models/reset-token.model";
 import { ApiError } from "@/server/utils/api-error";
-import { SITE_URL } from "@/lib/site";
+import { requireSiteUrl } from "@/lib/site";
 
 const TTL_MINUTES = 60;
 
@@ -80,7 +80,7 @@ export async function requestReset(email) {
     expiresAt: new Date(Date.now() + TTL_MINUTES * 60_000),
   });
 
-  const link = `${SITE_URL}/reset-password?token=${token}`;
+  const link = `${requireSiteUrl()}/reset-password?token=${token}`;
   const { text, html } = emailBody(user.name.split(" ")[0] || "friend", link);
 
   await mailer().sendMail({

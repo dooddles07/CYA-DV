@@ -6,7 +6,7 @@ import { User } from "@/server/models/user.model";
 import { VerifyToken } from "@/server/models/verify-token.model";
 import { ApiError } from "@/server/utils/api-error";
 import { logError } from "@/server/utils/logger";
-import { SITE_URL } from "@/lib/site";
+import { requireSiteUrl } from "@/lib/site";
 
 const TTL_MINUTES = 60 * 24; // 24 hours
 
@@ -70,7 +70,7 @@ export async function sendVerificationEmail(user) {
       expiresAt: new Date(Date.now() + TTL_MINUTES * 60_000),
     });
 
-    const link = `${SITE_URL}/verify-email?token=${token}`;
+    const link = `${requireSiteUrl()}/verify-email?token=${token}`;
     const { text, html } = emailBody(user.name.split(" ")[0] || "friend", link);
     await mailer().sendMail({
       from: mailFrom(),
