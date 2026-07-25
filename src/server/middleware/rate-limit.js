@@ -1,5 +1,5 @@
 import { dbConnect } from "@/server/config/db";
-import { RateHit } from "@/server/models/rate-hit.model";
+import { RateBucket } from "@/server/models/rate-bucket.model";
 import { ApiError } from "@/server/utils/api-error";
 
 // Per-process fallback, used only when the DB is unreachable.
@@ -35,27 +35,32 @@ function localLimit(key, limit, windowMs) {
 }
 
 /**
- * Sliding-window limiter backed by Mongo, so the count is shared across every
+ * Fixed-window limiter backed by Mongo, so the count is shared across every
  * instance rather than reset per process. Falls back to an in-memory window
  * if the database is unreachable — degraded, but never blocks a real request.
  *
  * Throws ApiError(429) when the client is over the limit.
  */
 export async function rateLimit(req, { name, limit, windowMs, message }) {
-  const key = `${name}:${clientKey(req)}`;
-  const since = new Date(Date.now() - windowMs);
+  const client = clientKey(req);
+  const bucketStart = Math.floor(Date.now() / windowMs) * windowMs;
+  const id = `${name}:${client}:${bucketStart}`;
   const tooMany = message ?? "Too many requests — please wait a moment and try again.";
 
   try {
     await dbConnect();
-    // Accepted TOCTOU: count then insert isn't atomic, so concurrent bursts can
-    // overshoot the limit by up to (concurrency - 1). Fine here — these limits are
-    // abuse-friction, not hard quotas. Revisit with an atomic reserve if that changes.
-    const used = await RateHit.countDocuments({ key, at: { $gte: since } });
-    if (used >= limit) throw new ApiError(429, tooMany);
-    await RateHit.create({ key, at: new Date() });
+    // Atomic reserve: $inc bumps the shared counter in one round-trip, so
+    // concurrent requests can't race a count-then-insert gap and overshoot.
+    // The request that pushes the count past the limit is the one that's turned
+    // away, so exactly `limit` requests pass per window.
+    const doc = await RateBucket.findOneAndUpdate(
+      { _id: id },
+      { $inc: { count: 1 }, $setOnInsert: { expiresAt: new Date(bucketStart + windowMs) } },
+      { upsert: true, returnDocument: "after" }
+    );
+    if (doc.count > limit) throw new ApiError(429, tooMany);
   } catch (err) {
     if (err instanceof ApiError) throw err;
-    if (!localLimit(key, limit, windowMs)) throw new ApiError(429, tooMany);
+    if (!localLimit(`${name}:${client}`, limit, windowMs)) throw new ApiError(429, tooMany);
   }
 }

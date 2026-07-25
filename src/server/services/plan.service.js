@@ -98,7 +98,7 @@ export async function enrollPlan(userId, slug) {
   const doc = await UserPlan.findOneAndUpdate(
     { userId, planSlug: plan.slug },
     { $set: { active: true }, $setOnInsert: { completedDays: [] } },
-    { new: true, upsert: true }
+    { returnDocument: "after", upsert: true }
   ).lean();
 
   return shape(plan, doc.completedDays);

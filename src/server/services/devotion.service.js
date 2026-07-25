@@ -128,7 +128,7 @@ export async function updateDevotion(id, input) {
   const data = validate(input);
   const clash = await Devotion.findOne({ slug: data.slug, _id: { $ne: id } }).lean();
   if (clash) throw new ApiError(409, "Another devotional already uses that link.");
-  const doc = await Devotion.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
+  const doc = await Devotion.findByIdAndUpdate(id, { $set: data }, { returnDocument: "after" }).lean();
   if (!doc) throw new ApiError(404, "That devotional no longer exists.");
   return serialize(doc);
 }

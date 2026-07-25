@@ -150,7 +150,7 @@ export async function setPrayerStatus(id, status) {
   if (!["approved", "hidden"].includes(status)) throw new ApiError(400, "Invalid status.");
 
   await dbConnect();
-  const doc = await Prayer.findByIdAndUpdate(id, { $set: { status } }, { new: true }).lean();
+  const doc = await Prayer.findByIdAndUpdate(id, { $set: { status } }, { returnDocument: "after" }).lean();
   if (!doc) throw new ApiError(404, "Not found.");
   return { ...serialize(doc), status: doc.status };
 }
@@ -176,7 +176,7 @@ export async function togglePrayed(id, userId, undo) {
     const doc = await Prayer.findOneAndUpdate(
       { _id: id, prayedCount: { $gt: 0 } },
       { $inc: { prayedCount: -1 } },
-      { new: true }
+      { returnDocument: "after" }
     ).lean();
     return { prayedCount: doc?.prayedCount ?? 0, prayed: false };
   }
@@ -195,7 +195,7 @@ export async function togglePrayed(id, userId, undo) {
   const doc = await Prayer.findOneAndUpdate(
     { _id: id },
     { $inc: { prayedCount: 1 } },
-    { new: true }
+    { returnDocument: "after" }
   ).lean();
   if (!doc) {
     // Prayer vanished between the two writes — drop the orphan hit.

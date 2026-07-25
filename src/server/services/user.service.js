@@ -77,7 +77,7 @@ export async function markVerseRead(userId) {
       $set: { streak: nextStreak, bestStreak: nextBest, lastReadDate: today },
       $inc: { totalReads: 1, xp: XP_PER_READ },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   if (user) return { alreadyRead: false, ...stats(user) };
@@ -152,7 +152,7 @@ export async function setUserRole(id, role, actorId = null) {
     throw new ApiError(400, "You can't remove your own admin role.");
 
   await dbConnect();
-  const doc = await User.findByIdAndUpdate(id, { $set: { role } }, { new: true })
+  const doc = await User.findByIdAndUpdate(id, { $set: { role } }, { returnDocument: "after" })
     .select("name email role")
     .lean();
   if (!doc) throw new ApiError(404, "Account not found.");

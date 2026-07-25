@@ -140,7 +140,7 @@ export async function toggleRsvp(eventId, userId, going) {
     const doc = await Event.findOneAndUpdate(
       { _id: eventId, rsvpCount: { $gt: 0 } },
       { $inc: { rsvpCount: -1 } },
-      { new: true }
+      { returnDocument: "after" }
     ).lean();
     return { rsvpCount: doc?.rsvpCount ?? 0, rsvped: false };
   }
@@ -158,7 +158,7 @@ export async function toggleRsvp(eventId, userId, going) {
   const doc = await Event.findOneAndUpdate(
     { _id: eventId },
     { $inc: { rsvpCount: 1 } },
-    { new: true }
+    { returnDocument: "after" }
   ).lean();
   if (!doc) {
     // Event removed between the two writes — drop the orphan RSVP.
@@ -177,7 +177,7 @@ export async function createEvent(input) {
 export async function updateEvent(id, input) {
   if (!isValidObjectId(id)) throw new ApiError(404, "That event no longer exists.");
   await dbConnect();
-  const doc = await Event.findByIdAndUpdate(id, { $set: validate(input) }, { new: true }).lean();
+  const doc = await Event.findByIdAndUpdate(id, { $set: validate(input) }, { returnDocument: "after" }).lean();
   if (!doc) throw new ApiError(404, "That event no longer exists.");
   return serialize(doc);
 }
