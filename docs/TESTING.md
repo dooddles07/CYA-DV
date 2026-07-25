@@ -2,7 +2,7 @@
 
 Testing guide for **CYA Daily Verse** — a Next.js 16 / React 19 application backed by MongoDB (Mongoose). This document reflects the tests that actually exist in the repository. Where a capability is missing, it is labelled as a gap with a concrete recommendation rather than glossed over.
 
-Related design context: [`DESIGN.md`](./DESIGN.md) §17.
+Related context: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (Design Decisions & Trade-offs).
 
 ---
 
@@ -126,7 +126,7 @@ There is **no committed E2E test suite** in this repository — no Playwright, C
 
 UI is currently verified **manually during development** using the Playwright MCP (real browser rendering plus console-error inspection), but those sessions are ad hoc and not checked into the repo, so there are no automated E2E specs, generated reports, screenshots, or video artifacts to document.
 
-> **Gap / recommendation:** add a Playwright project (`@playwright/test`) covering the core happy paths — register → log in → view daily verse → mark read → streak increments → view profile/leaderboard. See [Future Improvements](#future-improvements).
+> **Gap / recommendation:** add a Playwright project (`@playwright/test`) covering the core happy paths — register → log in → view daily verse → mark read → streak increments → view dashboard. See [Future Improvements](#future-improvements).
 
 ---
 
@@ -231,9 +231,8 @@ Concrete, repository-specific next steps, roughly in priority order:
 
 1. **Add a CI test workflow.** No workflow currently runs the suite; add `ci.yml` (`npm ci` → lint → `tsc --noEmit` → `npm test`) on push/PR and make it a required check. Highest impact.
 2. **Wire up coverage.** Add a `test:coverage` script using `--experimental-test-coverage`, capture a baseline, then enforce a threshold in CI. Measure before publishing any number.
-3. **Add E2E tests.** Introduce Playwright covering register → login → daily verse → mark read → streak → profile/leaderboard, with CI-published traces.
+3. **Add E2E tests.** Introduce Playwright covering register → login → daily verse → mark read → streak → dashboard, with CI-published traces.
 4. **Broaden integration coverage.** Extend service tests to reading-plan progress, verse assignment/rotation persistence, and the notification-subscription flow.
 5. **Add API route tests.** Cover the Next.js route handlers (auth, cron, verse endpoints) including auth/authorization failure paths and rate-limit behaviour.
 6. **Add npm script aliases.** Provide `test:unit`, `test:integration`, and `test:coverage` so the long `node --test` invocations are discoverable.
 7. **Performance testing.** Once E2E exists, add a lightweight load check for the daily-verse and cron endpoints to catch regressions under concurrency.
-```

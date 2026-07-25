@@ -2,8 +2,8 @@
 
 REST-ish JSON API over Next.js Route Handlers for **CYA Daily Verse**. Internal
 BFF (Backend-for-Frontend) — a single first-party web client, no public
-versioning. See [`ARCHITECTURE.md`](./ARCHITECTURE.md) and
-[`DESIGN.md`](./DESIGN.md) §12.
+versioning. See [`ARCHITECTURE.md`](./ARCHITECTURE.md) (Backend Architecture)
+for rationale.
 
 ## Table of Contents
 

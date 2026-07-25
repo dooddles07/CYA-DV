@@ -3,8 +3,8 @@
 Data layer reference for **CYA Daily Verse** — a MongoDB document store accessed
 through Mongoose models in [`src/server/models/`](../src/server/models/).
 Correctness is enforced by unique indexes and atomic single-document writes, not
-multi-document transactions. See [`ARCHITECTURE.md`](./ARCHITECTURE.md) and
-[`DESIGN.md`](./DESIGN.md) §11 for rationale.
+multi-document transactions. See [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+(Database Architecture) for rationale.
 
 ## Table of Contents
 
@@ -618,7 +618,7 @@ TODO:
 No formal migration = no automated rollback. Document a manual procedure:
  - Revert the model code and redeploy.
  - Restore from a pre-change backup if a destructive data change shipped.
- - Non-verse collections have no reversal path today (see DESIGN.md §21).
+ - Non-verse collections have no reversal path today (see ARCHITECTURE.md, Future Improvements).
 ```
 
 ---
@@ -761,7 +761,7 @@ Based on the current implementation:
   restore (§10) — the single biggest production gap.
 - **Migration path for non-verse collections:** add a lightweight,
   version-controlled migration runner (e.g. migrate-mongo) for field
-  renames/removals and backfills (`DESIGN.md` §21).
+  renames/removals and backfills (see `ARCHITECTURE.md`, Future Improvements).
 - **Push hygiene:** TTL/prune `pushlogs`; drop subscriptions that return
   410 Gone; index/expire accordingly.
 - **Monitoring:** enable the MongoDB profiler and dashboard alerts (§13).

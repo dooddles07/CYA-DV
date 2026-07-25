@@ -1,7 +1,8 @@
 # Roadmap
 
 Planned and candidate improvements for CYA Daily Verse. Derived from known technical debt and design
-gaps — see [`DESIGN.md`](./DESIGN.md) §21–§22. Not committed dates; priority-ordered.
+gaps — see [`ARCHITECTURE.md`](./ARCHITECTURE.md) (Design Decisions & Trade-offs, Future Improvements).
+Not committed dates; priority-ordered.
 
 ## High priority
 

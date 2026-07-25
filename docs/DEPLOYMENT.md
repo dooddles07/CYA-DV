@@ -2,8 +2,8 @@
 
 Complete guide to building, configuring, deploying, and operating **CYA Daily
 Verse**. A new engineer should be able to deploy the application by following
-this document end to end. See [`ARCHITECTURE.md`](./ARCHITECTURE.md) and
-[`DESIGN.md`](./DESIGN.md) §10, §16 for rationale.
+this document end to end. See [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+(Deployment Architecture, Design Decisions & Trade-offs) for rationale.
 
 > **Ground truth vs. reference patterns.** The application currently ships as a
 > single **Next.js** server deployed on **Railway** with **MongoDB**, plus a

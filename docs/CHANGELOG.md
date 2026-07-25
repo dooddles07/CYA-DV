@@ -27,9 +27,22 @@ Maintainer guide:
   canonical `ARCHITECTURE`, `API`, `DATABASE`, `DEPLOYMENT`, `SECURITY`, and
   `TESTING` guides. Corrected earlier discrepancies in search, pagination,
   toggle, and rate-limit behavior and documented known gaps.
+- **Rewrote `DESIGN.md` as a UI/UX design reference** (design language, color
+  and typography tokens, layout system, component and pattern catalog,
+  accessibility, motion) sourced from `globals.css`, `ui.tsx`, and `motion.ts`.
+  The former system-design content is superseded by `ARCHITECTURE.md`.
+- **Rewrote `FEATURES.md`** as a structured capability reference with a
+  role/permission matrix, verified content-catalog counts, and a
+  feature-to-endpoint map.
+- Repointed doc cross-references that targeted the old `DESIGN.md` sections to
+  the equivalent `ARCHITECTURE.md` sections.
 - Restructured `docs/` into a standard layout and normalized Markdown
   filenames and cross-links.
 - Moved `LICENSE.md` to the repository root for discoverability.
+
+### Fixed
+- Removed a stray Markdown code fence and a reference to a non-existent
+  "leaderboard" screen in `TESTING.md`.
 
 ### Deprecated
 <!-- Features slated for removal in a future release. -->
