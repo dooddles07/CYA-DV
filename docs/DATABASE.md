@@ -1,4 +1,4 @@
-# Data Schema
+# Database
 
 MongoDB collections for CYA Daily Verse, defined by the Mongoose models in `src/server/models/`.
 Schemaless engine; correctness comes from unique indexes + atomic single-document writes (no

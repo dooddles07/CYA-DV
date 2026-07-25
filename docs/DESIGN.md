@@ -2,7 +2,7 @@
 
 Long-term architectural design record for **CYA Daily Verse**. Companion to
 [`ARCHITECTURE.md`](./ARCHITECTURE.md) (engineering reference) and
-[`SYSTEM-FLOW.md`](./system-flow.md) (product experience). This document explains *why* the system
+[`FEATURES.md`](./FEATURES.md) (product experience). This document explains *why* the system
 is shaped the way it is, for maintainers, new contributors, and AI coding agents making
 architecture-consistent changes.
 
@@ -139,7 +139,7 @@ src/
   proxy.ts                  Next middleware — per-request CSP nonce
 scripts/                    dev-local, seed, purge-seed, fetch-verses, create-member
 tests/                      node:test suites (unit + in-memory integration)
-docs/                       DESIGN.md, ARCHITECTURE.md, SYSTEM-FLOW.md, CHANGELOG.md, activity-log.md
+docs/                       ARCHITECTURE.md, DESIGN.md, API.md, DATABASE.md, DEPLOYMENT.md, SECURITY.md, TESTING.md, FEATURES.md, CHANGELOG.md, ROADMAP.md
 public/                     PWA assets, icons, media, sw.js, offline.html
 .github/workflows/          daily-verse-push.yml (cron scheduler)
 ```
