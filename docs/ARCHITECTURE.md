@@ -1,7 +1,7 @@
 # CYA Daily Verse — Architecture
 
 Canonical engineering reference for the CYA Daily Verse platform. Companion to
-[`system-flow.md`](./system-flow.md), which covers the product experience in plain language; this
+[`SYSTEM-FLOW.md`](./SYSTEM-FLOW.md), which covers the product experience in plain language; this
 document covers how the system is built and why.
 
 > Conventions used here
@@ -91,7 +91,7 @@ src/
   proxy.ts                  Next middleware — per-request CSP nonce
 scripts/                    dev-local, seed, purge-seed, fetch-verses, create-member
 tests/                      node:test suites (unit + in-memory integration)
-docs/                       system-flow.md, activity-log.md, architecture.md
+docs/                       SYSTEM-FLOW.md, ACTIVITY-LOG.md, ARCHITECTURE.md
 ```
 
 **Ownership boundaries.**
