@@ -52,10 +52,17 @@ Brand primary is `#0095FF` throughout. Scripture is set in Lora via `.verse-text
 
 ## Routes
 
-`/` `/verse` `/search` `/mood` `/plans` `/devotion` `/prayer` `/events`
-`/login` `/register` `/dashboard` `/about` + 404
+**Public** `/` `/verse` `/verse/archive` `/search` `/mood` `/plans`
+`/devotion` `/devotion/[slug]` `/prayer` `/events` `/about` `/privacy` `/terms`
 
-All 13 prerender as static.
+**Auth** `/login` `/register` `/forgot-password` `/reset-password` `/verify-email`
+`/dashboard`
+
+**Admin** `/admin-portal` `/admin` `/admin/prayers` `/admin/devotions` `/admin/users`
+
+Plus 404. Pages are server-rendered on demand (they read live data and the
+session cookie); only metadata routes — `manifest.webmanifest`, `robots.txt`,
+`sitemap.xml`, `opengraph-image` — prerender as static.
 
 ## Accessibility
 
@@ -83,9 +90,14 @@ src/
 
 ## Note on content
 
-Scripture and community content in `src/lib/data.ts` is demo data shaped to match
-the intended database tables — swap it for Supabase/Firebase queries. Auth is a
-non-functional demo form.
+Scripture is served from MongoDB (300 verses across 15 topics, seeded by
+`npm run seed`). Community content — prayers, events, devotions, RSVPs — is
+persisted through the Mongoose models in `src/server/models`. Auth is fully
+functional: registration, login, email verification, and password reset run on
+bcrypt-hashed credentials with `jose`-signed session cookies.
+
+`src/lib/data.ts` holds the static config that isn't user data — reading-plan
+definitions, home-grid categories, and mood shortcuts.
 
 ## License
 
