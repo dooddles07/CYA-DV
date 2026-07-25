@@ -13,6 +13,32 @@ import { getVerseOfDay } from "@/server/services/verse.service";
 // limits). Sent in sequential batches of this size.
 const SEND_CONCURRENCY = 100;
 
+// Endpoints are attacker-supplied and later POSTed to by broadcast(), so only
+// the real push services are accepted — an arbitrary URL would be a blind SSRF
+// (e.g. an internal host) and junk endpoints would flood storage.
+const ALLOWED_ENDPOINT_HOSTS = [
+  "android.googleapis.com",
+  "fcm.googleapis.com",
+  ".push.services.mozilla.com",
+  ".notify.windows.com",
+  ".push.apple.com",
+  ".web.push.apple.com",
+];
+
+function endpointAllowed(endpoint) {
+  let host;
+  try {
+    const url = new URL(endpoint);
+    if (url.protocol !== "https:") return false;
+    host = url.hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return ALLOWED_ENDPOINT_HOSTS.some((h) =>
+    h.startsWith(".") ? host.endsWith(h) : host === h
+  );
+}
+
 let configured = false;
 
 function configure() {
@@ -35,6 +61,7 @@ export async function saveSubscription(subscription, userId = null) {
   const p256dh = String(subscription?.keys?.p256dh ?? "");
   const auth = String(subscription?.keys?.auth ?? "");
   if (!endpoint || !p256dh || !auth) throw new ApiError(400, "Invalid push subscription.");
+  if (!endpointAllowed(endpoint)) throw new ApiError(400, "Unsupported push endpoint.");
 
   await dbConnect();
   await PushSubscription.findOneAndUpdate(
