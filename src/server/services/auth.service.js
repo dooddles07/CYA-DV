@@ -9,7 +9,8 @@ export async function registerUser({ name, email, password }) {
   email = String(email ?? "").trim().toLowerCase();
   password = String(password ?? "");
 
-  if (name.length < 2) throw new ApiError(400, "Please tell us your name.");
+  if (!name) throw new ApiError(400, "Please tell us your name.");
+  if (name.length < 2) throw new ApiError(400, "Your name needs at least 2 characters.");
   if (name.length > 60) throw new ApiError(400, "Please use a shorter name (60 characters max).");
   if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 120)
     throw new ApiError(400, "That email doesn't look right.");

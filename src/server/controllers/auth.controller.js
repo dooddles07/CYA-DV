@@ -18,7 +18,9 @@ async function readJson(req) {
 
 export async function register(req) {
   try {
-    await rateLimit(req, { name: "auth:register", limit: 5, windowMs: 60 * 60_000 });
+    // 10/15min matches reset+verify: enough headroom for a whole group signing
+    // up on one shared/NAT IP, still tight against spam-account creation.
+    await rateLimit(req, { name: "auth:register", limit: 10, windowMs: 15 * 60_000 });
     const user = await registerUser(await readJson(req));
     await createSession(user);
     // Fire-and-forget: the send owns its own errors, and awaiting it would block
