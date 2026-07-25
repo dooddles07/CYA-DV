@@ -1,13 +1,30 @@
 # CYA Daily Verse — Architecture
 
 Canonical engineering reference for the CYA Daily Verse platform. Companion to
-[`FEATURES.md`](./FEATURES.md), which covers the product experience in plain language; this
-document covers how the system is built and why.
+[`FEATURES.md`](./FEATURES.md) (product experience in plain language); this document covers how the
+system is built and why.
 
-> Conventions used here
+> **Conventions**
 > - **Fact** — read directly from source in this repository.
 > - **Inferred** — reasoned from the code but not explicitly stated; flagged inline.
-> - `> TODO: Needs confirmation` — cannot be determined from the repository.
+> - `> TBC` — *To be confirmed*: cannot be determined from the repository.
+
+---
+
+## Table of Contents
+
+1. [Architecture Overview](#architecture-overview)
+2. [System Architecture](#system-architecture)
+3. [Frontend Architecture](#frontend-architecture)
+4. [Backend Architecture](#backend-architecture)
+5. [Database Architecture](#database-architecture)
+6. [Authentication & Authorization](#authentication--authorization)
+7. [External Services & Integrations](#external-services--integrations)
+8. [Deployment Architecture](#deployment-architecture)
+9. [Project File Structure](#project-file-structure)
+10. [Design Decisions & Trade-offs](#design-decisions--trade-offs)
+11. [Future Improvements](#future-improvements)
+12. [Appendix](#appendix)
 
 ---
 
@@ -18,24 +35,26 @@ document covers how the system is built and why.
 reading plans, a moderated prayer wall, community events, gamified reading streaks, and opt-in web
 push reminders. A single Next.js deployment serves both the rendered UI and the JSON API.
 
-**Core business domain.** Faith-habit formation. The product optimizes for daily return: verse of
-the day → mark read → streak/XP → community (prayer, events). Domain nouns are *Verse*, *User*,
-*Streak/XP*, *Prayer*, *Event*, *Devotion*, *Reading Plan*, *Push Subscription*.
+**Core domain.** Faith-habit formation, optimized for daily return: *verse of the day → mark read →
+streak/XP → community (prayer, events)*. Domain nouns: *Verse, User, Streak/XP, Prayer, Event,
+Devotion, Reading Plan, Push Subscription*.
 
-**Architectural style — Layered Modular Monolith on Next.js App Router.**
+**Architectural style — Layered Modular Monolith on the Next.js App Router.**
 
 | Trait | Evidence |
 |---|---|
-| **Monolith** | One Next.js process serves UI + API; `src/server/server.js` explicitly declines to be a custom HTTP server so Next keeps static optimization. |
-| **Layered** | Strict `route → controller → service → model` chain under `src/server/`, mirroring an Express-style backend inside Next. |
-| **Modular** | Each domain (auth, prayer, event, plan, verse, push…) has its own route/controller/service/model quartet. |
-| **Backend-for-frontend** | The API exists only to serve this app's own UI; no public API contract or versioning. |
+| **Monolith** | One Next.js process serves UI + API; no custom HTTP server, so Next keeps static optimization. |
+| **Layered** | Strict `route → controller → service → model` chain under `src/server/`, an Express-style backend inside Next. |
+| **Modular** | Each domain (auth, prayer, event, plan, verse, push…) owns its own route/controller/service/model quartet. |
+| **Backend-for-frontend (BFF)** | The API serves only this app's UI; no public API contract or versioning. |
 
-**Why this style.** The team is small and the domain is cohesive; a monolith removes cross-service
-network cost and deployment complexity. The internal layering keeps the monolith testable and gives
-a clean seam (`src/app/api/**/route.js` shims) between Next's routing and framework-agnostic backend
-code — the backend could be lifted onto Express with minimal change because controllers already
-take `Request` and return `NextResponse`.
+**Why this style.** Small team, cohesive domain. A monolith removes cross-service network cost and
+deployment complexity. Internal layering keeps the monolith testable and provides a clean seam
+(`src/app/api/**/route.js` shims) between Next's routing and framework-agnostic backend code — the
+backend could be lifted onto Express with minimal change because controllers already take a `Request`
+and return a `NextResponse`.
+
+### System flow (major components)
 
 ```mermaid
 graph TB
@@ -61,60 +80,12 @@ graph TB
   Cron -->|POST /api/cron/daily-verse| API
 ```
 
----
+### Technology stack (from `package.json`)
 
-## Project Structure
-
-```
-src/
-  app/                      Next.js App Router — pages + API route shims
-    (site)/                 public + member-facing pages (route group)
-    (admin)/                admin portal + admin dashboards (route group)
-    api/**/route.js         thin re-export shims -> src/server/routes
-    layout.tsx              root layout, fonts, theme script, metadata
-    globals.css             Tailwind v4 + Figma design tokens (CSS vars)
-    manifest.ts robots.ts sitemap.ts opengraph-image.tsx   static metadata
-  components/               React UI (client + server components)
-    motion/ three/ nav/ pwa/ home/   feature-grouped UI
-    ui.tsx verse-card.tsx toast.tsx   shared primitives
-  lib/                      client-safe: data.ts, types.ts, hooks.ts, motion.ts, cx.ts
-  data/verses.json          bundled 300-verse seed corpus (fallback + seed source)
-  server/                   backend (server-only)
-    config/                 db.js, env.js, mailer.js
-    routes/                 name -> controller-handler mapping
-    controllers/            HTTP concerns: parse, rate-limit, session, respond
-    services/               business logic + persistence
-    models/                 Mongoose schemas
-    middleware/             session.js, rate-limit.js, require-admin.js
-    utils/                  dates, gamification, api-error, logger, admin-session
-    server.js               boot(): env assert + DB warmup
-  proxy.ts                  Next middleware — per-request CSP nonce
-scripts/                    dev-local, seed, purge-seed, fetch-verses, create-member
-tests/                      node:test suites (unit + in-memory integration)
-docs/                       ARCHITECTURE.md, DESIGN.md, API.md, DATABASE.md, DEPLOYMENT.md, SECURITY.md, TESTING.md, FEATURES.md, CHANGELOG.md, ROADMAP.md
-```
-
-**Ownership boundaries.**
-
-| Directory | Owns | May depend on | Must NOT depend on |
-|---|---|---|---|
-| `app/(site)` `app/(admin)` | Route rendering, page composition | `components`, `lib`, `server/services` (via server components) | Mongoose models directly |
-| `app/api/**` | HTTP method → handler binding only | `server/routes` | anything else (shims are one-liners) |
-| `server/controllers` | HTTP I/O, auth gate, rate limit, error mapping | `server/services`, `middleware`, `utils` | Mongoose models directly (**inferred rule**; controllers call services) |
-| `server/services` | Business rules, validation, DB access | `models`, `config`, `utils`, `lib/data` | `next/server` response objects (services throw `ApiError`) |
-| `server/models` | Schema + indexes | mongoose only | services/controllers |
-| `lib` | Client-safe shared code | — | `server/**` (would leak server code to client) |
-
-The `"server-only"` import at the top of backend modules enforces the last rule at build time.
-
----
-
-## Technology Stack
-
-| Layer | Choice | Version (from `package.json`) |
+| Layer | Choice | Version |
 |---|---|---|
-| Language | TypeScript (strict) + JavaScript (backend `.js`) | TS ^5 |
-| Runtime | Node.js | @types/node ^20 → Node 20.x target |
+| Language | TypeScript (strict) frontend + JavaScript backend (`.js` + JSDoc) | TS ^5 |
+| Runtime | Node.js | 20.x target (`@types/node ^20`) |
 | Framework | Next.js App Router, Turbopack | 16.2.10 |
 | UI | React / React DOM | 19.2.4 |
 | Styling | Tailwind CSS v4 + CSS-variable design tokens | ^4 |
@@ -122,93 +93,43 @@ The `"server-only"` import at the top of backend modules enforces the last rule 
 | 3D | React Three Fiber + drei + three | fiber ^9, three ^0.182 |
 | Icons | lucide-react | ^1.24 |
 | Fonts | Manrope (UI), Lora (scripture) via `next/font` | — |
-| Database | MongoDB | via Mongoose ^9.8 |
-| ODM | Mongoose | ^9.8 |
-| Auth | Custom: bcryptjs ^3 (hashing) + jose ^6 (JWT session cookies) | — |
+| Database / ODM | MongoDB via Mongoose | ^9.8 |
+| Auth | bcryptjs ^3 (hashing) + jose ^6 (JWT session cookies) | — |
 | Email | nodemailer ^9 (SMTP) | — |
 | Push | web-push ^3.6 (VAPID) | — |
 | Local DB | mongodb-memory-server ^11 (dev + tests) | — |
-| Lint | ESLint ^9 + eslint-config-next | — |
-| Test | `node:test` (built-in) with `--experimental-strip-types` | — |
-| CI (jobs) | GitHub Actions (daily push cron only) | — |
-| Hosting | Railway (inferred from `.env` + README) | — |
+| Lint / Test | ESLint ^9 · `node:test` with `--experimental-strip-types` | — |
+| CI (jobs) | GitHub Actions (daily push cron) | — |
+| Hosting | Railway (**inferred** from `.env` + README) | — |
 
-- **Caching:** Next `unstable_cache` (verse of day, community stats) + HTTP `Cache-Control` on
-  images. No Redis.
+- **Caching:** Next `unstable_cache` (verse of day, community stats) + HTTP `Cache-Control` on images. No Redis.
 - **Queues:** none. Fan-out done in-process with bounded batches.
-- **Monitoring / Logging:** `console`-based structured logger (`server/utils/logger.js`).
-  > TODO: Needs confirmation — external log/metrics/APM aggregation (e.g. Railway logs only, or a
-  > third-party sink).
-- **CI/CD (build & deploy):** > TODO: Needs confirmation — no build/deploy workflow in `.github/`;
-  Railway auto-deploy on push is inferred but not proven in-repo.
+- **Monitoring / Logging:** `console`-based structured logger (`server/utils/logger.js`). External APM `> TBC`.
+- **CI/CD (build & deploy):** `> TBC` — no build/deploy workflow in `.github/`; Railway push-to-deploy inferred, not proven in-repo.
 
 ---
 
-## System Components
+## System Architecture
 
-### Rendering & Edge
+### Major components & responsibilities
 
-- **`proxy.ts` (Next middleware).** *Purpose:* generate a per-request CSP nonce so `script-src` can
-  use `'nonce-… 'strict-dynamic'` instead of `'unsafe-inline'`. *Inputs:* incoming document
-  requests (matcher excludes `api`, static, images, prefetches). *Outputs:* `x-nonce` +
-  `content-security-policy` request/response headers. *Failure mode:* none material; on any error the
-  request still flows (nonce is additive). Static security headers (HSTS, X-Frame-Options, etc.) are
-  set separately in `next.config.ts`.
-- **App Router pages.** Server-rendered on demand (they read live data + session cookie). Only
-  metadata routes (`manifest`, `robots`, `sitemap`, `opengraph-image`) prerender static.
+| Component | Location | Responsibility | Notable behavior / failure mode |
+|---|---|---|---|
+| **Edge middleware** | `proxy.ts` | Mint per-request CSP nonce for document requests | Additive; on error the request still flows. Static headers set in `next.config.ts`. |
+| **App Router pages** | `app/(site)`, `app/(admin)` | Server-render pages on demand (read live data + session cookie) | Only metadata routes prerender static |
+| **API shims** | `app/api/**/route.js` | Bind HTTP method → handler | One-line re-export from `server/routes` |
+| **Backend boot** | `server/server.js` | Idempotent warmup: assert env, open Mongo | Missing env throws pointing at `.env.example`; `status()` variant powers `/api/health` |
+| **DB connection** | `server/config/db.js` | Cached global Mongoose connection | `bufferCommands:false` + 5s selection timeout (fail fast); clears cached promise on failure to retry |
+| **Session** | `server/middleware/session.js` | Issue/read/clear `cya-session` JWT | `tv` (tokenVersion) re-checked per read; fail-open reads, `{strict:true}` fail-closed writes |
+| **Admin gate** | `server/middleware/require-admin.js` | Single `assertAdmin()` gate | Passes on valid admin-portal session **or** signed-in `role:"admin"` user |
+| **Rate limiter** | `server/middleware/rate-limit.js` | Distributed fixed-window limiter | Atomic `$inc` upsert on Mongo `RateBucket`; in-memory fallback if Mongo down |
+| **Domain services** | `server/services/*` | Business rules + persistence | See [Backend Architecture](#backend-architecture) |
+| **Image handling** | `image.controller.js` + `event-image` model | Store/serve event pubmats | Buffer in Mongo; content-type allowlist (`jpeg/png/webp`); immutable 1-year cache |
 
-### Backend boot
-
-- **`server/server.js` — `boot()` / `status()`.** *Purpose:* idempotent process warmup — assert
-  required env, open Mongo. *Failure mode:* missing env throws with a pointer to `.env.example`;
-  `status()` is the non-throwing variant used by `/api/health`.
-- **`config/db.js` — `dbConnect()`.** Cached global Mongoose connection reused across hot reloads and
-  invocations. `bufferCommands:false` + 5s server-selection timeout so a DB outage fails fast rather
-  than hanging requests. On failure it clears the cached promise so the next call retries.
-
-### Auth & session
-
-- **`middleware/session.js`.** Issues/reads/clears the `cya-session` HS256 JWT cookie (httpOnly,
-  `sameSite=lax`, `secure` in prod, 30-day). *Revocation:* JWT carries `tv` (tokenVersion); every
-  read re-checks it against the DB. Bumped on password reset to kill stale sessions. *Failure policy:*
-  DB outage during the revocation lookup **fails open** for reads (keeps session) but callers can pass
-  `{ strict:true }` to **fail closed** on sensitive writes.
-- **`utils/admin-session.js`.** Separate `cya-admin` cookie (8-hour) minted by the shared admin-portal
-  passphrase; timing-safe compare.
-- **`middleware/require-admin.js` — `assertAdmin()`.** Single admin gate: passes if either a valid
-  admin-portal session **or** a signed-in user with `role:"admin"`.
-
-### Rate limiting
-
-- **`middleware/rate-limit.js`.** Fixed-window limiter backed by a Mongo `RateBucket` collection
-  (shared across instances) via an atomic `$inc` upsert — no TOCTOU race. Falls back to a per-process
-  in-memory window if Mongo is unreachable (degraded, never blocks). Client key derived from
-  `X-Forwarded-For` counted *from the right* by `TRUSTED_PROXY_HOPS` to resist IP spoofing.
-
-### Domain services (representative)
-
-| Service | Responsibility | Notable behavior / failure mode |
-|---|---|---|
-| `verse.service` | Verse of day, archive, search | Deterministic rotation `dayNumber % count`; DB-down falls back to bundled `verses.json`; self-heals corpus via `ensureSynced()` upsert |
-| `user.service` | Stats, `markVerseRead`, `claimChallenge`, roles | Once-per-day streak award enforced by conditional write filter; DB-down still returns session identity so UI stays logged in |
-| `auth.service` | Register/login | bcrypt(10); input length validation; 409 on duplicate email |
-| `push.service` | Subscribe/unsubscribe/broadcast/daily send | Bounded 100-concurrency batches; prunes 404/410 subs; daily send idempotent via unique `PushLog` day row |
-| `stats.service` | Community totals | `unstable_cache`d aggregation; errors fall back to zeros, never cached |
-| `email-verification` / `password-reset` | Token issue + consume | Hashed tokens with TTL; non-blocking send |
-
-### Image handling
-
-- **`image.controller.js` + `event-image` model.** Event pubmats stored as `Buffer` in Mongo, served
-  through `/api/images/[id]` with a hard-clamped content-type allowlist (`jpeg/png/webp`, else
-  `application/octet-stream`) and immutable 1-year cache. Next's image optimizer resizes/serves
-  WebP/AVIF variants.
-
----
-
-## Request Lifecycle
+### Data flow (frontend ↔ backend ↔ DB ↔ external)
 
 Two entry shapes: **document requests** (server-rendered pages, through `proxy.ts`) and **API
-requests** (`/api/**` JSON, which the matcher excludes from middleware).
+requests** (`/api/**` JSON, which the middleware matcher excludes).
 
 ```mermaid
 sequenceDiagram
@@ -242,13 +163,19 @@ sequenceDiagram
   Note over C,U: errors -> toResponse(): ApiError -> its status,<br/>else logged + generic 500
 ```
 
-**Pipeline:** incoming request → (docs) CSP nonce → controller → auth (`getSession`/`assertAdmin`)
-→ rate limit → input validation (in service) → business logic → Mongoose persistence → `NextResponse`
-JSON. Errors funnel through `toResponse()`.
+**Pipeline:** request → (docs) CSP nonce → controller → auth (`getSession`/`assertAdmin`) → rate
+limit → validation (in service) → business logic → Mongoose persistence → `NextResponse` JSON. Errors
+funnel through `toResponse()`.
 
----
+### Communication patterns
 
-## Application Layers
+- **UI → backend:** HTTP. Server Components call services in-process; Client Components `fetch` the JSON API.
+- **Backend → external:** direct client calls (Mongoose, nodemailer SMTP, web-push VAPID). No message bus.
+- **Scheduler → backend:** GitHub Actions HTTPS `POST` with a `CRON_SECRET` bearer.
+- **Backend → browser (push):** Web Push protocol, server-initiated.
+- **No** GraphQL, gRPC, or WebSockets.
+
+### Application layers
 
 ```mermaid
 graph LR
@@ -269,55 +196,212 @@ graph LR
 
 | Layer | Location | Allowed to call |
 |---|---|---|
-| Presentation | `app/`, `components/` | `lib`, and services **only** through server components |
+| Presentation | `app/`, `components/` | `lib`; services **only** via server components |
 | Application (HTTP) | `server/routes`, `server/controllers` | services, middleware, `utils/api-error` |
 | Domain | `server/services`, `utils/gamification`, `utils/dates` | models, config, shared utils |
 | Infrastructure | `server/config`, `server/middleware` | models, external clients |
 | Persistence | `server/models` | mongoose only |
-| Shared/Utilities | `lib/`, `utils/api-error`, `utils/logger` | nothing upward |
+| Shared | `lib/`, `utils/api-error`, `utils/logger` | nothing upward |
 
-**Rule:** dependencies point downward only. The `"server-only"` marker prevents Presentation from
-importing server layers into the client bundle.
+**Rule:** dependencies point downward only. The `"server-only"` import marker prevents Presentation
+from pulling server layers into the client bundle.
 
 ---
 
-## Domain Model
+## Frontend Architecture
 
-| Concept | Type | Notes |
+- **Framework:** Next.js 16 App Router, React 19, TypeScript (strict). **Server Components by
+  default**; Client Components are opt-in islands marked `"use client"`.
+- **Rendering model:** pages server-render on demand and read live data + the session cookie directly
+  in Server Components; interactive widgets (forms, prayer wall, admin dashboards) hydrate as client
+  islands. Only metadata routes (`manifest`, `robots`, `sitemap`, `opengraph-image`) prerender static.
+
+### Application structure
+
+- **Route groups.** `(site)` = public + member pages; `(admin)` = admin portal + dashboards. Groups
+  share a segment layout without adding a URL prefix.
+- **Component organization.** Feature-grouped folders (`nav/`, `motion/`, `three/`, `pwa/`, `home/`)
+  plus shared primitives at the `components/` root (`ui.tsx`, `verse-card.tsx`, `toast.tsx`).
+- **Page/client split.** A server `page.tsx` fetches data and renders shell + a sibling
+  `*-client.tsx` island for interactivity (e.g. `prayer/page.tsx` + `prayer-client.tsx`).
+
+### State management
+
+- **No global store** (no Redux/Zustand/Context providers). State is deliberately local:
+  - **Server state** lives on the server and arrives as props from Server Components.
+  - **Client widget state** uses local `useState`.
+  - **Cross-cutting client state** is read from the platform via `useSyncExternalStore` hooks in
+    `lib/hooks.ts` — `useMediaQuery`, `useScrolled`, `useDarkMode` (reads the `<html>` class set
+    pre-paint), `usePushSupported`, `useNow`, and `useRecentList` (localStorage-backed, tab-synced).
+  - **Design choice:** SSR snapshots return `false`/`null` so markup matches the first client paint,
+    avoiding hydration mismatch.
+
+### Routing
+
+- File-system routing via the App Router. Dynamic segments (`devotion/[slug]`, `events/[id]/rsvp`,
+  `images/[id]`) and route groups for layout scoping. Client navigation is standard `next/link`;
+  document navigations pass through `proxy.ts`.
+
+### API communication layer
+
+- Client Components call the JSON API directly with the native `fetch` (no axios/react-query). Requests
+  are same-origin and cookie-authenticated (`connect-src 'self'`). Server Components skip HTTP and call
+  services in-process.
+- Static/shared client content (verse corpus, categories, challenge catalog) lives in `lib/data.ts`,
+  which is bundled and client-safe.
+
+### UI / design system
+
+- **Tailwind CSS v4** with **CSS-variable design tokens** defined in `globals.css` (see
+  [`DESIGN.md`](./DESIGN.md)). Fonts loaded via `next/font` (Manrope UI, Lora scripture).
+- **Motion system** in `components/motion/` + `lib/motion.ts`: reusable `Reveal`, `Stagger`,
+  `Magnetic`, `Tilt3D`, `Parallax`, `Counter`, `TextReveal` primitives built on Framer Motion. Every
+  primitive **honors `prefers-reduced-motion`** (renders static content) and pointer-driven effects
+  are mouse-only, never required to operate a control.
+- **3D:** an optional React Three Fiber light scene (`components/three/`).
+- **Accessibility:** `useDialog` traps focus, closes on Escape, and restores focus to the trigger.
+
+### Error handling & performance (frontend)
+
+- **Error boundaries:** `app/error.tsx` (segment errors) and `app/not-found.tsx` (404).
+- **PWA/offline:** service worker (`public/sw.js`) + `public/offline.html` fallback; install prompt
+  and push-notify toggle under `components/pwa/`.
+- **Performance:** RSC keeps JS payloads small; images use the Next optimizer (WebP/AVIF, 1-year
+  cache); motion uses `will-change`/transforms and springs; `useSyncExternalStore` avoids
+  setState-in-effect churn; localStorage caches snapshots for referential stability.
+
+### Frontend folder structure (actual)
+
+```
+src/
+├── app/                         # App Router: pages + API shims
+│   ├── (site)/                  # public + member pages (route group)
+│   ├── (admin)/                 # admin portal + dashboards (route group)
+│   ├── api/**/route.js          # thin re-export shims -> src/server/routes
+│   ├── layout.tsx               # root layout, fonts, theme script, metadata
+│   ├── globals.css              # Tailwind v4 + design tokens (CSS vars)
+│   └── error.tsx / not-found.tsx
+├── components/                  # React UI (server + client islands)
+│   ├── motion/ three/ nav/ pwa/ home/   # feature-grouped UI
+│   └── ui.tsx verse-card.tsx toast.tsx  # shared primitives
+├── lib/                         # client-safe: data, types, hooks, motion, cx
+├── data/verses.json             # bundled 300-verse seed corpus
+└── proxy.ts                     # Next middleware — per-request CSP nonce
+```
+
+> Note: there is no separate `frontend/` root — frontend and backend share the Next.js `src/` tree,
+> isolated by the `"server-only"` marker rather than by directory.
+
+---
+
+## Backend Architecture
+
+- **Runtime/framework:** Node 20 inside the Next.js process. Backend code is plain JavaScript with
+  JSDoc, framework-agnostic (takes `Request`, returns `NextResponse`).
+- **API architecture:** REST-ish JSON over Next Route Handlers. Every `app/api/**/route.js` is a
+  one-line re-export from `server/routes`, decoupling HTTP binding from handler logic.
+
+### Business logic organization & module boundaries
+
+Strict downward chain per domain:
+
+```
+route (name→handler map) → controller (HTTP I/O) → service (rules + persistence) → model (schema)
+```
+
+| Directory | Owns | May depend on | Must NOT depend on |
+|---|---|---|---|
+| `app/api/**` | HTTP method → handler binding only | `server/routes` | anything else (shims are one-liners) |
+| `server/controllers` | HTTP I/O, auth gate, rate limit, error mapping | `server/services`, `middleware`, `utils` | Mongoose models directly |
+| `server/services` | Business rules, validation, DB access | `models`, `config`, `utils`, `lib/data` | `next/server` response objects |
+| `server/models` | Schema + indexes | mongoose only | services / controllers |
+
+The `"server-only"` import at the top of backend modules enforces client isolation at build time.
+
+### Representative domain services
+
+| Service | Responsibility | Notable behavior / failure mode |
 |---|---|---|
-| `User` | Entity / Aggregate root | Owns streak, xp, totalReads, `challengeDates`, role, `tokenVersion` |
-| `Verse` | Entity (read-mostly reference data) | Seeded corpus; text index for search |
-| `Prayer` | Entity | `status: approved\|hidden`, `prayedCount` |
-| `PrayerHit` | Association (unique per prayer+user) | Enforces "I prayed" once per user |
-| `Event` | Entity | `published`, `rsvpCount` |
-| `EventRsvp` | Association (unique per event+user) | |
-| `EventImage` | Value/blob | Buffer pubmat |
-| `Devotion` | Entity | `slug` unique, `published` |
-| `UserPlan` | Entity (unique per user+plan) | `completedDays[]`, `active` |
-| `SavedVerse` | Entity (unique per user+reference) | |
-| `PushSubscription` | Entity | unique `endpoint`, optional `userId` |
-| `PushLog` | Idempotency record | unique `day` = daily-send lock |
-| `ResetToken` / `VerifyToken` | Value (hashed, TTL) | single-use via `usedAt` |
-| `RateBucket` | Infrastructure record (TTL) | fixed-window counter |
+| `verse.service` | Verse of day, archive, search | Deterministic rotation `dayNumber % count`; DB-down → bundled `verses.json`; self-heals corpus via `ensureSynced()` upsert |
+| `user.service` | Stats, `markVerseRead`, `claimChallenge`, roles | Once-per-day streak award via conditional write filter; DB-down still returns session identity so UI stays logged in |
+| `auth.service` | Register/login | bcrypt(10); input length validation; 409 on duplicate email |
+| `push.service` | Subscribe/unsubscribe/broadcast/daily send | Bounded 100-concurrency batches; prunes 404/410 subs; daily send idempotent via unique `PushLog` day row |
+| `stats.service` | Community totals | `unstable_cache`d aggregation; errors fall back to zeros, never cached |
+| `email-verification` / `password-reset` | Token issue + consume | Hashed tokens with TTL; non-blocking send |
 
-**Domain services / policies (not persisted):**
+### Middleware
 
-- **Gamification policy** (`utils/gamification.js`): `XP_PER_READ=25`, `XP_PER_LEVEL=250`,
-  level = `floor(xp/250)+1`.
-- **Streak policy** (`user.service.markVerseRead`): consecutive-day extend else reset; once-per-day.
-- **Manila-day policy** (`utils/dates.js`): all day keys use `Asia/Manila`; day rolls at PH midnight.
-- **Challenge catalog** is server-side (`lib/data.challenges`); XP is read from the catalog, never
-  from the client.
+- **`session.js`** — issue/read/clear `cya-session` JWT; `tokenVersion` revocation; fail-open reads,
+  fail-closed strict writes.
+- **`require-admin.js`** — `assertAdmin()` dual path (portal session or `role:admin`).
+- **`rate-limit.js`** — Mongo-backed distributed fixed-window; in-memory degraded fallback;
+  spoof-resistant client-IP derivation counted from the right by `TRUSTED_PROXY_HOPS`.
 
-There is no formal Repository or Factory layer — services call Mongoose models directly (**inferred**
-intentional simplification for a small app).
+### Validation
+
+In services, before any DB call: length clamps, regex email, `ObjectId` checks, `.slice()` caps on
+input arrays/strings. Rewards/authority (XP, ids) are read from server catalogs, never trusted from
+the client.
+
+### Error handling
+
+- Services throw `ApiError(status, message)` with user-safe text; controllers `try/catch` and call
+  `toResponse()`.
+- Unexpected errors are logged via `logError("api.unhandled", err)` and returned as a generic 500 —
+  internal detail never reaches the client.
+
+### Logging
+
+Structured `console` logger (`server/utils/logger.js`) with a label + context object. No external log
+sink in-repo (`> TBC`).
+
+### Background jobs / queues
+
+- **Scheduler:** external GitHub Actions cron (`0 22 * * *` UTC = 06:00 Manila) POSTs
+  `/api/cron/daily-verse` with the `CRON_SECRET` bearer.
+- **Worker:** in-process `push.service.broadcast` — sequential batches of 100 concurrent sends.
+- **Idempotency:** unique `PushLog.day` row claimed *before* sending; overlap short-circuits with
+  `already-sent`; on broadcast failure the claim is released so a later retry succeeds.
+- **No queue / DLQ.** Permanently-gone subscriptions (404/410) are pruned; other errors logged.
+
+```mermaid
+flowchart TD
+  Cron[GitHub Actions 22:00 UTC] -->|Bearer CRON_SECRET| Route[/api/cron/daily-verse/]
+  Route --> Claim{PushLog.create day}
+  Claim -- 11000 dup --> Skip[skip: already-sent]
+  Claim -- ok --> V[getVerseOfDay]
+  V --> B[broadcast in batches of 100]
+  B --> Prune[prune 404/410 subs]
+  B -- throws --> Release[delete PushLog day → retryable]
+```
+
+### Backend folder structure (actual)
+
+```
+src/server/
+├── config/          # db.js, env.js, mailer.js
+├── routes/          # name -> controller-handler mapping (*.routes.js)
+├── controllers/     # HTTP concerns: parse, rate-limit, session, respond (*.controller.js)
+├── services/        # business logic + persistence (*.service.js)
+├── models/          # Mongoose schemas (*.model.js)
+├── middleware/      # session.js, rate-limit.js, require-admin.js
+├── utils/           # dates, gamification, api-error, logger, admin-session
+└── server.js        # boot(): env assert + DB warmup
+```
+
+> Mapping to the conventional layout: `routes` + `controllers` = the application/HTTP layer;
+> `services` carry business logic **and** data access (no separate `repositories/` — services call
+> Mongoose models directly, an intentional simplification for this app's scale). `tests/` lives at the
+> repo root, not under `src/server`.
 
 ---
 
 ## Database Architecture
 
-- **Engine:** MongoDB. **Access:** Mongoose ODM. **Schemas:** one file per collection in
-  `server/models`.
+- **Engine:** MongoDB. **Access:** Mongoose ODM (no query builder / raw SQL). **Schemas:** one file
+  per collection in `server/models`. Reads use `.lean()` to skip hydration cost.
+
+### Entity relationships
 
 ```mermaid
 erDiagram
@@ -335,12 +419,29 @@ erDiagram
   VERSE }o--o{ SAVEDVERSE : "copied into"
 ```
 
-**Key indexes & constraints (fact):**
+### Data model overview
+
+| Concept | Type | Notes |
+|---|---|---|
+| `User` | Aggregate root | Owns streak, xp, totalReads, `challengeDates`, role, `tokenVersion` |
+| `Verse` | Read-mostly reference | Seeded corpus; text index for search |
+| `Prayer` | Entity | `status: approved\|hidden`, `prayedCount` |
+| `PrayerHit` | Association | Unique per prayer+user — "I prayed" once |
+| `Event` / `EventRsvp` | Entity / Association | `published`, `rsvpCount`; RSVP unique per event+user |
+| `EventImage` | Value/blob | Buffer pubmat |
+| `Devotion` | Entity | `slug` unique, `published` |
+| `UserPlan` | Entity | Unique per user+plan; `completedDays[]`, `active` |
+| `SavedVerse` | Entity | Unique per user+reference |
+| `PushSubscription` / `PushLog` | Entity / Idempotency | Unique `endpoint`; unique `day` = daily-send lock |
+| `ResetToken` / `VerifyToken` | Value (hashed, TTL) | Single-use via `usedAt` |
+| `RateBucket` | Infra record (TTL) | Fixed-window counter |
+
+### Key indexes & constraints (fact)
 
 | Collection | Index / constraint | Purpose |
 |---|---|---|
 | `users` | `email` unique | one account per address |
-| `verses` | text index `{reference:10, text:5}`; `{topic:1}` | search + topic filter |
+| `verses` | text `{reference:10, text:5}`; `{topic:1}` | search + topic filter |
 | `prayers` | `{status:1, createdAt:-1}` | wall query+sort in one scan |
 | `prayerhits` | `{prayerId, userId}` unique | one pray per user |
 | `events` | `{published:1, date:1}` | published upcoming list |
@@ -352,76 +453,65 @@ erDiagram
 | `reset/verifytokens` | `tokenHash` unique; `expiresAt` TTL | single-use, auto-expire |
 | `ratebuckets` | `expiresAt` TTL | auto-clean windows |
 
-- **Migration strategy:** schemaless + **self-reconciling seed**. `verse.service.ensureSynced()`
-  upserts the bundled corpus by reference on first request after deploy, propagating edits without a
-  migration tool. No formal migration framework.
-- **Transactions:** none used; correctness comes from **atomic single-document operations** —
-  conditional `findOneAndUpdate` (streak day-guard, rate-limit `$inc`), unique-index inserts
-  (PushLog, PrayerHit), and `$inc` counters.
-- **Concurrency:** handled per-document (see above); no multi-doc transaction boundaries.
-- **Connection management:** single cached global connection (`config/db.js`); fail-fast timeouts.
+### Migration, transactions, backup
+
+- **Migration:** schemaless + **self-reconciling seed**. `verse.service.ensureSynced()` upserts the
+  bundled corpus by reference on first request after deploy — no migration tool. Non-verse
+  collections have no migration path yet (see [Future Improvements](#future-improvements)).
+- **Transactions:** none. Correctness comes from **atomic single-document operations** — conditional
+  `findOneAndUpdate` (streak day-guard, rate-limit `$inc`), unique-index inserts (PushLog, PrayerHit),
+  and `$inc` counters. No multi-doc transaction boundaries.
+- **Connection management:** single cached global connection; fail-fast timeouts; cached promise reset
+  on failure.
+- **Backup / recovery:** `> TBC` — depends on the Railway plan (replication, snapshots); not defined
+  in-repo.
 
 ---
 
-## Data Flow
+## Authentication & Authorization
 
-```mermaid
-flowchart TD
-  A[User marks verse read] --> B[POST /api/streak/read]
-  B --> C{getSession valid?}
-  C -- no --> C1[401]
-  C -- yes --> D[markVerseRead]
-  D --> E{lastReadDate != today?}
-  E -- no --> F[alreadyRead: return stats]
-  E -- yes --> G[conditional update:<br/>streak, bestStreak, +XP, +totalReads]
-  G --> H[return fresh stats]
-  H --> I[client updates dashboard / toast]
+### Authentication mechanism
+
+- **Passwords:** bcrypt(10) hashing (`bcryptjs`).
+- **Sessions:** stateless **JWT cookie** `cya-session` (HS256 via `jose`) — httpOnly, `sameSite=lax`,
+  `secure` in prod, 30-day. No server-side session store.
+- **Email verification:** hashed, TTL, single-use tokens; `emailVerified` gate for participation.
+
+### Session / token strategy & revocation
+
+- The JWT carries `tv` (**tokenVersion**); every read re-checks it against the DB. Bumping
+  `tokenVersion` (e.g. on password reset) invalidates all stale sessions — revocation without a
+  session table.
+- **Failure policy:** DB outage during the revocation lookup **fails open** for reads (keeps the user
+  signed in), but callers pass `{ strict:true }` to **fail closed** on sensitive writes.
+
+### User identity flow
+
+```
+register → hash+store → email verify token → verify → login (bcrypt compare) → mint JWT cookie
+→ per-request getSession() re-checks tokenVersion → logout / password-reset bumps tokenVersion
 ```
 
-```mermaid
-flowchart LR
-  seed[verses.json] -->|npm run seed / ensureSynced| DB[(verses)]
-  DB -->|dayNumber % count| VoD[Verse of Day]
-  VoD -->|unstable_cache 1h + day key| Page[/verse page/]
-  DB -. DB down .-> fallback[seed fallback verse]
-  fallback --> Page
-```
+### Authorization model
 
----
+- Session presence gates member actions; `emailVerified` gates posting/participation.
+- **Admin:** dual path via `assertAdmin()` — a valid **admin-portal** cookie (`cya-admin`, 8-hour,
+  minted by a shared passphrase with timing-safe compare) **or** a signed-in user with `role:"admin"`.
+  Users cannot strip their own admin role.
 
-## API Architecture
+### Security considerations
 
-- **Style:** REST-ish JSON over Next Route Handlers. No GraphQL/gRPC/WebSockets. Push uses the Web
-  Push protocol (server → browser).
-- **Shim pattern:** every `src/app/api/**/route.js` is a one-line re-export from `server/routes`, so
-  HTTP binding is decoupled from handler logic.
-
-**Endpoint groups (fact):**
-
-| Group | Examples | Auth |
-|---|---|---|
-| Auth | `register, login, logout, me, forgot, reset, verify, verify/resend` | public + session |
-| Verse | `verse/today, verse/search` | public |
-| Streak | `streak/read, streak/challenge` | session |
-| Prayer | `prayers`, `prayers/[id]/pray` | session (post/pray) |
-| Events | `events`, `events/[id]/rsvp` | public read / session RSVP |
-| Plans | `plans/enroll, plans/leave, plans/day` | session |
-| Saved | `saved` | session |
-| Push | `push/key, push/subscribe` | optional session |
-| Account | `account`, `account/export` | strict session |
-| Admin | `admin/prayers, admin/events, admin/devotions, admin/users, admin/sync-verses, admin/events/image` | `assertAdmin` |
-| Admin portal | `admin/portal/login`, `admin/portal/logout` | passphrase |
-| Cron | `cron/daily-verse` | `CRON_SECRET` bearer |
-| Health | `health` | public |
-
-- **AuthN:** JWT cookie (`jose` HS256). **AuthZ:** session presence, `emailVerified` gate for
-  posting, `assertAdmin` for admin surfaces.
-- **Versioning:** none (internal BFF; single client).
-- **Error handling:** `ApiError(status, message)` thrown in services → `toResponse()` maps to JSON;
-  unexpected errors logged and returned as generic 500.
-- **Validation:** in services (length clamps, regex email, ObjectId checks, input `.slice()` caps).
-- **Rate limiting:** per-endpoint via `rateLimit()` (see table below).
-- **Pagination:** bounded `limit` params (e.g. search 60, users 200); no cursor pagination.
+- **Secrets:** env vars only; `assertEnv()` fails boot if required ones are missing; timing-safe
+  compares for `CRON_SECRET` and the admin passphrase.
+- **Transport:** HSTS (2-year, includeSubDomains), `upgrade-insecure-requests`.
+- **CSP:** per-request nonce + `strict-dynamic` (no `script-unsafe-inline`); `object-src none`,
+  `frame-ancestors none`, `base-uri self`, `form-action self`. Style keeps `unsafe-inline` (font /
+  Tailwind injected `<style>`; documented weaker risk).
+- **CSRF:** `sameSite=lax` cookies + same-origin `form-action`. No explicit anti-CSRF token on
+  state-changing POSTs — relies on SameSite (`> TBC` whether to harden).
+- **XSS/Injection:** React escaping + strict CSP; served image content-type clamped to an allowlist;
+  Mongoose typed queries; user regex input escaped before search.
+- **API protection:** distributed fixed-window rate limiting; spoof-resistant client-IP derivation.
 
 **Rate limits (fact):**
 
@@ -430,122 +520,27 @@ flowchart LR
 | `auth:register` | 5 / 60 min |
 | `auth:login` | 10 / 15 min |
 | `auth:forgot` | 3 / 15 min |
-| `auth:reset`,`auth:verify` | 10 / 15 min |
+| `auth:reset`, `auth:verify` | 10 / 15 min |
 | `auth:verify-resend` | 3 / 15 min |
 | `admin:image` | 30 / 10 min |
 
-> TODO: Needs confirmation — whether non-auth write endpoints (prayer post, RSVP, enroll) are
-> rate-limited; not observed in the files reviewed.
+> `> TBC` — whether non-auth write endpoints (prayer post, RSVP, enroll) are rate-limited; not
+> observed in the files reviewed. No dedicated audit trail for admin actions found.
 
 ---
 
-## External Integrations
+## External Services & Integrations
 
-| Integration | Purpose | Auth | Failure handling | Retry / timeout | Fallback |
-|---|---|---|---|---|---|
-| MongoDB | Primary datastore | connection string (`MONGO_URL`) | fail-fast (5s selection), clear cached promise | app-level retry on next call | seed corpus for verses; degraded in-memory rate limit |
-| SMTP (nodemailer) | Verify + reset email | `SMTP_USER/PASS` | send is fire-and-forget; own error boundary | SMTP timeouts set (per commit history) | feature silently disabled if unset |
-| Web Push (VAPID) | Daily reminders | VAPID key pair | 404/410 → prune; other errors logged | bounded 100-batch send | feature disabled if keys unset |
-| GitHub Actions | Daily push scheduler | `CRON_SECRET` bearer + `SITE_URL` secret | job fails on non-200; `workflow_dispatch` manual retry | 06:00 Manila cron | none |
-| Railway (host) | Runtime + managed Mongo | platform | — | — | — (**inferred** host) |
+| Integration | Purpose | Integration method / auth | Data exchanged | Failure handling |
+|---|---|---|---|---|
+| **MongoDB** | Primary datastore | Mongoose driver, `MONGO_URL` | All domain data | Fail-fast (5s selection), clear cached promise, retry next call; seed fallback for verses, degraded in-memory rate limit |
+| **SMTP (nodemailer)** | Verify + reset email | SMTP creds `SMTP_USER/PASS` | Email address + token link | Fire-and-forget with own error boundary; SMTP timeouts set; **feature silently disabled if unset** |
+| **Web Push (VAPID)** | Daily reminders | `web-push`, VAPID key pair | Push subscription endpoint + verse payload | 404/410 → prune sub; other errors logged; bounded 100-batch; **feature disabled if keys unset** |
+| **GitHub Actions** | Daily push scheduler | HTTPS POST, `CRON_SECRET` bearer + `SITE_URL` secret | Trigger only | Job fails on non-200; `workflow_dispatch` manual retry; 06:00 Manila cron |
+| **Railway (host)** | Runtime + managed Mongo (**inferred**) | Platform | — | — |
 
----
-
-## Security Architecture
-
-- **Authentication:** bcrypt(10) password hashing; `jose` HS256 JWT session cookie; email
-  verification tokens (hashed, TTL, single-use).
-- **Authorization:** session gate + `emailVerified` for participation; dual admin path (portal
-  passphrase or `role:admin`); users cannot strip their own admin role.
-- **Session security:** httpOnly, `sameSite=lax`, `secure` in prod; tokenVersion revocation on
-  password reset; strict fail-closed mode for sensitive writes.
-- **Secrets:** environment variables only; `assertEnv()` fails boot if required ones missing;
-  timing-safe compares for `CRON_SECRET` and admin passphrase.
-- **Transport:** HSTS (2-year, includeSubDomains), `upgrade-insecure-requests`.
-- **CSP:** per-request nonce + `strict-dynamic` (no `script-unsafe-inline`); `object-src none`,
-  `frame-ancestors none`, `base-uri self`, `form-action self`. Style keeps `unsafe-inline` (font/
-  Tailwind injected `<style>`; documented weaker risk).
-- **CORS:** default same-origin (`connect-src 'self'`); no cross-origin API exposure.
-- **CSRF:** `sameSite=lax` cookies + same-origin `form-action`. > TODO: Needs confirmation — no
-  explicit anti-CSRF token on state-changing POSTs; relies on SameSite.
-- **XSS:** React escaping + strict CSP; served image content-type clamped to an allowlist.
-- **Injection:** Mongoose typed queries; user regex input escaped before search.
-- **Input validation:** length/format clamps in services; ObjectId validation.
-- **Abuse:** distributed fixed-window rate limiting; spoof-resistant client-IP derivation.
-- **Audit logging:** > TODO: Needs confirmation — no dedicated audit trail for admin actions found.
-
----
-
-## Configuration Management
-
-- **Source:** environment variables (`.env`, documented in `.env.example`).
-- **Required (boot-blocking):** `MONGO_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`.
-- **Optional (feature toggles by presence):** `VAPID_*` (push), `SMTP_*` (email), `CRON_SECRET`
-  (daily send), `ADMIN_PORTAL_PASSWORD` (portal), `TRUSTED_PROXY_HOPS` (rate-limit IP hops).
-- **Feature flags:** implicit — a feature disables itself if its env is unset (push, email).
-- **Hierarchy:** process env → `assertEnv()` gate → per-service `configure()` lazy checks.
-- **Public config:** `NEXT_PUBLIC_SITE_URL` exposed to client for canonical/OG URLs.
-
----
-
-## Caching Strategy
-
-| Layer | Mechanism | TTL | Invalidation |
-|---|---|---|---|
-| Verse of day | `unstable_cache` keyed by Manila day | 3600s revalidate | day-key rollover + `tags:["verses"]` |
-| Community stats | `unstable_cache` | minutes (staleness acceptable) | revalidate |
-| Event images | HTTP `Cache-Control: immutable` | 1 year | content-addressed by id |
-| Next image optimizer | `minimumCacheTTL` | 1 year | — |
-| Client (device) | localStorage: recent searches, recently viewed | n/a | client-managed |
-
-No distributed cache (Redis) — Next's cache + Mongo are sufficient at current scale.
-
----
-
-## Background Processing
-
-- **Scheduler:** external — GitHub Actions cron (`0 22 * * *` UTC = 06:00 Manila) POSTs
-  `/api/cron/daily-verse` with the `CRON_SECRET` bearer.
-- **Worker:** in-process `push.service.broadcast` — sequential batches of 100 concurrent sends.
-- **Idempotency:** unique `PushLog.day` row claimed *before* sending; a retry/overlap short-circuits
-  with `already-sent`. On broadcast failure the claim is released so a later retry succeeds.
-- **Dead-letter:** none; permanently-gone subscriptions (404/410) are pruned, other errors logged.
-- **Queues / DLQ:** none.
-
-```mermaid
-flowchart TD
-  Cron[GitHub Actions 22:00 UTC] -->|Bearer CRON_SECRET| Route[/api/cron/daily-verse/]
-  Route --> Claim{PushLog.create day}
-  Claim -- 11000 dup --> Skip[skip: already-sent]
-  Claim -- ok --> V[getVerseOfDay]
-  V --> B[broadcast in batches of 100]
-  B --> Prune[prune 404/410 subs]
-  B -- throws --> Release[delete PushLog day → retryable]
-```
-
----
-
-## Error Handling
-
-- **Strategy:** services throw `ApiError(status, message)` with user-safe text; controllers wrap in
-  try/catch and call `toResponse()`.
-- **Unexpected errors:** logged via `logError("api.unhandled", err)` and returned as a generic 500 —
-  internal detail never reaches the client.
-- **Logging:** structured `console` logger with a label + context object.
-- **Recovery / degradation:** DB-down fallbacks (seed verses, in-memory rate limit, session-identity
-  stats). Non-blocking email send. Push claim release on failure.
-- **Circuit breakers:** none (fail-fast timeouts substitute at current scale).
-- **User-facing vs internal:** `ApiError` messages are curated for users; everything else is generic.
-
----
-
-## Observability
-
-- **Logging:** `server/utils/logger.js` (console). **Health:** `/api/health` (`status()` — env +
-  DB reachability, `force-dynamic`).
-- **Metrics / tracing / dashboards / alerts:** > TODO: Needs confirmation — none found in repo;
-  likely relies on the host platform (Railway) defaults.
-- **Liveness/readiness probes:** `/api/health` is a candidate but no probe config is in-repo.
+- **Payment / SMS / object storage / third-party monitoring:** none. Images are stored in Mongo, not
+  an object store.
 
 ---
 
@@ -563,166 +558,180 @@ graph TB
   GH -->|HTTPS POST| App
 ```
 
-- **Development:** `npm run dev:local` stands up a disposable on-disk MongoDB, seeds verses, and runs
-  `next dev` against it — reusing an already-listening mongod if present. Plain `npm run dev` requires
-  a reachable `MONGO_URL`.
-- **Staging:** > TODO: Needs confirmation — no staging environment defined in repo.
-- **Production:** single Next.js instance + managed MongoDB on Railway (inferred from `.env` comments
-  and `NEXT_PUBLIC_SITE_URL`). No Docker/K8s files in repo.
-- **Scaling:** horizontal-capable (stateless app; rate limit and daily-send lock are DB-shared) —
-  see Scalability.
-- **Reverse proxy / CDN / LB:** platform edge (inferred); `TRUSTED_PROXY_HOPS` accounts for it.
+**Deployment flow**
 
----
-
-## Build Pipeline
-
-| Stage | Command |
-|---|---|
-| Lint | `npm run lint` (eslint) |
-| Type check | `npx tsc --noEmit` |
-| Test | `npm test` (`node:test`, TS strip, in-memory Mongo) |
-| Build | `npm run build` (Next + Turbopack) |
-| Start | `npm start` |
-| Seed | `npm run seed` / self-heal `ensureSynced()` on deploy |
-
-- **Deployment trigger / rollback:** > TODO: Needs confirmation — assumed Railway push-to-deploy;
-  no deploy/rollback workflow committed. Rollback would be a platform redeploy of a prior commit.
-
----
-
-## Dependency Graph
-
-```mermaid
-graph TD
-  route[api/**/route.js] --> routes[server/routes]
-  routes --> controllers
-  controllers --> middleware[session / rate-limit / require-admin]
-  controllers --> services
-  controllers --> apierror[utils/api-error]
-  services --> models
-  services --> config[config/db, mailer, env]
-  services --> utils[dates / gamification / logger]
-  services --> libdata[lib/data]
-  middleware --> models
-  models --> mongoose
-  pages[app pages] --> components
-  pages --> services
-  components --> lib
+```
+Developer → GitHub repo → (push) → Railway build (next build) → seed/ensureSynced → Production (SSR + API)
+                         └→ GitHub Actions (daily-verse-push.yml, scheduled cron) → POST /api/cron/daily-verse
 ```
 
----
-
-## Architectural Decisions
-
-| # | Decision | Reason | Tradeoff | Alternative considered |
-|---|---|---|---|---|
-| 1 | Monolith on Next (no custom server) | Keep Next static optimization; small team | Backend coupled to Next runtime | Standalone Express API |
-| 2 | Layered `route→controller→service→model` inside Next | Testability + framework-agnostic backend | More files per feature | Logic directly in route handlers |
-| 3 | JWT cookie sessions + tokenVersion | Stateless auth, no session store; still revocable | Revocation costs a DB read per request | Server-side session table |
-| 4 | Mongo-backed fixed-window rate limit | Correct across instances, atomic `$inc` | Extra DB round-trip | Redis / in-memory only |
-| 5 | Deterministic verse-of-day rotation | No history table; archive reproducible | Corpus reorder shifts historical mapping | Store daily assignments |
-| 6 | Self-reconciling seed (`ensureSynced`) | Ship corpus edits with deploy, no migration tool | First request after deploy pays upsert cost | Formal migrations |
-| 7 | Single-document atomicity over transactions | Simpler; Mongo strength | No multi-doc invariants | Multi-doc transactions |
-| 8 | Per-request CSP nonce in middleware | Drop `unsafe-inline` for scripts | Middleware runs per document request | Static CSP w/ `unsafe-inline` |
-| 9 | External GitHub Actions cron | No always-on scheduler process | Depends on GH availability | In-app interval / platform cron |
-| 10 | Feature-by-env toggles | Optional integrations degrade gracefully | Silent disable can surprise ops | Explicit flag config |
-
----
-
-## Performance Considerations
-
-- **DB:** targeted compound indexes serve list+sort in one scan; text index for search; `.lean()`
-  reads avoid Mongoose hydration cost.
-- **Caching:** verse-of-day and community stats cached; images cache immutably; Next image
-  optimization serves modern formats.
-- **Concurrency / async:** push fan-out bounded (100) to avoid socket/memory spikes; email send
-  non-blocking; `Promise.all` for independent stat aggregations.
-- **I/O:** fail-fast DB timeouts prevent request pile-up during outages.
-- **Bottlenecks (inferred):** per-request `tokenVersion` DB read on authed traffic; single Mongo
-  connection pool; SSR pages read live data (no full-page cache) — heaviest at high concurrency.
+- **Hosting:** single Next.js instance + managed MongoDB on Railway (**inferred** from `.env` comments
+  and `NEXT_PUBLIC_SITE_URL`). No Docker/K8s files in repo — no containerization layer committed.
+- **Environments:** local (`dev:local` disposable Mongo, seeds verses, runs `next dev`) and
+  production. **No staging** defined in-repo (`> TBC`).
+- **Configuration:** env vars documented in `.env.example`. Required (boot-blocking): `MONGO_URL`,
+  `AUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`. Optional feature toggles by presence: `VAPID_*`, `SMTP_*`,
+  `CRON_SECRET`, `ADMIN_PORTAL_PASSWORD`, `TRUSTED_PROXY_HOPS`.
+- **CI/CD pipeline:** GitHub Actions runs only the daily cron. A **build/deploy/rollback workflow is
+  not committed** (`> TBC`); Railway push-to-deploy is inferred. Rollback would be a platform redeploy
+  of a prior commit.
+- **Build stages:** `lint` (eslint) → `type check` (`tsc --noEmit`) → `test` (`node:test`, in-memory
+  Mongo) → `build` (`next build`, Turbopack) → `start`.
+- **Scaling:** horizontal-capable — the app is stateless (self-contained JWT sessions); rate-limit and
+  daily-send lock are Mongo-shared, so instances coordinate. `unstable_cache` is per-instance, so
+  community stats/verse-of-day may differ briefly until each revalidates (acceptable staleness). Mongo
+  is the primary vertical dependency.
+- **Observability:** `/api/health` (`status()` — env + DB reachability, `force-dynamic`) + console
+  logs. Metrics / tracing / alerting / probes not in repo (`> TBC`; likely relies on Railway
+  defaults).
 
 ---
 
-## Scalability
+## Project File Structure
 
-- **Statelessness:** app holds no per-user server state; sessions are self-contained JWTs → horizontal
-  scaling is viable.
-- **Shared coordination:** rate limiting and the daily-send lock live in Mongo, so multiple instances
-  coordinate correctly.
-- **Vertical:** Mongo is the primary vertical dependency.
-- **Distributed concerns:** `unstable_cache` is per-instance — community stats/verse-of-day may differ
-  briefly across instances until each revalidates (acceptable staleness).
-- **Session management:** cookie-based, no sticky sessions needed.
+```
+project-root/
+├── src/
+│   ├── app/                 # Next.js App Router: pages + API route shims
+│   ├── components/          # React UI (server + client islands)
+│   ├── lib/                 # client-safe shared code (data, types, hooks, motion)
+│   ├── data/                # bundled verse corpus (verses.json)
+│   ├── server/              # backend (server-only): config, routes, controllers,
+│   │                        #   services, models, middleware, utils
+│   └── proxy.ts             # Next middleware — per-request CSP nonce
+├── scripts/                 # dev-local, seed, purge-seed, fetch-verses, create-member
+├── tests/                   # node:test suites (unit + in-memory integration)
+├── public/                  # static assets, service worker, offline page, media
+├── docs/                    # ARCHITECTURE, DESIGN, API, DATABASE, DEPLOYMENT, SECURITY,
+│                            #   TESTING, FEATURES, ROADMAP, CHANGELOG
+├── .github/workflows/       # daily-verse-push.yml (scheduled cron)
+├── next.config.ts           # static security headers, image optimizer, transpilePackages
+├── eslint.config.mjs        # lint rules
+├── package.json
+└── README.md
+```
 
----
+| Directory | Responsibility |
+|---|---|
+| `src/app` | Routing, page composition, API shims, root layout, global styles |
+| `src/components` | Presentational + interactive UI, feature-grouped |
+| `src/lib` | Client-safe shared code; must not import `server/**` |
+| `src/data` | Bundled static content (verse corpus / seed source + DB-down fallback) |
+| `src/server` | All backend logic, isolated by `"server-only"` |
+| `scripts` | Operational Node scripts (seed, corpus fetch, member creation) |
+| `tests` | Automated test suites (unit + integration) |
+| `public` | Static assets served as-is, incl. PWA service worker + media |
+| `docs` | Engineering + product documentation |
+| `.github/workflows` | CI/scheduled automation |
 
-## Reliability
-
-- **Fault tolerance:** graceful degradation on DB outage (seed fallback, in-memory limiter, identity-
-  only stats); optional features fail closed to "disabled," not error.
-- **Retries/backoff:** cron job retries next day or via manual dispatch; push claim release enables
-  safe retry; no exponential backoff layer.
-- **Recovery:** cached DB promise reset on failure; idempotent seed reconcile on deploy.
-- **HA / DR:** > TODO: Needs confirmation — depends on Railway plan (replication, backups); not
-  defined in repo.
-
----
-
-## Testing Strategy
-
-- **Runner:** built-in `node:test` with `--experimental-strip-types` (no Jest/Vitest).
-- **Unit:** `dates`, `gamification`, `reading-plans`, `verse-rotation`, `verses`.
-- **Integration:** `services.integration.test.mjs` runs auth + streak against **in-memory Mongo**
-  (mongodb-memory-server) — real persistence, no external DB.
-- **E2E / contract / perf / security tests:** > TODO: Needs confirmation — none in repo. UI
-  verification is done manually via Playwright MCP per team convention (not committed tests).
-
----
-
-## Coding Standards
-
-- **Layer discipline:** dependencies point downward; controllers never touch models directly;
-  services never build `NextResponse` (throw `ApiError`).
-- **Server isolation:** backend modules start with `"server-only"`; `lib/` stays client-safe.
-- **Error contract:** user-facing failures = `ApiError`; everything else logged + generic 500.
-- **Naming:** kebab-case files; `*.controller.js` / `*.service.js` / `*.model.js` / `*.routes.js`
-  suffixes; markdown docs kebab-case.
-- **API shims:** `app/api/**/route.js` stays a one-line re-export.
-- **Validation lives in services**, clamped by length and format before any DB call.
-- **Time:** always via `utils/dates` (Manila), never raw `new Date()` for day logic.
-- **Rewards/authority:** never trust client-supplied XP/ids; read from server catalog.
-- **Comments:** one-line, explain *why*; matches existing density.
+> There are no top-level `frontend/`, `backend/`, `database/`, `infrastructure/`, or `docker/`
+> directories — this is a **single Next.js repo**, not a polyrepo/monorepo split. Frontend and backend
+> co-locate under `src/`, separated by the `"server-only"` boundary. The conventional split is called
+> out here for readers coming from a multi-service template.
 
 ---
 
-## Known Technical Debt
+## Design Decisions & Trade-offs
 
-- **Mixed JS/TS backend** — `server/**` is JavaScript with JSDoc while UI is strict TS; no compile-time
-  types across the API boundary. *(coupling/maintainability risk)*
-- **No formal migrations** — schema/data changes rely on self-reconciling seed; non-verse data changes
-  have no migration path. *(risk as schema grows)*
-- **`unstable_cache` API** — Next-unstable surface used for caching; may change across Next majors.
-- **Per-request tokenVersion DB read** — auth cost scales with authed traffic; no short-lived cache.
-- **Verse-of-day coupling to lexical order** — reordering/removing verses retroactively changes the
-  historical archive mapping. > TODO: Needs confirmation — whether this is acceptable product-wise.
-- **No audit log for admin actions.** > TODO: Needs confirmation.
-- **Rate-limit coverage gaps** on some write endpoints (see API section). > TODO: Needs confirmation.
-- **Observability minimal** — console logging only; no metrics/tracing/alerting in repo.
+### Decision: Monolith on Next.js (no custom HTTP server)
+
+- **Context.** Small team, one client, cohesive domain; need UI + API delivered together.
+- **Decision.** Serve UI and JSON API from a single Next.js App Router deployment.
+- **Reasoning.** No custom server keeps Next's static optimization; removes cross-service network cost
+  and multi-deploy ops.
+- **Trade-offs.** ✅ Simple deploy, shared types-in-repo, fast local dev. ❌ Backend coupled to the
+  Next runtime; scaling is all-or-nothing per instance.
+- **Alternatives considered.** Standalone Express API + separate SPA (rejected: more infra for no
+  present benefit).
+
+### Decision: Layered `route → controller → service → model` inside Next
+
+- **Context.** Route handlers tend to accumulate logic and become untestable.
+- **Decision.** Enforce an Express-style layered backend under `src/server/`, with `app/api/**` as
+  one-line shims.
+- **Reasoning.** Keeps handlers thin, business logic unit-testable, and the backend framework-agnostic
+  (controllers take `Request`, return `NextResponse`) — liftable onto Express later.
+- **Trade-offs.** ✅ Testable, clear seams, portable. ❌ More files per feature.
+- **Alternatives considered.** Logic directly in route handlers (rejected: poor testability).
+
+### Decision: JWT cookie sessions + tokenVersion revocation
+
+- **Context.** Need auth without operating a session store, yet still be able to revoke.
+- **Decision.** Stateless HS256 JWT cookie carrying `tokenVersion`, re-checked per request; bump to
+  revoke.
+- **Reasoning.** Stateless scaling with a revocation escape hatch.
+- **Trade-offs.** ✅ No session table, horizontal-friendly. ❌ One DB read per authed request.
+- **Alternatives considered.** Server-side session table (rejected: extra store + statefulness).
+
+### Decision: MongoDB + Mongoose, single-document atomicity (no transactions)
+
+- **Context.** Flexible document domain; need correctness under concurrency without transaction
+  complexity.
+- **Decision.** Model invariants as single-document atomic ops — conditional `findOneAndUpdate`,
+  unique-index inserts, `$inc` counters.
+- **Reasoning.** Plays to Mongo's strengths; avoids multi-doc transaction overhead the domain doesn't
+  require.
+- **Trade-offs.** ✅ Simple, race-free for per-doc invariants (streak day-guard, one-pray, daily-send
+  lock). ❌ No multi-document invariants; correctness must fit a single document.
+- **Alternatives considered.** Relational DB with ACID transactions; Mongo multi-doc transactions
+  (rejected: unnecessary at scale).
+
+### Decision: Deterministic verse-of-day + self-reconciling seed
+
+- **Context.** Need a reproducible daily verse and a way to ship corpus edits without a migration
+  tool.
+- **Decision.** `dayNumber % corpusCount` rotation (Manila-dated); `ensureSynced()` upserts the
+  bundled `verses.json` on first request after deploy.
+- **Reasoning.** No history table, archive reproducible, corpus edits ship with the deploy.
+- **Trade-offs.** ✅ Zero migration overhead, deterministic archive. ❌ Reordering/removing verses
+  retroactively shifts the historical mapping; first request after deploy pays the upsert cost.
+- **Alternatives considered.** Store daily assignments in a table; a formal migration framework.
+
+### Decision: Per-request CSP nonce in middleware
+
+- **Context.** Want a strict CSP without `script-unsafe-inline`.
+- **Decision.** `proxy.ts` mints a nonce per document request; `script-src` uses `'nonce-…'
+  'strict-dynamic'`.
+- **Trade-offs.** ✅ Materially stronger XSS posture. ❌ Middleware runs on every document request.
+- **Alternatives considered.** Static CSP with `unsafe-inline` (rejected: weaker).
+
+### Decision: External GitHub Actions cron + feature-by-env toggles
+
+- **Context.** No always-on scheduler process; optional integrations (push, email) shouldn't be hard
+  requirements.
+- **Decision.** GitHub Actions POSTs the daily-send endpoint; each optional feature disables itself
+  when its env is unset.
+- **Trade-offs.** ✅ No scheduler infra; graceful degradation. ❌ Depends on GitHub availability;
+  silent disable can surprise operators.
+- **Alternatives considered.** In-app interval / platform cron; explicit feature-flag config.
 
 ---
 
 ## Future Improvements
 
+### Known limitations & technical debt
+
+- **Mixed JS/TS backend** — `server/**` is JavaScript + JSDoc while the UI is strict TS; no
+  compile-time types across the API boundary.
+- **No formal migrations** — non-verse schema/data changes have no migration path.
+- **`unstable_cache`** — a Next-unstable API surface; may change across majors.
+- **Per-request tokenVersion DB read** — auth cost scales with authed traffic; no short-lived cache.
+- **Verse-of-day coupling to lexical order** — reordering the corpus rewrites the historical archive
+  mapping (`> TBC` if acceptable product-wise).
+- **No admin audit log**; **rate-limit coverage gaps** on some write endpoints (`> TBC`).
+- **Minimal observability** — console logging only; no metrics/tracing/alerting in repo.
+
+### Planned evolution
+
 **High priority**
-- Add metrics + alerting (error rate, DB latency, push success) and wire `/api/health` to a probe.
-- Extend rate limiting to all state-changing endpoints; confirm CSRF posture beyond SameSite.
-- Document/verify production topology (host, backups, DR) and commit a deploy/rollback workflow.
+- Add metrics + alerting (error rate, DB latency, push success); wire `/api/health` to a probe.
+- Extend rate limiting to all state-changing endpoints; confirm/harden CSRF posture beyond SameSite.
+- Document/verify production topology (host, backups, DR); commit a deploy/rollback workflow.
 
 **Medium priority**
 - Migrate `server/**` to TypeScript for end-to-end type safety across the API boundary.
 - Introduce a lightweight migration mechanism for non-verse collections.
-- Cache tokenVersion (short TTL) or move revocation to a cheaper check to cut per-request DB reads.
+- Cache tokenVersion (short TTL) to cut per-request DB reads.
 
 **Low priority**
 - Replace `unstable_cache` with a stable caching abstraction as Next evolves.
@@ -733,23 +742,36 @@ graph TD
 
 ## Appendix
 
-### Glossary
+### Testing strategy
+
+- **Runner:** built-in `node:test` with `--experimental-strip-types` (no Jest/Vitest).
+- **Unit:** `dates`, `gamification`, `reading-plans`, `verse-rotation`, `verses`.
+- **Integration:** `services.integration.test.mjs` runs auth + streak against **in-memory Mongo** —
+  real persistence, no external DB.
+- **E2E / contract / perf / security tests:** none in repo (`> TBC`). UI verification is manual via
+  Playwright MCP per team convention.
+
+### Coding standards
+
+- Dependencies point downward; controllers never touch models; services never build `NextResponse`
+  (throw `ApiError`).
+- Backend modules start with `"server-only"`; `lib/` stays client-safe.
+- Naming: kebab-case files; `*.controller.js` / `*.service.js` / `*.model.js` / `*.routes.js`;
+  markdown docs ALL-CAPS.
+- Validation lives in services; time always via `utils/dates` (Manila); never trust client XP/ids.
+
+### Glossary & acronyms
 
 | Term | Meaning |
 |---|---|
 | Verse of the Day | Deterministic verse chosen by `dayNumber % corpusCount`, Manila-dated |
-| Streak | Consecutive Manila days a member marked the verse read |
-| XP / Level | Points (`25`/read) and level (`floor(xp/250)+1`) |
-| Prayer wall | Moderated community prayer feed |
-| Pubmat | Event promotional image (stored as Mongo Buffer) |
+| Streak / XP / Level | Consecutive read days; points (`25`/read); `floor(xp/250)+1` |
+| Pubmat | Event promotional image (Mongo Buffer) |
 | Self-reconciling seed | Startup upsert of the bundled corpus into Mongo |
 | tokenVersion | Per-user counter enabling JWT session revocation |
 
-### Acronyms
-
-CSP · Content-Security-Policy | PWA · Progressive Web App | VAPID · Voluntary Application Server
-Identification (web push) | RSVP · event attendance confirm | ODM · Object-Document Mapper |
-BFF · Backend-for-Frontend | TTL · Time To Live | BSB · Berean Standard Bible (verse translation).
+CSP · Content-Security-Policy | PWA · Progressive Web App | VAPID · web push identification | ODM ·
+Object-Document Mapper | BFF · Backend-for-Frontend | TTL · Time To Live | BSB · Berean Standard Bible.
 
 ### Useful commands
 
@@ -764,14 +786,6 @@ npm run verses:fetch  # regenerate verses.json corpus
 npm run member:create # create an account from CLI
 ```
 
-### Development workflow
-
-1. `npm install`
-2. `npm run dev:local` → http://localhost:3000
-3. Edit under `src/`; backend changes hot-reload via Next.
-4. Before commit: `npm run lint && npx tsc --noEmit && npm test`.
-5. Commits: Conventional Commits (`type(scope): message`). Docs/activity logs are not auto-committed.
-
 ### Important configuration files
 
 | File | Role |
@@ -781,18 +795,13 @@ npm run member:create # create an account from CLI
 | `.env.example` | Canonical env var documentation |
 | `server/config/env.js` | Boot-time required-env assertion |
 | `tsconfig.json` | Strict TS + `@/*` path alias |
-| `eslint.config.mjs` | Lint rules |
 | `.github/workflows/daily-verse-push.yml` | Daily push scheduler |
 
----
+### Diagram index
 
-## Consolidated Diagrams Index
-
-- **System Context / Component** — [Architecture Overview](#architecture-overview)
-- **Dependency Graph** — [Dependency Graph](#dependency-graph)
-- **Request Lifecycle / Sequence** — [Request Lifecycle](#request-lifecycle)
+- **System flow / context** — [Architecture Overview](#architecture-overview)
+- **Request lifecycle (sequence)** — [System Architecture](#system-architecture)
+- **Application layers** — [System Architecture](#system-architecture)
+- **Background job flow** — [Backend Architecture](#backend-architecture)
+- **Entity relationships** — [Database Architecture](#database-architecture)
 - **Deployment** — [Deployment Architecture](#deployment-architecture)
-- **Data Flow** — [Data Flow](#data-flow)
-- **Database Relationships** — [Database Architecture](#database-architecture)
-- **Background Job Flow** — [Background Processing](#background-processing)
-- **Layers** — [Application Layers](#application-layers)
