@@ -90,7 +90,7 @@ export function Footer() {
                   </a>
                 ))}
               <a
-                href="mailto:hello@cya.ph"
+                href="mailto:cya_org@gbox.adnu.edu.ph"
                 aria-label="Email us"
                 className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:text-primary motion-reduce:hover:translate-y-0"
               >
