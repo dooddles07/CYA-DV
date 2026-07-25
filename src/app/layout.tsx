@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
+import { headers } from "next/headers";
 import { Manrope, Lora } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/toast";
@@ -73,17 +73,21 @@ const themeScript = `
  * admin console has its own in (admin)/layout.tsx, so neither leaks into
  * the other.
  */
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Thread the per-request CSP nonce (set by proxy.ts) onto the theme script so
+  // strict-dynamic lets it run. A raw <script nonce> — not next/script — because
+  // React special-cases the nonce attribute and hydrates it cleanly; the
+  // beforeInteractive path instead emitted nonce="" server-side and undefined on
+  // the client, which React 19 flagged as a hydration mismatch on every load.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="en" className={`${manrope.variable} ${lora.variable}`} suppressHydrationWarning>
       <body>
-        {/* next/script (not a raw <script>) so Next stamps the per-request CSP
-            nonce onto it — a raw inline script gets no nonce and CSP would block
-            it in production. The dev-only hydration warning React 19 logs for the
-            hidden nonce attribute is harmless and never appears in production. */}
-        <Script id="cya-theme-init" strategy="beforeInteractive">
-          {themeScript}
-        </Script>
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+        />
         {children}
         <Toaster />
       </body>
