@@ -1,6 +1,7 @@
 import "server-only";
 import { dbConnect } from "@/server/config/db";
 import { SavedVerse } from "@/server/models/saved-verse.model";
+import { Verse } from "@/server/models/verse.model";
 import { ApiError } from "@/server/utils/api-error";
 import { logError } from "@/server/utils/logger";
 
@@ -40,12 +41,21 @@ export async function toggleSaved(userId, verse) {
     return { saved: false };
   }
 
+  // A reference-only payload is valid; fill missing fields from the canonical
+  // verse so the record never fails schema validation on empty text.
+  let { text, version, topic } = verse;
+  if (!text) {
+    const canonical = await Verse.findOne({ reference }).lean();
+    if (!canonical) throw new ApiError(404, "That verse doesn't exist.");
+    ({ text, version, topic } = canonical);
+  }
+
   await SavedVerse.create({
     userId,
     reference,
-    text: String(verse.text ?? "").slice(0, 2000),
-    version: String(verse.version ?? "BSB").slice(0, 20),
-    topic: String(verse.topic ?? "").slice(0, 40),
+    text: String(text ?? "").slice(0, 2000),
+    version: String(version ?? "BSB").slice(0, 20),
+    topic: String(topic ?? "").slice(0, 40),
   });
   return { saved: true };
 }
