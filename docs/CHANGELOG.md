@@ -5,10 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+<!--
+Maintainer guide:
+- Track active work under [Unreleased]. Write entries from the user's
+  perspective and describe the impact, not the implementation.
+- To cut a release: rename [Unreleased] to [x.y.z] - YYYY-MM-DD, add a fresh
+  empty [Unreleased] block above it, tag the commit (git tag vx.y.z), and
+  update the link references at the bottom.
+- Mark breaking changes with **BREAKING:** and add migration notes inline.
+- Remove empty subsections before publishing a release.
+-->
+
 ## [Unreleased]
 
 ### Added
-- Placeholder for upcoming features.
+<!-- New features or capabilities. -->
+
+### Changed
+- **Documentation overhaul.** Rewrote the project docs from an implementation
+  audit so they match the real codebase: README as a full landing page, plus
+  canonical `ARCHITECTURE`, `API`, `DATABASE`, `DEPLOYMENT`, `SECURITY`, and
+  `TESTING` guides. Corrected earlier discrepancies in search, pagination,
+  toggle, and rate-limit behavior and documented known gaps.
+- Restructured `docs/` into a standard layout and normalized Markdown
+  filenames and cross-links.
+- Moved `LICENSE.md` to the repository root for discoverability.
+
+### Deprecated
+<!-- Features slated for removal in a future release. -->
+
+### Removed
+<!-- Removed features or dead code. -->
+
+### Fixed
+<!-- Bug fixes and corrections. -->
+
+### Security
+<!-- Security-related updates. -->
+
+---
 
 ## [1.0.0] - 2026-07-25
 
@@ -62,3 +97,10 @@ Scripture reading, prayer, devotionals, reading plans, and community events.
 - Served images restricted to a safe content-type allowlist with format validation.
 - User-supplied names escaped in outgoing email HTML.
 - Required site URL configuration to prevent unsafe links in production.
+
+<!--
+Link references. Create the git tag on release so these resolve:
+  git tag v1.0.0 <release-commit> && git push origin v1.0.0
+-->
+[Unreleased]: https://github.com/dooddles07/CYA-DV/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/dooddles07/CYA-DV/releases/tag/v1.0.0
