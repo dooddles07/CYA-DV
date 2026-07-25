@@ -90,7 +90,19 @@ Full capability breakdown in [`docs/FEATURES.md`](./docs/FEATURES.md).
 
 ## Screenshots / Demo
 
-> **TODO:** Add screenshots and demo GIFs (e.g. `docs/images/verse-of-the-day.png`, `docs/images/prayer-wall.png`).
+| Home | Daily Verse |
+|---|---|
+| ![Home hero](docs/images/home-hero.png) | ![Verse of the day](docs/images/verse-of-the-day.png) |
+
+| Bible Search | Reading Plans |
+|---|---|
+| ![Bible search](docs/images/bible-search.png) | ![Reading plans](docs/images/reading-plans.png) |
+
+| Prayer Wall | Dark mode |
+|---|---|
+| ![Prayer wall](docs/images/prayer-wall.png) | ![Home in dark mode](docs/images/home-hero-dark.png) |
+
+> Captured at 1440×900 against `npm run dev:local` (seed data). Screen recordings are not included.
 
 ---
 

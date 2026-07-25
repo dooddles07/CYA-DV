@@ -17,6 +17,21 @@ explains *how the interface is designed*.
 
 ---
 
+## Visual reference
+
+| Home (light) | Home (dark) |
+|---|---|
+| ![Home hero, light theme](./images/home-hero.png) | ![Home hero, dark theme](./images/home-hero-dark.png) |
+
+| Signature verse card (`/verse`) | Bible search (`/search`) |
+|---|---|
+| ![Daily verse experience](./images/verse-of-the-day.png) | ![Bible search results](./images/bible-search.png) |
+
+*Captured at 1440×900 against `npm run dev:local`. The same components render both themes by swapping
+the semantic CSS variables — see [§3](#3-color-system).*
+
+---
+
 ## 1. Design Overview
 
 ### Design philosophy

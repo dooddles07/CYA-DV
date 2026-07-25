@@ -19,7 +19,8 @@ Maintainer guide:
 ## [Unreleased]
 
 ### Added
-<!-- New features or capabilities. -->
+- Product screenshots (`docs/images/`) embedded in `README.md` and `DESIGN.md`
+  — home (light/dark), daily verse, Bible search, reading plans, prayer wall.
 
 ### Changed
 - **Documentation overhaul.** Rewrote the project docs from an implementation
