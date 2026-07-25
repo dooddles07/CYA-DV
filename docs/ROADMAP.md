@@ -34,4 +34,4 @@ Not committed dates; priority-ordered.
 - Verse-of-day couples to lexical corpus order — reordering/removing verses retroactively changes the
   archive mapping. Acceptable product-wise?
 - Non-auth write endpoints (prayer, RSVP, enroll) rate-limit coverage — confirm.
-- Production host, backups, and DR posture — verify (Railway inferred).
+- Backups and DR posture — production runs on Railway; automated backups and a DR runbook still need to be defined.

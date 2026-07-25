@@ -37,6 +37,11 @@ Maintainer guide:
   feature-to-endpoint map.
 - Repointed doc cross-references that targeted the old `DESIGN.md` sections to
   the equivalent `ARCHITECTURE.md` sections.
+- **Finalized docs for production.** Confirmed Railway as the production host
+  (removed "inferred" hedging across README/ARCHITECTURE/DEPLOYMENT/ROADMAP) and
+  replaced scattered `TODO` markers with clear "not yet configured / recommended"
+  status language. Genuinely repo-unknowable items remain labelled per each
+  doc's evidence convention.
 - Restructured `docs/` into a standard layout and normalized Markdown
   filenames and cross-links.
 - Moved `LICENSE.md` to the repository root for discoverability.

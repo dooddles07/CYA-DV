@@ -140,7 +140,7 @@ Full capability breakdown in [`docs/FEATURES.md`](./docs/FEATURES.md).
 
 ### Infrastructure
 
-- Railway (hosting — inferred; see [Deployment](#deployment))
+- Railway (hosting + managed MongoDB; see [Deployment](#deployment))
 - GitHub Actions (daily verse push cron)
 
 ---
@@ -293,7 +293,7 @@ npm test
 
 Existing suites cover dates, gamification, reading plans, verse rotation, verse data, and service integration (`tests/*.test.mjs`). See [`docs/TESTING.md`](./docs/TESTING.md).
 
-> **TODO:** Add a coverage command and script. End-to-end and contract suites are on the [roadmap](#roadmap).
+> Coverage tooling, plus end-to-end and contract suites, are tracked on the [roadmap](#roadmap).
 
 ---
 
@@ -314,9 +314,7 @@ A single Next.js 16 deployment (SSR UI + JSON API) backed by MongoDB. The app is
 
 **Background scheduler.** `.github/workflows/daily-verse-push.yml` runs cron `0 22 * * *` UTC (06:00 Manila) and POSTs `/api/cron/daily-verse` with `Authorization: Bearer $CRON_SECRET`. The send is idempotent (`PushLog.day` prevents double-send).
 
-**Hosting.** Railway is inferred from `.env` comments and `NEXT_PUBLIC_SITE_URL`; no Docker/K8s or deploy workflow is committed. Full detail in [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md).
-
-> **TODO:** Confirm and document the production host, managed-DB plan, backups, DR, and deploy/rollback workflow.
+**Hosting.** Production runs on **Railway** (single Next.js service + managed MongoDB), deployed via Railway's push-to-deploy. No Docker/K8s manifests or GitHub Actions deploy workflow are committed; automated backups and a formal DR runbook are not yet in place. Full detail in [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md).
 
 ---
 
@@ -365,7 +363,7 @@ Priority-ordered, no committed dates. Full detail in [`docs/ROADMAP.md`](./docs/
 - **Rate-limit coverage.** Non-auth write endpoints (prayer, RSVP, enroll) need confirmed rate-limit coverage.
 - **No formal migrations.** The verse corpus self-reconciles via `ensureSynced()`; other collections have no migration mechanism yet.
 - **Cache drift.** Per-instance `unstable_cache` may briefly differ across instances until each revalidates.
-- **Ops posture.** Production host, backups, and DR are inferred, not verified.
+- **Ops automation.** Production runs on Railway, but automated database backups, a disaster-recovery runbook, and a CI deploy workflow are not yet configured (tracked on the [roadmap](#roadmap)).
 
 ---
 
@@ -393,9 +391,7 @@ MIT — see [LICENSE](./LICENSE).
 
 ## Maintainers / Contact
 
-Built and maintained by **Christ's Youth in Action**.
-
-> **TODO:** Add maintainer names and a contact email or channel.
+Built and maintained by **Christ's Youth in Action**. For questions or contributions, reach the team through the official CYA community channels.
 
 ---
 

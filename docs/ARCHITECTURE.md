@@ -100,12 +100,12 @@ graph TB
 | Local DB | mongodb-memory-server ^11 (dev + tests) | — |
 | Lint / Test | ESLint ^9 · `node:test` with `--experimental-strip-types` | — |
 | CI (jobs) | GitHub Actions (daily push cron) | — |
-| Hosting | Railway (**inferred** from `.env` + README) | — |
+| Hosting | Railway (Next.js service + managed MongoDB) | — |
 
 - **Caching:** Next `unstable_cache` (verse of day, community stats) + HTTP `Cache-Control` on images. No Redis.
 - **Queues:** none. Fan-out done in-process with bounded batches.
 - **Monitoring / Logging:** `console`-based structured logger (`server/utils/logger.js`). External APM `> TBC`.
-- **CI/CD (build & deploy):** `> TBC` — no build/deploy workflow in `.github/`; Railway push-to-deploy inferred, not proven in-repo.
+- **CI/CD (build & deploy):** Railway push-to-deploy. No build/deploy workflow committed in `.github/` — deployment is platform-managed, not defined in-repo.
 
 ---
 
@@ -537,7 +537,7 @@ register → hash+store → email verify token → verify → login (bcrypt comp
 | **SMTP (nodemailer)** | Verify + reset email | SMTP creds `SMTP_USER/PASS` | Email address + token link | Fire-and-forget with own error boundary; SMTP timeouts set; **feature silently disabled if unset** |
 | **Web Push (VAPID)** | Daily reminders | `web-push`, VAPID key pair | Push subscription endpoint + verse payload | 404/410 → prune sub; other errors logged; bounded 100-batch; **feature disabled if keys unset** |
 | **GitHub Actions** | Daily push scheduler | HTTPS POST, `CRON_SECRET` bearer + `SITE_URL` secret | Trigger only | Job fails on non-200; `workflow_dispatch` manual retry; 06:00 Manila cron |
-| **Railway (host)** | Runtime + managed Mongo (**inferred**) | Platform | — | — |
+| **Railway (host)** | Runtime + managed MongoDB | Platform | — | — |
 
 - **Payment / SMS / object storage / third-party monitoring:** none. Images are stored in Mongo, not
   an object store.
@@ -549,7 +549,7 @@ register → hash+store → email verify token → verify → login (bcrypt comp
 ```mermaid
 graph TB
   Dev["Local dev<br/>npm run dev:local<br/>(mongodb-memory-server @ :27099)"]
-  subgraph Prod["Production (Railway — inferred)"]
+  subgraph Prod["Production (Railway)"]
     App["Next.js server<br/>(SSR + API)"]
     Mongo[("MongoDB plugin<br/>mongodb.railway.internal")]
   end
@@ -565,16 +565,16 @@ Developer → GitHub repo → (push) → Railway build (next build) → seed/ens
                          └→ GitHub Actions (daily-verse-push.yml, scheduled cron) → POST /api/cron/daily-verse
 ```
 
-- **Hosting:** single Next.js instance + managed MongoDB on Railway (**inferred** from `.env` comments
-  and `NEXT_PUBLIC_SITE_URL`). No Docker/K8s files in repo — no containerization layer committed.
+- **Hosting:** single Next.js instance + managed MongoDB on Railway. No Docker/K8s files in repo — no
+  containerization layer committed.
 - **Environments:** local (`dev:local` disposable Mongo, seeds verses, runs `next dev`) and
-  production. **No staging** defined in-repo (`> TBC`).
+  production. No dedicated staging environment is defined in-repo.
 - **Configuration:** env vars documented in `.env.example`. Required (boot-blocking): `MONGO_URL`,
   `AUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`. Optional feature toggles by presence: `VAPID_*`, `SMTP_*`,
   `CRON_SECRET`, `ADMIN_PORTAL_PASSWORD`, `TRUSTED_PROXY_HOPS`.
-- **CI/CD pipeline:** GitHub Actions runs only the daily cron. A **build/deploy/rollback workflow is
-  not committed** (`> TBC`); Railway push-to-deploy is inferred. Rollback would be a platform redeploy
-  of a prior commit.
+- **CI/CD pipeline:** GitHub Actions runs only the daily cron. Deployment uses Railway push-to-deploy;
+  no build/deploy/rollback workflow is committed in-repo. Rollback is a platform redeploy of a prior
+  commit.
 - **Build stages:** `lint` (eslint) → `type check` (`tsc --noEmit`) → `test` (`node:test`, in-memory
   Mongo) → `build` (`next build`, Turbopack) → `start`.
 - **Scaling:** horizontal-capable — the app is stateless (self-contained JWT sessions); rate-limit and

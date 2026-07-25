@@ -57,8 +57,8 @@ Production:
 <NEXT_PUBLIC_SITE_URL>   # required env var; reset/verify links are built from it
 ```
 
-> There is no separate staging host in the codebase. **TODO:** Confirm whether a
-> staging deployment exists and add its URL.
+> There is no separate staging host defined in the codebase. If a staging
+> deployment is provisioned, add its base URL here.
 
 ## Conventions
 
@@ -862,8 +862,7 @@ browsers, not HTTP webhooks.
 # 11. Postman Collection
 
 ```
-TODO:
-No Postman collection exists in the repo. Create one at
+STATUS: No Postman collection is committed. Recommended location if added:
 docs/postman/cya-daily-verse.postman_collection.json.
 
 Suggested environment variables:
@@ -889,8 +888,8 @@ shipped atomically with the frontend. No URL/header/media-type versioning.
 ```
 
 **Breaking-change policy:** Since client and API deploy together, contract
-changes are coordinated in the same release. **TODO:** If external consumers
-are ever onboarded, introduce URL-based versioning (`/api/v1/...`) and a
+changes are coordinated in the same release. If external consumers are ever
+onboarded, introduce URL-based versioning (`/api/v1/...`) and a
 deprecation policy.
 
 ---
@@ -901,8 +900,8 @@ deprecation policy.
 |---|---|---|
 | v1.0 | 2026-07-25 | Documentation baselined against implementation. Corrected search param (`q`, not `query`; no `limit`), documented prayer cursor pagination + toggle bodies (`undo`/`going`), `DELETE /api/push/subscribe`, cron GET+POST, shared image upload for devotions, and the full rate-limit table. |
 
-> No in-code changelog/version history is maintained. **TODO:** Track added /
-> removed / deprecated endpoints and breaking changes here going forward. No
+> Track added / removed / deprecated endpoints and breaking changes in this
+> section going forward, alongside [`CHANGELOG.md`](./CHANGELOG.md). No
 > endpoints are currently deprecated.
 
 ---

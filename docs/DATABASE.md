@@ -34,7 +34,7 @@ multi-document transactions. See [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 | **Migration tool** | None (schemaless; app-level reconciliation — see §8) |
 | **Provider** | Railway MongoDB plugin (per `.env.example`) |
 | **Connection** | Single pooled connection cached on `global._mongoose` |
-| **Version** | Not pinned in code. **TODO:** confirm the deployed MongoDB server version. |
+| **Version** | Not pinned in code; confirm the deployed MongoDB server version per environment. |
 
 **Purpose.** The database backs every stateful feature of the app:
 
@@ -109,7 +109,7 @@ Timestamps:   createdAt / updatedAt (Mongoose `timestamps: true`)
 | **Hard delete** | events, devotions, saved verses, RSVP/pray toggles, account delete | Physically removed; deleting an event cascades to its RSVPs and orphaned image. |
 | **TTL auto-expiry** | `resettokens`, `verifytokens`, `ratebuckets` | Mongo removes documents once `expiresAt` passes. |
 | **Bounded array** | `users.challengeDates` | Trimmed to the last ~40 entries on write. |
-| **Audit tracking** | None beyond `createdAt`/`updatedAt` | No dedicated audit log. **TODO** if required. |
+| **Audit tracking** | None beyond `createdAt`/`updatedAt` | No dedicated audit log; add if compliance requires. |
 
 ---
 
@@ -597,7 +597,7 @@ applied at write time.
 
 ## Production flow
 ```
-1. Back up the database (see §10 — currently a TODO).
+1. Back up the database (see §10 — currently manual; no automation configured).
 2. Deploy the new model code.
 3. First request builds any new indexes (watch for large-collection index builds).
 4. Trigger POST /api/admin/sync-verses if verse data changed.
@@ -614,8 +614,7 @@ applied at write time.
 
 ## Rollback
 ```
-TODO:
-No formal migration = no automated rollback. Document a manual procedure:
+STATUS: No formal migration = no automated rollback. Manual procedure:
  - Revert the model code and redeploy.
  - Restore from a pre-change backup if a destructive data change shipped.
  - Non-verse collections have no reversal path today (see ARCHITECTURE.md, Future Improvements).
@@ -650,8 +649,7 @@ devotion/plan/challenge catalogs in `src/lib/data`.
 
 ## Backup
 ```
-TODO:
-No backup automation exists in the repository. The database is hosted on the
+STATUS: No backup automation exists in the repository. The database is hosted on the
 Railway MongoDB plugin.
  - Confirm and document Railway's backup cadence/retention, OR
  - Add a scheduled `mongodump` job with offsite storage.
@@ -660,8 +658,7 @@ Recommended: daily automated dump + 7–30 day retention.
 
 ## Recovery
 ```
-TODO:
-Define and rehearse a restore procedure:
+RECOMMENDED: Define and rehearse a restore procedure:
  - `mongorestore` from the latest dump into a fresh database.
  - Re-point MONGO_URL and verify GET /api/health.
  - State an RPO/RTO target.
@@ -738,8 +735,7 @@ only user-generated data (accounts, prayers, RSVPs, saves, progress).
 # 13. Database Monitoring
 
 ```
-TODO:
-No dedicated DB monitoring is implemented.
+STATUS: No dedicated DB monitoring is implemented.
 Currently available:
  - GET /api/health — env readiness + DB reachability (used for uptime checks).
  - Server-side error logging via server/utils/logger.js (logError) on the
@@ -788,5 +784,5 @@ Based on the current implementation:
 5. **Image defaults / field caps** documented (`/media/stage-event.jpg`,
    `/media/tree-guitar.jpg`, etc.).
 6. **Seeding, backup, monitoring, security, and performance** sections added to
-   meet production-audit scope; backup/recovery/monitoring flagged as TODO
-   because no implementation exists.
+   meet production-audit scope; backup/recovery/monitoring flagged as
+   not-yet-configured because no implementation exists.

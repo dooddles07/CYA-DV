@@ -52,7 +52,7 @@ monitored, and rolled back across all environments.
 | Environment | Runtime | Database | Purpose |
 |---|---|---|---|
 | **Development** | `npm run dev:local` | `mongodb-memory-server` @ `:27099` (disk-backed `.dev-db`) | Local feature work |
-| **Staging** | Railway (separate env/project) | Separate MongoDB instance | Pre-production verification — **TODO:** provision if not present |
+| **Staging** | Railway (separate env/project) | Separate MongoDB instance | Pre-production verification — *not currently provisioned; recommended* |
 | **Production** | Railway service | Railway MongoDB plugin | Live traffic |
 
 **High-level deployment workflow.**
@@ -187,7 +187,7 @@ error. Optional integrations disable themselves gracefully when unset.
 |---|---|---|
 | `.env.example` | **Yes** | Documented template — no real values |
 | `.env` | **No** (gitignored) | Local development values |
-| `.env.staging` | **No** | Staging values — **TODO** if staging is added |
+| `.env.staging` | **No** | Staging values — add if a staging environment is provisioned |
 | `.env.production` | **No** | Set in the host's secret manager, not on disk |
 
 **Variables.**
@@ -429,7 +429,7 @@ npm run purge:seed    # remove seeded verse data
 no manual step needed for content changes bundled in `verses.json`.
 
 **Production data-change process.**
-1. Back up the database first (see §14 — **backup automation is a TODO**).
+1. Back up the database first (see §14 — backup automation is not yet in place; take a manual snapshot).
 2. Deploy the code (model + `verses.json` changes ship together).
 3. First request builds new indexes and runs the upsert sync.
 4. Verify `GET /api/health`.
@@ -509,8 +509,8 @@ jobs:
 ```
 .github/workflows/
 ├── daily-verse-push.yml   # exists — scheduled cron
-├── ci.yml                 # TODO — lint + typecheck + test + build
-└── deploy.yml             # TODO — deploy on merge (or use Railway auto-deploy)
+├── ci.yml                 # recommended — lint + typecheck + test + build (not yet added)
+└── deploy.yml             # optional — deploy on merge (currently Railway auto-deploy)
 ```
 
 ---
@@ -636,7 +636,7 @@ Code Review
 Merge to main
         |
         v
-Deploy Staging (verify)      [TODO if staging exists]
+Deploy Staging (verify)      [when a staging environment exists]
         |
         v
 Production Release (Railway auto-deploy on main)
@@ -695,9 +695,9 @@ reversal**:
 **Version management.** Deploys are pinned to Git SHAs by the host; tag releases
 (`git tag vX.Y.Z`) for a human-readable history.
 
-> **TODO:** Automate MongoDB backups (`mongodump` + retention) and document a
-> tested restore with an RPO/RTO target. Confirm Railway's managed backup
-> cadence.
+> **Recommended (not yet configured):** automate MongoDB backups (`mongodump` +
+> retention) and document a tested restore with an RPO/RTO target. Confirm
+> Railway's managed backup cadence for the current plan.
 
 ---
 
@@ -711,8 +711,8 @@ reversal**:
 - **Health:** `GET /api/health` — env readiness + DB reachability; `200`
   healthy, `503` degraded (`missingEnv` or `db: unreachable`). Use for uptime
   checks and platform probes.
-- **Error tracking / APM:** **TODO** — integrate Sentry (client + server) for
-  exception aggregation and performance traces.
+- **Error tracking / APM:** not yet integrated — recommended: add Sentry (client
+  + server) for exception aggregation and performance traces.
 
 **Infrastructure.**
 - CPU / memory / storage / restarts: Railway dashboard metrics (or CloudWatch on
