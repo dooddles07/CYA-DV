@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-// Content-Security-Policy is set per-request in middleware.ts so script-src can
+// Content-Security-Policy is set per-request in proxy.ts so script-src can
 // carry a fresh nonce + 'strict-dynamic' instead of 'unsafe-inline'. The static
 // headers below have no per-request part, so they stay here.
 const securityHeaders = [

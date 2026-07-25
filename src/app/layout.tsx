@@ -77,6 +77,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${manrope.variable} ${lora.variable}`} suppressHydrationWarning>
       <body>
+        {/* next/script (not a raw <script>) so Next stamps the per-request CSP
+            nonce onto it — a raw inline script gets no nonce and CSP would block
+            it in production. The dev-only hydration warning React 19 logs for the
+            hidden nonce attribute is harmless and never appears in production. */}
         <Script id="cya-theme-init" strategy="beforeInteractive">
           {themeScript}
         </Script>
