@@ -1,672 +1,570 @@
-# Design
+# Design Documentation
 
-Long-term architectural design record for **CYA Daily Verse**. Companion to
-[`ARCHITECTURE.md`](./ARCHITECTURE.md) (engineering reference) and
-[`FEATURES.md`](./FEATURES.md) (product experience). This document explains *why* the system
-is shaped the way it is, for maintainers, new contributors, and AI coding agents making
-architecture-consistent changes.
+Visual and interaction design reference for **CYA Daily Verse** — a Progressive Web App and
+daily-devotional platform built by *Christ's Youth in Action*. This document records how the product
+looks, feels, and is put together: its design language, tokens, components, patterns, and screens.
+
+Companion docs: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (system design / engineering) and
+[`FEATURES.md`](./FEATURES.md) (product behaviour). Where those explain *how the system runs*, this
+explains *how the interface is designed*.
 
 > **Evidence conventions**
-> - **Fact** — read directly from source in this repository.
+> - **Fact** — read directly from source (`src/app/globals.css`, `src/components/**`, `src/app/**`).
 > - **Inferred** — reasoned from the code, not explicitly stated.
-> - **Needs Verification** — cannot be determined from the repository alone.
+>
+> Design tokens mirror a Figma **Semantic** variable collection (Light / Dark modes); the CSS variables
+> in `globals.css` are the source of truth in code.
 
 ---
 
-## 1. Overview
+## 1. Design Overview
 
-- **Purpose.** A Progressive Web App and daily-devotional platform for the *Christ's Youth in Action*
-  (CYA) youth ministry. It serves a rotating daily Bible verse plus devotionals, reading plans, a
-  moderated prayer wall, community events, gamified reading streaks, and opt-in web-push reminders.
-- **Business goal.** Faith-habit formation. The product optimizes for daily return:
-  *verse of the day → mark read → streak/XP → community (prayer, events)*. Success = a member who
-  opens the app daily, keeps a streak, saves verses, prays for others, and shows up to events.
-- **Target users.** Three roles (`src/lib/types.ts`, `require-admin.js`):
-  - **Visitor** — unauthenticated; read verse, search, browse devotions/prayer/events.
-  - **Member** — registered + email-verified; save verses, track streak/XP, follow plans, post/pray,
-    RSVP, receive reminders.
-  - **Moderator/Admin** — trusted leaders; moderate prayers, manage events/devotions/roles.
-- **High-level architecture.** A **single Next.js 16 deployment** serves both server-rendered UI and
-  the JSON API. Backend follows a strict `route → controller → service → model` layering on top of
-  MongoDB (Mongoose). See [§3](#3-system-architecture).
-- **Primary responsibilities.** Render UI (SSR + client), authenticate/authorize, enforce daily
-  gamification rules, persist community content, fan out daily push notifications, and degrade
-  gracefully when infrastructure fails.
-- **Major capabilities.** Deterministic verse-of-day rotation, streak/XP engine, moderated prayer
-  wall, events with RSVP + image pubmats, reading plans, devotions, PWA/offline, web push, admin
-  portal, self-reconciling verse seed, data export/delete.
+### Design philosophy
 
----
+A calm, faith-forward interface that makes a daily spiritual habit feel effortless and inviting. The
+product leads with one clear action each morning — *read today's verse* — then quietly surfaces
+devotionals, reading plans, prayer, and community around it. Nothing competes with the Word.
 
-## 2. Design Philosophy
+### Design goals
 
-- **Monolith by choice.** One cohesive domain + small team → a modular monolith removes cross-service
-  network cost and deployment overhead. `next dev` is the whole stack.
-- **Layered, framework-portable backend.** Backend under `src/server/**` mimics an Express-style
-  stack. Controllers accept a `Request` and return `NextResponse`; the API could be lifted onto a
-  standalone server with minimal change. The `src/app/api/**/route.js` shims are the only Next-coupled
-  seam.
-- **Separation of concerns.** HTTP concerns (parse, auth, rate limit, respond) live in **controllers**;
-  business rules + persistence live in **services**; schema lives in **models**. Services never build
-  HTTP responses — they throw `ApiError`.
-- **Client/server isolation.** Backend modules begin with `import "server-only"` so server code cannot
-  leak into the client bundle. `src/lib/**` stays client-safe.
-- **Simplicity over flexibility.** No repository/factory abstraction — services call Mongoose directly
-  (**inferred** deliberate simplification). No message queue, no Redis; Next's cache + Mongo suffice at
-  current scale.
-- **Reliability via graceful degradation.** Every external dependency has a documented failure mode:
-  DB-down falls back to the bundled seed corpus and in-memory rate limiting; optional features (push,
-  email) disable themselves if unconfigured rather than erroring.
-- **Correctness via single-document atomicity.** No multi-document transactions. Invariants
-  (once-per-day streak, one pray per user, daily-send lock) are enforced by conditional
-  `findOneAndUpdate` filters and unique indexes.
-- **Security by default.** Per-request CSP nonce + `strict-dynamic`, HS256 JWT sessions with
-  revocation, timing-safe secret compares, spoof-resistant client-IP derivation.
-- **Performance priorities.** Fast-fail DB timeouts, `.lean()` reads, targeted compound indexes,
-  bounded push fan-out, cached verse-of-day.
-- **Maintainability.** Consistent `*.controller/service/model/routes.js` naming; one-line "why"
-  comments; Conventional Commits; ALL-CAPS markdown filenames.
+- **Habit formation.** Optimise the daily loop: *verse → mark read → streak/XP → community*.
+- **Reverent, modern feel.** Serif scripture on a deep-blue signature card; airy sky-toned chrome.
+- **Frictionless daily return.** Signed-in state resolves server-side so first paint is correct — no
+  flash of signed-out chrome.
+- **Accessible to a broad, mostly-mobile youth audience.** WCAG AA contrast, 44px touch targets,
+  full reduced-motion support.
+- **Installable, offline-tolerant PWA** that feels native on a phone.
 
----
+### User experience principles
 
-## 3. System Architecture
-
-- **Style.** Layered Modular Monolith on the Next.js App Router (BFF — the API exists only to serve
-  this app's own UI; no versioning, no public contract).
-- **Layered responsibilities.** `route → controller → service → model`, dependencies point downward
-  only.
-- **Module boundaries.** Each domain (auth, verse, streak, prayer, event, plan, push, account, admin,
-  devotion, saved, image) owns its own route/controller/service/model quartet.
-- **Communication.** Browser ↔ server over HTTP (SSR documents + JSON API). Server → browser over the
-  Web Push protocol (VAPID). Scheduler → server over HTTPS (GitHub Actions cron).
-- **Dependency direction.** Presentation → Application → Domain → Persistence; Domain → Infrastructure.
-  Enforced by convention + `"server-only"`.
-
-```mermaid
-graph TB
-  subgraph Client["Browser / Installed PWA"]
-    UI["React 19 UI + Service Worker (sw.js)"]
-  end
-  subgraph Next["Next.js 16 (single deployment)"]
-    Proxy["proxy.ts<br/>(per-request CSP nonce)"]
-    RSC["Server Components<br/>(SSR pages)"]
-    API["API route shims<br/>(app/api/**/route.js)"]
-    Ctl["Controllers<br/>(HTTP I/O, auth, rate limit)"]
-    Svc["Services<br/>(business rules + persistence)"]
-    Mdl["Models (Mongoose)"]
-  end
-  DB[("MongoDB")]
-  SMTP["SMTP (nodemailer)"]
-  Push["Web Push (VAPID)"]
-  Cron["GitHub Actions cron"]
-
-  UI -->|document nav| Proxy --> RSC --> Svc
-  UI -->|fetch JSON| API --> Ctl --> Svc --> Mdl --> DB
-  Ctl --> Mdl
-  Svc --> SMTP
-  Svc --> Push
-  Cron -->|POST /api/cron/daily-verse| API
-```
-
-> **Note (Fact).** In Next 16 the middleware entry is `src/proxy.ts` exporting `proxy(req)` (formerly
-> `middleware.ts`). The `config.matcher` targets document requests only and excludes `api`, static,
-> images, and prefetches.
-
----
-
-## 4. Repository Structure
-
-```
-src/
-  app/                      Next.js App Router — pages + API route shims
-    (site)/                 public + member pages (route group)
-    (admin)/                admin portal + dashboards (route group)
-    api/**/route.js         thin re-export shims -> server/routes
-    layout.tsx globals.css  root layout, fonts, theme script; Tailwind v4 + tokens
-    manifest.ts robots.ts sitemap.ts opengraph-image.tsx   static metadata
-  components/               React UI (motion/, three/, nav/, pwa/, home/ + shared primitives)
-  lib/                      client-safe: data.ts, types.ts, hooks.ts, motion.ts, cx.ts, media.ts
-  data/verses.json          bundled 300-verse BSB seed corpus (seed + DB-down fallback)
-  server/                   backend (server-only)
-    config/                 db.js, env.js, mailer.js
-    routes/                 name -> controller-handler mapping
-    controllers/            HTTP concerns: parse, auth gate, rate limit, respond
-    services/               business logic + persistence
-    models/                 Mongoose schemas
-    middleware/             session.js, rate-limit.js, require-admin.js
-    utils/                  dates, gamification, api-error, logger, admin-session
-    server.js               boot(): env assert + DB warmup
-  proxy.ts                  Next middleware — per-request CSP nonce
-scripts/                    dev-local, seed, purge-seed, fetch-verses, create-member
-tests/                      node:test suites (unit + in-memory integration)
-docs/                       ARCHITECTURE.md, DESIGN.md, API.md, DATABASE.md, DEPLOYMENT.md, SECURITY.md, TESTING.md, FEATURES.md, CHANGELOG.md, ROADMAP.md
-public/                     PWA assets, icons, media, sw.js, offline.html
-.github/workflows/          daily-verse-push.yml (cron scheduler)
-```
-
-**Directory contracts** (extends the ownership table in `ARCHITECTURE.md`):
-
-| Directory | Owns | May depend on | Must NOT contain |
-|---|---|---|---|
-| `app/(site)`, `app/(admin)` | Page rendering, composition | `components`, `lib`, services via server components | Direct Mongoose model use |
-| `app/api/**` | HTTP method → handler binding | `server/routes` | Any logic (one-line shims) |
-| `server/routes` | Name → controller function map | `server/controllers` | Business logic |
-| `server/controllers` | HTTP I/O, auth, rate limit, error mapping | `services`, `middleware`, `utils/api-error` | Direct model access *(inferred rule — controllers call services; but `user.service.requireAdmin` and `image.controller` touch models/services pragmatically)* |
-| `server/services` | Business rules, validation, DB access | `models`, `config`, `utils`, `lib/data` | `NextResponse` (throw `ApiError` instead) |
-| `server/models` | Schema + indexes | mongoose only | Services/controllers |
-| `lib` | Client-safe shared code | — | `server/**` imports |
-
-The `"server-only"` import enforces the last rule at build time.
-
----
-
-## 5. Component Architecture
-
-### 5.1 Edge / Middleware — `src/proxy.ts`
-
-- **Purpose.** Mint a per-request base64 CSP nonce so `script-src` can use `'nonce-… 'strict-dynamic'`
-  instead of `'unsafe-inline'`.
-- **Behavior.** Builds the full CSP string, sets it on both request and response headers plus `x-nonce`;
-  Next stamps the nonce onto every script it emits (including the inline theme script).
-- **Consumers.** All document requests (matcher excludes API/static/images/prefetch).
-- **Failure mode.** Additive; nonce generation can't meaningfully fail. Static headers (HSTS, XFO,
-  etc.) come from `next.config.ts`.
-
-### 5.2 Backend boot — `src/server/server.js`
-
-- `boot()` — idempotent warmup: `assertEnv()` then open Mongo. Missing env throws pointing to
-  `.env.example`. `status()` is the non-throwing variant for `/api/health`.
-
-### 5.3 DB connection — `src/server/config/db.js`
-
-- Cached global Mongoose connection reused across hot reloads/invocations; `bufferCommands:false` +
-  ~5s server-selection timeout → fail fast on outage. Clears the cached promise on failure so the next
-  call retries.
-
-### 5.4 Session — `src/server/middleware/session.js`
-
-- **Interface.** `createSession(user)`, `getSession({strict?})`, `destroySession()`.
-- **Cookie.** `cya-session` HS256 JWT (jose), httpOnly, `sameSite=lax`, `secure` in prod, 30-day.
-- **Revocation.** JWT carries `tv` (tokenVersion); every read re-checks it against the DB. Bumped on
-  password reset to kill stale sessions.
-- **Failure policy.** DB outage during the revocation lookup **fails open** by default (keep session),
-  **fails closed** when caller passes `{strict:true}` (used on sensitive writes: prayer post, account
-  delete/export).
-
-### 5.5 Admin gate — `require-admin.js` + `utils/admin-session.js`
-
-- Separate `cya-admin` cookie (8-hour) minted by the shared admin-portal passphrase with a timing-safe
-  compare. `assertAdmin()` passes if **either** a valid admin-portal session **or** a signed-in user
-  with `role:"admin"`.
-
-### 5.6 Rate limiter — `middleware/rate-limit.js`
-
-- Fixed-window limiter backed by a Mongo `RateBucket` collection via atomic `$inc` upsert (no TOCTOU
-  race; exactly `limit` requests pass per window). Falls back to a per-process in-memory window if
-  Mongo is unreachable. Client key derived from `X-Forwarded-For` counted **from the right** by
-  `TRUSTED_PROXY_HOPS` to resist spoofing.
-
-### 5.7 Representative domain services
-
-| Service | Responsibility | Notable behavior |
-|---|---|---|
-| `verse.service` | Verse of day, archive, search | Deterministic `dayNumber % count` rotation over `sort({reference:1})`; `unstable_cache` 1h + Manila day key; DB-down → bundled `verses.json`; `ensureSynced()` self-heals corpus via upsert |
-| `user.service` | Stats, `markVerseRead`, `claimChallenge`, roles | Once-per-day streak via `{lastReadDate:{$ne:today}}` conditional write; challenge XP read from server catalog only; admin cannot strip own role; DB-down `getUserStats` returns session identity |
-| `auth.service` | Register/login | bcrypt(10); length validation; 409 on duplicate email |
-| `push.service` | Subscribe/unsubscribe/broadcast/daily | Bounded 100-concurrency batches; prunes 404/410 subs; daily send idempotent via unique `PushLog.day`, claim released on failure |
-| `stats.service` | Community totals | `unstable_cache`d aggregation; errors fall back to zeros, never cached |
-| `email-verification` / `password-reset` | Token issue + consume | Hashed tokens, TTL, single-use; non-blocking send |
-
-### 5.8 Image handling — `image.controller.js` + `event-image.model.js`
-
-- Event pubmats stored as `Buffer` in Mongo, served via `/api/images/[id]` with a content-type
-  allowlist (`jpeg/png/webp`, else `application/octet-stream`) and immutable 1-year cache. Next's image
-  optimizer resizes and serves WebP/AVIF.
-
-### 5.9 UI components (`src/components/`)
-
-- Feature-grouped: `motion/` (Reveal, Stagger, Magnetic, Tilt3D, Parallax, Counter — Framer Motion),
-  `three/` (R3F hero scene, desktop-only, `aria-hidden`, skipped on low-core devices), `nav/`, `pwa/`
-  (install prompt, notify toggle), `home/`, plus shared primitives (`ui.tsx`, `verse-card.tsx`,
-  `toast.tsx`). Every animation degrades under `prefers-reduced-motion`.
-
----
-
-## 6. Domain Model
-
-Authoritative types live in `src/lib/types.ts`; schemas in `src/server/models/`.
-
-| Concept | Type | Ownership / invariants |
-|---|---|---|
-| `User` | Aggregate root | Owns streak, xp, totalReads, `challengeDates`, role, `tokenVersion`, `lastReadDate` (Manila key). `email` unique+lowercase. |
-| `Verse` | Read-mostly reference data | Seeded BSB corpus; text index for search. Identity = `reference`. |
-| `Prayer` | Entity | `status: approved\|hidden`, `prayedCount`. Hidden, never deleted. |
-| `PrayerHit` | Association | `{prayerId,userId}` unique — one pray per user. |
-| `Event` | Entity | `published`, `rsvpCount`. |
-| `EventRsvp` | Association | `{eventId,userId}` unique. |
-| `EventImage` | Blob | Buffer pubmat, served by id. |
-| `Devotion` | Entity | `slug` unique, `published`. |
-| `UserPlan` | Entity | `{userId,planSlug}` unique; `completedDays[]`, `active`. |
-| `SavedVerse` | Entity | `{userId,reference}` unique. |
-| `PushSubscription` | Entity | `endpoint` unique, optional `userId` (ownership-checked on removal). |
-| `PushLog` | Idempotency record | `day` unique = daily-send lock. |
-| `ResetToken` / `VerifyToken` | Value | Hashed, TTL, single-use via `usedAt`. |
-| `RateBucket` | Infra record | Fixed-window counter, `expiresAt` TTL. |
-
-**Policies (not persisted):** gamification (`XP_PER_READ=25`, `XP_PER_LEVEL=250`,
-`level=floor(xp/250)+1`), streak (consecutive-day extend else reset, once/day), Manila-day
-(`utils/dates.js`, day rolls at PH midnight), challenge catalog (`lib/data.challenges`, XP server-side).
-
-```mermaid
-erDiagram
-  USER ||--o{ PRAYER : posts
-  USER ||--o{ PRAYERHIT : marks
-  PRAYER ||--o{ PRAYERHIT : receives
-  USER ||--o{ EVENTRSVP : rsvps
-  EVENT ||--o{ EVENTRSVP : has
-  USER ||--o{ SAVEDVERSE : saves
-  USER ||--o{ USERPLAN : enrolls
-  USER ||--o{ PUSHSUBSCRIPTION : owns
-  USER ||--o{ RESETTOKEN : requests
-  USER ||--o{ VERIFYTOKEN : requests
-  EVENT ||--o| EVENTIMAGE : "image (by id ref)"
-```
-
----
-
-## 7. Data Flow
-
-**Pipeline.** Request → (documents) CSP nonce → controller → auth (`getSession`/`assertAdmin`) → rate
-limit → validation (in service) → business logic → Mongoose persistence → `NextResponse` JSON. Errors
-funnel through `toResponse()`.
-
-```mermaid
-sequenceDiagram
-  actor U as Browser
-  participant R as api/**/route.js
-  participant C as Controller
-  participant S as Service
-  participant DB as MongoDB
-  U->>R: POST /api/streak/read (cookie)
-  R->>C: markRead()
-  C->>C: getSession()
-  alt unauthenticated
-    C-->>U: 401 { error }
-  else authorized
-    C->>S: markVerseRead(sub)
-    S->>DB: findOneAndUpdate({_id, lastReadDate:{$ne:today}})
-    DB-->>S: updated user (or null = already read)
-    S-->>C: { alreadyRead, streak, xp, level, ... }
-    C-->>U: 200 JSON
-  end
-  Note over C,U: errors -> toResponse(): ApiError->status, else logged + generic 500
-```
-
-**Verse-of-day flow.**
-
-```mermaid
-flowchart LR
-  seed[verses.json] -->|seed / ensureSynced upsert| DB[(verses)]
-  DB -->|dayNumber % count, sort by reference| VoD[Verse of Day]
-  VoD -->|unstable_cache 1h + Manila day key| Page[/verse page/]
-  DB -. DB down .-> fallback[seed fallback verse] --> Page
-```
-
-**Background event flow.** GitHub Actions cron → `POST /api/cron/daily-verse` (Bearer `CRON_SECRET`) →
-claim `PushLog.day` → `getVerseOfDay()` → `broadcast()` in batches of 100 → prune dead subs. Duplicate
-day claim (11000) short-circuits; broadcast throw releases the claim for retry.
-
-**Error flow.** Services throw `ApiError(status, msg)` with user-safe text → controller `toResponse()`
-maps to JSON; unexpected errors logged via `logError("api.unhandled", err)` → generic 500.
-
----
-
-## 8. State Management
-
-- **Application state.** None held in-process per user — the app is stateless between requests.
-- **Session state.** Self-contained HS256 JWT cookie; no server-side session store. Revocation via
-  per-request `tokenVersion` DB read.
-- **Shared/coordination state.** Lives in Mongo: `RateBucket` (fixed-window counts) and `PushLog`
-  (daily-send lock) coordinate across instances.
-- **Persistent state.** MongoDB collections (users, verses, community content, tokens).
-- **Cache state.** `unstable_cache` (verse-of-day keyed by Manila day, community stats) — per-instance;
-  HTTP immutable cache for images; client `localStorage` for recent searches / recently viewed.
-- **Concurrency model.** Per-document atomicity (conditional `findOneAndUpdate`, unique-index inserts,
-  `$inc`). No multi-document transactions.
-
----
-
-## 9. Dependency Management
-
-- **Internal dependencies** point downward: `route → controller → service → model`; UI → `lib`.
-  Illustrated in the dependency graph in `ARCHITECTURE.md`.
-- **External libraries** (`package.json`): `next` 16.2.10, `react`/`react-dom` 19.2.4, `mongoose` ^9.8,
-  `jose` ^6, `bcryptjs` ^3, `nodemailer` ^9, `web-push` ^3.6, `framer-motion` ^12, `three` ^0.182 +
-  `@react-three/fiber`/`drei`, `lucide-react` ^1.24, `tailwindcss` ^4. Dev: `mongodb-memory-server`,
-  `eslint`, `typescript`.
-- **Dependency injection.** None formal — modules import concrete implementations. Configuration is
-  read lazily from `process.env` inside `configure()`/`secret()` helpers.
-- **Circular-dependency prevention.** Strict layer direction + `"server-only"` boundary. `lib/`
-  never imports `server/`.
-- **Shared utilities.** `lib/` (client + server safe), `server/utils/` (server-only: `api-error`,
-  `logger`, `dates`, `gamification`, `admin-session`).
-
----
-
-## 10. Configuration System
-
-- **Source.** Environment variables only, documented in `.env.example`.
-- **Required (boot-blocking).** `MONGO_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_SITE_URL` — asserted once by
-  `assertEnv()` (`config/env.js`), which throws pointing to `.env.example`.
-- **Optional (feature toggles by presence).** `VAPID_*` (push), `SMTP_*` (email), `CRON_SECRET`
-  (daily send), `ADMIN_PORTAL_PASSWORD` (portal), `TRUSTED_PROXY_HOPS` (rate-limit IP hops),
-  `VAPID_CONTACT_EMAIL`.
-- **Feature flags.** Implicit — a feature disables itself if its env is unset (`push.service.configure`
-  throws `503` when VAPID keys are missing; email silently no-ops).
-- **Hierarchy.** process env → `assertEnv()` boot gate → per-service lazy `configure()` checks.
-- **Public config.** `NEXT_PUBLIC_SITE_URL` exposed to the client for canonical/OG URLs.
-- **Secrets.** Never committed; timing-safe compares for `CRON_SECRET` and admin passphrase.
-
----
-
-## 11. Persistence Layer
-
-- **Engine.** MongoDB via Mongoose ODM; one schema file per collection in `server/models`.
-- **Data-access pattern.** Services call models directly with `.lean()` reads for hot paths. No
-  repository abstraction.
-- **Key indexes/constraints.** `users.email` unique; `verses` text index `{reference:10,text:5}` +
-  `{topic:1}`; `prayers {status:1,createdAt:-1}`; unique composite indexes on `prayerhits`,
-  `eventrsvps`, `userplans`, `savedverses`; `pushsubscriptions.endpoint` unique; `pushlogs.day` unique;
-  TTL on token + rate-bucket `expiresAt`.
-- **Transactions.** None. Correctness = atomic single-document ops (conditional `findOneAndUpdate`,
-  unique-index inserts, `$inc`).
-- **Migrations.** No migration framework. Verse data self-reconciles via `verse.service.syncVerses()`
-  (`bulkWrite` upsert by `reference`, `ordered:false`), run once per process by `ensureSynced()` — so
-  seed edits reach an already-populated deployment on the first request after redeploy.
-  **Non-verse collections have no migration path** (see [§21](#21-technical-debt)).
-- **Connection.** Single cached global connection; fail-fast timeouts.
-
----
-
-## 12. API Design
-
-- **Style.** REST-ish JSON over Next Route Handlers. No GraphQL/gRPC/WebSockets. Push uses the Web Push
-  protocol.
-- **Shim pattern.** Every `src/app/api/**/route.js` is a one-line re-export from `server/routes` (e.g.
-  `export { markVerseRead as POST } from "@/server/routes/streak.routes"`), decoupling HTTP binding
-  from handler logic.
-- **Routing.** `server/routes/*.routes.js` maps semantic names to controller functions; controllers
-  implement HTTP concerns.
-- **Endpoint groups.** Auth, Verse, Streak, Prayer, Events, Plans, Saved, Push, Account, Admin,
-  Admin-portal, Cron, Health (full table in `ARCHITECTURE.md` §API Architecture).
-- **AuthN.** JWT cookie (jose HS256). **AuthZ.** session presence + `emailVerified` gate for posting +
-  `assertAdmin` for admin surfaces + `CRON_SECRET` bearer for cron.
-- **Validation.** In services — length clamps (`.slice()`), regex email, `isValidObjectId`, bounded
-  `limit` params.
-- **Serialization.** Plain JSON via `NextResponse.json`; documents mapped to DTOs (e.g. `toVerse`,
-  `stats`) to avoid leaking internal fields.
-- **Versioning.** None — internal BFF, single client.
-- **Rate limits (Fact).** `auth:register` 5/60m, `auth:login` 10/15m, `auth:forgot` 3/15m,
-  `auth:reset`/`auth:verify` 10/15m, `auth:verify-resend` 3/15m, `admin:image` 30/10m.
-  **Needs Verification:** whether non-auth write endpoints (prayer post, RSVP, enroll) are rate-limited.
-
----
-
-## 13. Error Handling
-
-- **Hierarchy.** Single `ApiError(status, message)` class (`utils/api-error.js`) for user-safe,
-  intentional failures.
-- **Handling.** Services throw; controllers `try/catch` → `toResponse(err, fallback)`. `ApiError` maps
-  to its status + message; anything else is logged and returned as a generic 500 (internal detail never
-  reaches the client).
-- **Logging.** Structured `console` logger (`utils/logger.js`) — label + context object.
-- **Recovery/degradation.** DB-down fallbacks (seed verses, in-memory rate limit, identity-only stats);
-  non-blocking email; push claim release on failure; cached DB promise reset on connection failure.
-- **Retry strategy.** No exponential backoff layer. Cron retries next day or via `workflow_dispatch`;
-  push retry enabled by claim release; DB retries on next request.
-- **User-facing vs internal.** `ApiError` messages are curated for users; everything else is generic.
-
----
-
-## 14. Security Design
-
-- **Authentication.** bcrypt(10) hashing; jose HS256 JWT session cookie; hashed, TTL, single-use email
-  verification + password reset tokens.
-- **Authorization.** Session gate + `emailVerified` for participation; dual admin path (portal
-  passphrase or `role:admin`); users cannot strip their own admin role; push subscriptions are
-  ownership-checked on removal.
-- **Session security.** httpOnly, `sameSite=lax`, `secure` in prod; `tokenVersion` revocation on
-  password reset; strict fail-closed mode for sensitive writes.
-- **Input validation.** Length/format clamps in services; ObjectId checks; user regex escaped before
-  search (`escapeRegex`).
-- **Output encoding.** React escaping + strict CSP; served image content-type clamped to an allowlist.
-- **Secret management.** Env vars only; `assertEnv()` fails boot on missing required; timing-safe
-  compares for `CRON_SECRET` and admin passphrase.
-- **Transport / CSP.** HSTS (2-year, includeSubDomains); per-request nonce + `strict-dynamic` (no
-  script `unsafe-inline`); `object-src none`, `frame-ancestors none`, `base-uri self`,
-  `form-action self`. Style keeps `unsafe-inline` (font/Tailwind inject `<style>`; weaker risk,
-  documented).
-- **CSRF.** Relies on `sameSite=lax` + same-origin `form-action`. **Needs Verification:** no explicit
-  anti-CSRF token on state-changing POSTs.
-- **Abuse.** Distributed fixed-window rate limiting; spoof-resistant client-IP derivation.
-- **Audit logging.** **Needs Verification** — no dedicated admin-action audit trail found.
-
----
-
-## 15. Performance Design
-
-- **Critical paths.** SSR pages read live data + session cookie (no full-page cache); authed traffic
-  pays a per-request `tokenVersion` DB read.
-- **Caching.** `unstable_cache` for verse-of-day (1h + day key) and community stats; images cached
-  immutably (1-year) with Next optimizer serving WebP/AVIF.
-- **Lazy loading.** 3D hero and heavy motion are desktop-only and skipped on low-core devices; service
-  worker caches shell + `offline.html`.
-- **Background processing.** Push fan-out bounded to 100 concurrent sends per batch to avoid socket/
-  memory spikes.
-- **Async execution.** `Promise.all` for independent stat aggregations; non-blocking email send.
-- **DB optimization.** Targeted compound indexes serve list+sort in one scan; text index for search;
-  `.lean()` avoids Mongoose hydration cost; fail-fast timeouts prevent request pile-up.
-- **Bottlenecks (Inferred).** Per-request tokenVersion read; single Mongo connection pool; live-data
-  SSR at high concurrency.
-
----
-
-## 16. Scalability
-
-- **Horizontal.** Viable — app holds no per-user server state; sessions are self-contained JWTs.
-  Shared coordination (rate limit, daily-send lock) lives in Mongo, so multiple instances coordinate
-  correctly. No sticky sessions needed.
-- **Vertical.** MongoDB is the primary vertical dependency.
-- **Stateless components.** UI rendering, controllers, services.
-- **Stateful components.** MongoDB; per-instance `unstable_cache` (brief cross-instance staleness is
-  acceptable).
-- **Bottlenecks.** Mongo throughput; per-request auth DB read.
-- **Future scaling.** Cache/shorten tokenVersion checks; add Redis if rate-limit/cache traffic outgrows
-  Mongo; read replicas for verse/community reads.
-
----
-
-## 17. Testing Strategy
-
-- **Runner.** Built-in `node:test` with `--experimental-strip-types` (no Jest/Vitest); registered via
-  `tests/helpers/register.mjs`.
-- **Unit.** `dates`, `gamification`, `reading-plans`, `verse-rotation`, `verses`.
-- **Integration.** `services.integration.test.mjs` runs auth + streak services against a throwaway
-  **in-memory MongoDB** (`mongodb-memory-server`) — real Mongoose queries + indexes, no external DB.
-  Env is wired before dynamic imports so `dbConnect()` targets the memory server.
-- **Mocking/fixtures.** Minimal — real in-memory persistence over mocks; `beforeEach` clears
-  collections.
-- **Coverage philosophy.** Cover pure domain logic + persistence-critical service paths; UI verified
-  manually via Playwright MCP (not committed).
-- **E2E / contract / perf / security tests.** **Needs Verification** — none in repo.
-
----
-
-## 18. Observability
-
-- **Logging.** `server/utils/logger.js` (console, structured label + context).
-- **Health.** `/api/health` — `status()` reports env readiness + DB reachability, `force-dynamic`.
-- **Metrics / tracing / dashboards / alerts.** **Needs Verification** — none in repo; likely relies on
-  host platform defaults.
-- **Debugging.** `logError` labels (`session.currentTokenVersion`, `verse.getVerseOfDay`,
-  `push.broadcast.send`, `api.unhandled`) give greppable failure points.
-
----
-
-## 19. Design Decisions
-
-| Decision | Evidence | Rationale | Trade-offs |
-|---|---|---|---|
-| Modular monolith on Next (no custom server) | Single deployment; `app/api` shims | Keep Next static optimization; small team; no cross-service network cost | Backend coupled to Next runtime |
-| Layered `route→controller→service→model` | `server/{routes,controllers,services,models}` | Testable, framework-portable backend | More files per feature |
-| JWT cookie + `tokenVersion` | `session.js`, `user.model.js` | Stateless auth, still revocable | Per-request DB read for revocation |
-| Fail-open reads / fail-closed strict writes | `getSession({strict})` | Avoid mass logout on DB blips without weakening sensitive writes | Two auth modes to reason about |
-| Mongo fixed-window rate limit + local fallback | `rate-limit.js` | Correct across instances via atomic `$inc`; never blocks on DB down | Extra DB round-trip |
-| IP counted from the right by `TRUSTED_PROXY_HOPS` | `clientKey()` | Resist `X-Forwarded-For` spoofing | Must be tuned per deployment |
-| Deterministic verse-of-day (`dayNumber % count`) | `verse.service` | No history table; archive reproducible | Corpus reorder shifts historical mapping |
-| Self-reconciling seed (`ensureSynced`) | `syncVerses` bulkWrite upsert | Ship corpus edits with deploy, no migration tool | First request post-deploy pays upsert |
-| Single-document atomicity over transactions | Conditional `findOneAndUpdate`, unique indexes | Simpler; plays to Mongo strengths | No multi-doc invariants |
-| Per-request CSP nonce in middleware | `proxy.ts` | Drop script `unsafe-inline` | Middleware runs per document |
-| Server-authoritative rewards | `claimChallenge` reads catalog | Prevent XP inflation / fake ids | Catalog must stay in sync with UI |
-| Feature-by-env toggles | `push.configure`, mailer | Optional integrations degrade gracefully | Silent disable can surprise ops |
-| External GitHub Actions cron | `daily-verse-push.yml` | No always-on scheduler process | Depends on GH availability |
-
----
-
-## 20. Design Patterns
-
-| Pattern | Where | Why |
-|---|---|---|
-| **Layered architecture** | `server/**` | Separation of HTTP, domain, persistence |
-| **Backend-for-Frontend (BFF)** | Entire API | Serves only this app; no versioning overhead |
-| **Adapter / Shim** | `app/api/**/route.js` | Decouple Next routing from handler logic |
-| **Service layer** | `server/services` | Encapsulate business rules + persistence |
-| **Singleton (cached)** | `config/db.js`, `push.configure`, `env.assertEnv` | Reuse a single connection/config across invocations |
-| **Guard clause / Policy** | `getSession`, `assertAdmin`, day-guard filter | Centralize authz + invariants |
-| **Idempotency key** | `PushLog.day`, unique inserts | Safe retries, once-per-day semantics |
-| **Graceful degradation / Fallback** | verse seed, in-memory limiter, identity stats | Survive dependency outages |
-| **DTO mapping** | `toVerse`, `stats`, `listUsers` map | Avoid leaking internal document fields |
-| **Optimistic concurrency (conditional write)** | `markVerseRead` filter | Once-per-day award without locks |
-
-No Factory, Observer, CQRS, or DI container — deliberately omitted for a small codebase.
-
----
-
-## 21. Technical Debt
-
-- **Mixed JS/TS backend.** `server/**` is JavaScript with JSDoc while UI is strict TS — no compile-time
-  types across the API boundary.
-- **No formal migrations.** Only verse data self-reconciles; non-verse schema/data changes have no
-  migration path.
-- **`unstable_cache` usage.** Next-unstable surface; may change across majors.
-- **Per-request tokenVersion DB read.** Auth cost scales with authed traffic; no short-lived cache.
-- **Verse-of-day couples to lexical order.** Reordering/removing verses retroactively changes the
-  historical archive mapping. **Needs Verification** — product acceptability.
-- **Rate-limit coverage gaps** on some write endpoints. **Needs Verification.**
-- **No admin audit log.** **Needs Verification.**
-- **Observability minimal** — console logging only; no metrics/tracing/alerting in repo.
-- **Deployment topology undocumented in-repo** — host, backups, DR, deploy/rollback workflow not
-  committed (Railway inferred).
-
----
-
-## 22. Future Evolution
-
-| Recommendation | Why it helps | Impact | Difficulty | Risks |
-|---|---|---|---|---|
-| Metrics + alerting; wire `/api/health` to a probe | Detect DB latency / push failures early | High | Medium | Vendor lock-in to chosen APM |
-| Extend rate limiting to all state-changing endpoints; confirm CSRF posture | Close abuse gaps | High | Low | Over-limiting legitimate bursts |
-| Document/verify prod topology + commit deploy/rollback workflow | Reproducible, recoverable ops | High | Low | — |
-| Migrate `server/**` to TypeScript | End-to-end type safety across API boundary | Medium | Medium | Large diff; JSDoc churn |
-| Lightweight migration mechanism for non-verse collections | Safe schema evolution as data grows | Medium | Medium | Migration bugs on prod data |
-| Cache/cheapen tokenVersion revocation check | Cut per-request DB reads under load | Medium | Medium | Stale revocation window |
-| Replace `unstable_cache` with a stable abstraction | Insulate from Next churn | Low | Low | Rework if API stabilizes anyway |
-| Add E2E + contract suites | Regression safety for flows | Medium | Medium | Test maintenance cost |
-
----
-
-## 23. Contributor Guide
-
-**Where new features belong.**
-- New endpoint → add `server/services/<x>.service.js` (logic) + `server/controllers/<x>.controller.js`
-  (HTTP) + `server/routes/<x>.routes.js` (map) + `app/api/<x>/route.js` (one-line shim).
-- New UI → `components/` (feature-grouped) consuming `lib/` + services via server components.
-- Static non-user content (plans, categories, moods, challenge catalog) → `src/lib/data.ts`.
-
-**Where NOT to add code.**
-- No logic in `app/api/**/route.js` (shims stay one line).
-- No `NextResponse`/HTTP in services — throw `ApiError`.
-- No direct Mongoose access from pages/components or controllers (route through services).
-- No `server/**` imports inside `lib/`.
-
-**Architectural rules.**
-- Dependencies point downward only; backend modules start with `"server-only"`.
-- Time/day logic always via `utils/dates` (Manila) — never raw `new Date()` for day keys.
-- Never trust client-supplied XP/ids/rewards — read from the server catalog.
-- Enforce invariants with conditional writes / unique indexes, not read-then-write.
-
-**Naming.** kebab-case files with `*.controller/service/model/routes.js` suffixes; ALL-CAPS markdown
-filenames.
-
-**Common pitfalls.** Forgetting `"server-only"`; building responses in services; adding a verse mid-
-corpus (shifts archive mapping); skipping `emailVerified` gate on participation writes; using
-`unstable_cache` without a day/tag key.
-
-**Code review expectations.** Layer discipline respected; validation present before DB calls;
-user-facing failures use `ApiError`; comments are one-line "why"; before commit run
-`npm run lint && npx tsc --noEmit && npm test`; Conventional Commits; docs/activity logs not
-auto-committed.
-
----
-
-## 24. Appendix
-
-### Technology Stack
-
-- **Languages.** TypeScript (strict, UI/`lib`), JavaScript + JSDoc (`server/**`, scripts).
-- **Framework.** Next.js 16.2.10 (App Router, Turbopack), React 19.2.4.
-- **Styling/UI.** Tailwind CSS v4 + CSS-variable design tokens (mirrors the Figma Semantic collection),
-  Framer Motion, React Three Fiber + drei + three, lucide-react; fonts Manrope (UI) + Lora (scripture).
-- **Backend.** Mongoose ^9.8, jose ^6 (JWT), bcryptjs ^3, nodemailer ^9 (SMTP), web-push ^3.6 (VAPID).
-- **Database.** MongoDB; `mongodb-memory-server` ^11 for dev + tests.
-- **Build/test tools.** ESLint ^9 + eslint-config-next, TypeScript ^5, `node:test`.
-- **Infrastructure.** GitHub Actions (daily push cron); Railway host (**Inferred**).
-
-### Glossary
-
-| Term | Meaning |
+| Principle | In practice |
 |---|---|
-| Verse of the Day | Deterministic verse chosen by `dayNumber % corpusCount`, Manila-dated |
-| Streak | Consecutive Manila days a member marked the verse read |
-| XP / Level | Points (25/read) and level (`floor(xp/250)+1`) |
-| Prayer wall | Moderated community prayer feed (`approved`/`hidden`) |
-| Pubmat | Event promotional image (Mongo `Buffer`) |
-| Self-reconciling seed | Startup upsert of the bundled corpus into Mongo |
-| tokenVersion | Per-user counter enabling JWT session revocation |
-| BFF | Backend-for-Frontend — API serving only this app |
-| BSB | Berean Standard Bible (public-domain verse translation) |
-| VAPID | Voluntary Application Server Identification (web push) |
+| One primary action per screen | The verse card owns the home and `/verse`; a single filled Button per view |
+| Progressive disclosure | Actions (save, listen, share) sit *on* the verse; deeper content is one tap away |
+| Immediate, honest feedback | Optimistic save with rollback; toasts for every mutation; inline form errors |
+| Motion with meaning | Entrance reveals, shared-layout nav pills, spring taps — all disabled under `prefers-reduced-motion` |
+| Mobile-first, thumb-first | Fixed bottom nav (max 5 items), safe-area padding, 44px+ targets everywhere |
 
-### File References
+### Target audience
+
+Three roles (`src/lib/types.ts`):
+
+- **Visitor** — read verse, search, browse devotions/prayer/events.
+- **Member** — verified account; save verses, track streak/XP, follow plans, post prayers, RSVP.
+- **Moderator/Admin** — a separate dark back-office console (`/admin`), deliberately sharing no chrome
+  with the public site.
+
+### Design priorities
+
+1. Clarity and calm over density.
+2. Accessibility (contrast, targets, motion, focus) as a default, not a pass.
+3. Performance-aware polish — heavy 3D/motion is desktop-only and capability-gated.
+4. Consistency through tokens and a small shared primitive set.
+
+---
+
+## 2. Design System
+
+### Design principles
+
+- **Visual hierarchy.** Eyebrow (uppercase, tracked, `text-primary`) → bold tight heading → soft-ink
+  body. Codified in the `SectionHeading` primitive.
+- **Spacing consistency.** Tailwind's 4px spacing scale throughout; generous section rhythm; cards use
+  large radii (`rounded-3xl`) and soft shadows.
+- **Component reuse.** A single primitive file (`src/components/ui.tsx`) supplies Button, Badge, Card,
+  SectionHeading, ProgressBar, Field, EmptyState, Skeleton. Every feature composes from these.
+- **Interaction patterns.** Filled primary for the main action; secondary/outline/ghost for the rest.
+  Pressable elements spring on tap; cards lift on hover.
+- **User-feedback principles.** Optimistic UI with rollback (verse save), polite `aria-live` toasts
+  (auto-dismiss ~3.2s), inline `role="alert"` field errors, skeletons for loading, dedicated empty
+  states.
+
+### Design language
+
+- **Overall visual style.** Modern, minimal, airy. Glassmorphism on floating chrome (nav, bottom bar);
+  soft shadows and large rounded corners; a living aurora/gradient backdrop.
+- **Brand personality.** Warm, hopeful, youthful, reverent — friendly without being casual about the
+  Scripture itself.
+- **UI tone.** Encouraging and personal ("Your streak missed you", "Welcome to the family!").
+- **Visual direction.** Sky-blue daylight palette signalling *morning* and *new mercies*; a deep-blue
+  gradient reserved for the signature verse card; serif type for scripture, sans for everything else.
+
+---
+
+## 3. Color System
+
+Colors are CSS variables in `src/app/globals.css`, exposed to Tailwind as `bg-*`, `text-*`, `border-*`
+tokens via `@theme inline`. Three palettes swap the *same* semantic variables: **Light**, **Dark**
+(`.dark` on `<html>`), and **Admin** (`.admin-shell`, forced dark regardless of site theme).
+
+### Primary colors
+
+| Name | Token | Light | Dark | Usage |
+|---|---|---|---|---|
+| Primary | `--primary` | `#0095ff` | `#0095ff` | Brand blue; primary buttons, active states, links |
+| Primary 600 | `--primary-600` | `#0077d6` | `#2ea8ff` | Hover on primary |
+| Primary 700 | `--primary-700` | `#005ea8` | `#7ec9ff` | Text on tints, emphasis, link text |
+
+### Secondary colors (sky tints & neutrals)
+
+| Name | Token | Light | Dark | Usage |
+|---|---|---|---|---|
+| Background | `--bg` | `#ffffff` | `#0a1522` | Page background |
+| Surface | `--surface` | `#ffffff` | `#122031` | Cards, inputs, raised chrome |
+| Sky tint | `--sky-tint` | `#e8f5ff` | `#16293d` | Secondary buttons, active nav pill, badges |
+| Sky soft | `--sky-soft` | `#f4faff` | `#0d1a29` | Ghost hover, subtle fills |
+| Sky mist | `--sky-mist` | `#d4ecff` | `#1e3c5a` | Hover borders, empty-state icon |
+| Line | `--line` | `#e3edf5` | `#223850` | Borders, dividers |
+
+### Text colors
+
+| Name | Token | Light | Dark | Usage |
+|---|---|---|---|---|
+| Ink | `--ink` | `#0f2233` | `#eaf3fb` | Primary text, headings |
+| Ink soft | `--ink-soft` | `#45586b` | `#a9bdd0` | Body / secondary text |
+| Ink faint | `--ink-faint` | `#5f7488` | `#7e93a8` | Hints, captions, placeholders (darkened to clear AA on white) |
+
+### Semantic colors
+
+| Role | Token | Value | Notes |
+|---|---|---|---|
+| Success | `--color-success` | `#2eb886` | Toasts, confirmations (static token) |
+| Warning | `--color-warning` | `#f59f4a` | Cautions (static token) |
+| Danger/Error | `--color-danger` | `#ef5f5f` | Field errors, destructive, required `*` |
+| Gold | `--color-gold` | `#ffc94d` | Rewards / XP accents |
+| Amber soft / strong | `--amber-soft` / `--amber-strong` | `#fff4d6` / `#9a6b00` | Streak badge (flame) |
+| Mint soft / strong | `--mint-soft` / `--mint-strong` | `#e2f8ee` / `#116b4a` | Positive "green" badge |
+| Glass bg / border | `--glass-bg` / `--glass-border` | `rgba(255,255,255,.72)` / `rgba(227,237,245,.9)` | Frosted nav & bottom bar |
+| Skeleton a / b | `--skeleton-a` / `--skeleton-b` | `#eef5fb` / `#f8fbfe` | Loading shimmer stops |
+| Scrim | `--scrim` | `rgba(9,22,36,.45)` | Modal / sheet overlay |
+
+> **Disabled** state is expressed by opacity, not a color token (`disabled:opacity-40` on buttons).
+
+### The signature verse gradient
+
+The daily verse card uses a fixed deep-blue gradient (not theme-swapped) so it reads as *the* moment in
+both themes:
+
+```
+linear-gradient(135deg, #0095ff 0%, #0089ec 50%, #33b1ff 100%)
+```
+
+### Dark & admin modes
+
+- **Dark mode** is class-based (`.dark` on `<html>`), set before paint by an inline theme script to
+  avoid a flash. `color-scheme` is set per palette so form controls and scrollbars match.
+- **Admin console** (`.admin-shell`) overrides the same semantic variables to a slate/cyan console
+  palette (`--bg #020617`, `--primary #38bdf8`), so every shared component restyles itself with no
+  component changes and stays dark in either site theme.
+
+---
+
+## 4. Typography System
+
+### Font families
+
+| Role | Font | Token | Loaded via | Weights |
+|---|---|---|---|---|
+| UI / sans | **Manrope** | `--font-sans` | `next/font/google`, `display: swap` | 400, 500, 600, 700, 800 |
+| Scripture / serif | **Lora** | `--font-serif` | `next/font/google`, `display: swap` | 400, 500, 600 (+ italic) |
+
+Fallback stacks: sans → `ui-sans-serif, system-ui, sans-serif`; serif → `ui-serif, Georgia, serif`.
+
+Scripture uses a dedicated `.verse-text` class: Lora 500, `letter-spacing: -0.01em`, `line-height:
+1.55`, for a calm, readable quote.
+
+### Font scale
+
+Sizes are Tailwind utilities as used in the code (rem → px at 16px base). Headings are extrabold and
+tight-tracked; body is relaxed leading.
+
+| Style | Classes | Size | Weight | Usage |
+|---|---|---|---|---|
+| Display / hero | `text-2xl → text-[2rem]` on `.verse-text` | 24–32px | 500 (serif) | Verse quote |
+| H1 (page) | `text-2xl … tracking-tight` | 24px | 800 | Auth/page titles |
+| H2 (section) | `text-3xl sm:text-4xl tracking-tight` | 30–36px | 800 | `SectionHeading` |
+| Eyebrow | `text-xs uppercase tracking-[0.2em]` | 12px | 800 | Section kicker, primary color |
+| Body | `text-base leading-relaxed` | 16px | 400 | Section sub-copy |
+| Body small | `text-sm` | 14px | 400–600 | Cards, nav, labels |
+| Input text | `text-[15px]` | 15px | 400 | Form fields |
+| Label | `text-sm font-bold` | 14px | 700 | `Field` labels |
+| Caption / help | `text-xs` | 12px | 400 | Hints, `ink-faint` |
+| Bottom-nav label | `text-[11px] font-bold` | 11px | 700 | Mobile tab labels |
+
+### Hierarchy & rhythm
+
+- **Tracking.** Headings `tracking-tight`; eyebrows/labels wide (`tracking-[0.2em]`/`[0.25em]`).
+- **Line height.** Body `leading-relaxed` (~1.625); scripture 1.55; headings `leading-snug`.
+- **Emphasis ladder.** `ink` (headings) → `ink-soft` (body) → `ink-faint` (meta).
+- **Gradient headline.** `.text-gradient` gives hero headlines a slowly-panning sheen, with a solid
+  `--primary` fallback where `background-clip: text` is unsupported.
+
+---
+
+## 5. Layout System
+
+### Grid & containers
+
+- **Framework.** Tailwind CSS v4 (utility-first), no separate config file — tokens live in `globals.css`
+  via `@theme`.
+- **Max width.** `max-w-7xl` (1280px) for the nav and primary page shells; content columns use narrower
+  `max-w-2xl` / `max-w-5xl` where reading comfort matters.
+- **Horizontal padding.** Responsive gutters `px-4 sm:px-6 lg:px-8`.
+- **Layout composition.** Flexbox and CSS grid utilities; cards use `rounded-3xl` with `border-line` and
+  `shadow-soft`.
+
+### Breakpoints
+
+Tailwind v4 defaults; `lg` is the product's mobile↔desktop hinge (nav swaps, 3D/heavy motion enable).
+
+| Token | Min width | Role |
+|---|---|---|
+| `sm` | 640px | Padding/step-ups, larger headings |
+| `md` | 768px | Multi-column content |
+| `lg` | 1024px | **Desktop nav** replaces mobile menu + bottom bar; 3D hero enabled |
+| `xl` | 1280px | Wide layouts |
+
+### Spacing & radius tokens
+
+Spacing follows Tailwind's 4px base scale (`1`=4px … `4`=16px … `8`=32px …). Recurring radii:
+
+| Token | Value | Usage |
+|---|---|---|
+| `rounded-full` | 9999px | Buttons, badges, pills, nav |
+| `rounded-2xl` | 16px | Inputs, small cards, skeletons |
+| `rounded-3xl` | 24px | Cards, mobile menu items |
+| `rounded-[2.5rem]` | 40px | Signature verse card |
+
+### Shadows
+
+| Token | Value | Usage |
+|---|---|---|
+| `shadow-soft` | `0 2px 12px rgba(15,60,100,.06)` | Cards at rest |
+| `shadow-lift` | `0 12px 32px -8px rgba(0,110,190,.16)` | Card hover, toasts, bottom nav |
+| `shadow-glow` | `0 8px 40px -6px rgba(0,149,255,.35)` | Primary button, verse card |
+
+### Responsive design
+
+- **Mobile.** Fixed frosted bottom nav (`inset-x-3 bottom-3`, safe-area padded), hamburger sheet,
+  single-column stacks, no 3D scene.
+- **Tablet.** Content steps into multi-column grids at `sm`/`md`.
+- **Desktop (`lg+`).** Inline top nav with animated active pill; hover affordances (card lift,
+  spotlight, sheen); 3D hero and cursor glow enabled.
+- **Overflow discipline.** `overflow-x: hidden` on both `html` and `body` so decorative blur layers
+  never cause sideways scroll.
+
+---
+
+## 6. Component Design
+
+All primitives live in [`src/components/ui.tsx`](../src/components/ui.tsx) unless noted. Only components
+that exist in the project are documented.
+
+### Button (`Button`, `ButtonLink`)
+
+- **Purpose.** The primary interactive control; pill-shaped, with a hover sheen and spring tap.
+- **Variants.** `primary` (filled blue, glow), `secondary` (sky tint), `outline` (bordered surface),
+  `ghost` (text-only), `white` (on photos/gradients), `glass` (frosted).
+- **Sizes.** `sm`/`md` (h-44px), `lg` (h-52px) — **every size meets the 44px touch minimum**.
+- **States.** Default · Hover (variant color shift + sheen sweep) · Active (`scale 0.97` spring) ·
+  Disabled (`opacity-40`, no pointer) · Loading (caller swaps in a spinning `Loader2` + label).
+- **Guidelines.** One `primary` per view. Use `outline`/`ghost` for secondary actions; `white`/`glass`
+  only over imagery or the verse gradient.
+
+### Badge (`Badge`)
+
+- **Purpose.** Compact status/metadata pill.
+- **Tones.** `sky`, `gold` (amber), `green` (mint), `white` (always-white, for photos).
+- **Usage.** Categories, counts, streak flame; not for actions.
+
+### Card (`Card`)
+
+- **Purpose.** The universal content container — `rounded-3xl`, `border-line`, `shadow-soft`.
+- **Options.** `hover` (lift + border/shadow on hover), `ring` (conic gradient border for featured),
+  `spotlight` (pointer-tracked radial highlight, mouse only).
+- **Guidelines.** Reserve `ring`/`spotlight` for hero/featured surfaces; keep list cards plain.
+
+### SectionHeading (`SectionHeading`)
+
+- **Purpose.** Consistent section intro — eyebrow + animated heading + optional sub.
+- **Usage.** Front of every marketing/content section; `center` variant for hero blocks. Title animates
+  via `TextReveal` (word-mask), respecting reduced motion.
+
+### ProgressBar (`ProgressBar`)
+
+- **Purpose.** Reading-plan / streak progress. Announces via `role="progressbar"` with `aria-valuenow/min/max`.
+- **States.** Animates width in on scroll into view; renders static under reduced motion.
+
+### Form field & input (`Field`, `inputClass`)
+
+- **Purpose.** Labelled input wrapper with help/error slots.
+- **States.** Default · Focus (`focus:border-primary`, global 3px focus-visible ring) · Error
+  (`role="alert"` danger text, `aria-invalid`, `aria-describedby`) · Optional (label suffix).
+- **Guidelines.** Always pair `Field`/label with an `id`; mark required with a danger `*`, optional
+  inline; help text in `ink-faint`.
+
+### Empty state (`EmptyState`)
+
+- **Purpose.** Friendly placeholder for empty lists — icon + title + body + optional action.
+- **Usage.** Saved verses, prayer wall, search with no results.
+
+### Skeleton (`Skeleton`)
+
+- **Purpose.** Shimmer placeholder during load (`--skeleton-a/b` gradient, `animate-shimmer`).
+- **Usage.** Reserve layout space for async content; shimmer freezes under reduced motion.
+
+### Toast (`Toaster` / `toast()`) — `src/components/toast.tsx`
+
+- **Purpose.** Transient, non-blocking feedback. Fired imperatively from anywhere via
+  `toast(msg, tone)`.
+- **Tones.** `success` (check), `info` (info), `error` (triangle).
+- **Behavior.** Bottom-centered pill, `aria-live="polite"` (never steals focus), auto-dismiss ~3.2s,
+  manual dismiss button; spring in/out, opacity-only under reduced motion.
+
+### VerseCard (`VerseCard`) — `src/components/verse-card.tsx`
+
+- **Purpose.** The signature surface — today's verse on the deep-blue gradient with 3D tilt, specular
+  sheen, four quick actions, and a short prayer.
+- **Actions/states.** Listen (Web Speech toggle, `aria-pressed`), Save (optimistic + rollback, burst
+  animation, `aria-pressed`), Copy (clipboard), Share (Web Share with copy fallback). `compact` prop
+  for embedded contexts.
+- **Guidelines.** One per view; the product's focal point — nothing sits above it in hierarchy.
+
+### Navigation — `Navbar`, `BottomNav`, `Footer`, `ThemeToggle`
+
+Documented as patterns in [§7](#7-user-interface-patterns).
+
+---
+
+## 7. User Interface Patterns
+
+### Navigation patterns
+
+- **Top navbar (`lg+`).** Fixed, transparent at top → frosted `glass` + shadow on scroll (`useScrolled(12)`).
+  Logo, six primary links with a shared-layout animated active **pill** (`layoutId="nav-pill"`), streak
+  badge, theme toggle, and auth CTAs. `aria-current="page"` on the active link.
+- **Mobile menu.** Hamburger opens a height-animated sheet; locks body scroll, closes on `Escape` and on
+  route change; staggered link entrance.
+- **Bottom nav (mobile).** Fixed frosted bar, **max 5 thumb-friendly tabs** (min-height 56px), animated
+  active background (`layoutId="bottom-nav-active"`) + dot; last tab adapts (Dashboard when signed in,
+  else Sign in). Hidden at `lg`.
+- **Skip link.** `Skip to content` visible on focus, jumps to `#main`.
+- **Theme toggle.** Persists to `localStorage('cya-theme')`; applied pre-paint.
+
+### Forms
+
+- **Validation.** Client-side on submit (`noValidate`) — name ≥2, email regex, password ≥8 — with
+  focus moved to the first invalid field; server errors surfaced in a danger banner.
+- **Input states.** Focus ring via `focus:border-primary` + global `:focus-visible` outline; error via
+  `aria-invalid` + `role="alert"` message + `aria-describedby` wiring.
+- **Password field.** Show/hide toggle (`aria-pressed`, `aria-label`), correct `autocomplete`
+  (`current-password` / `new-password`).
+- **Submission.** Button disables and swaps to a spinner + progress label; success routes + toasts.
+
+### Feedback
+
+| Channel | Mechanism | When |
+|---|---|---|
+| Toast | `toast()` polite live region | Save/copy/share, sign-in, mutation results |
+| Inline error | `role="alert"` danger text | Field-level validation |
+| Error banner | Danger-tinted panel | Server/network failure on forms |
+| Optimistic UI | Immediate flip + rollback | Verse save |
+| Loading | Skeleton shimmer / button spinner | Async data / in-flight submit |
+| Empty state | `EmptyState` card | No saved verses, prayers, results |
+
+---
+
+## 8. Page & Screen Design
+
+Route groups: **`(site)`** (public + member, full chrome) and **`(admin)`** (dark console, no site
+chrome). Full route list in [§Appendix](#route-map).
+
+### Home (`/`)
+
+- **Purpose.** First impression + entry into the daily habit.
+- **Layout.** Hero (3D light scene on desktop, aurora backdrop) → `VerseCard` → feature sections
+  (`home/sections.tsx`).
+- **Components.** Hero, VerseCard, SectionHeading, Card, Button.
+- **Actions.** Read reflection (primary), Save/Listen/Copy/Share, Start free / Sign in.
+
+### Daily Verse (`/verse`, archive at `/verse/archive`)
+
+- **Purpose.** Today's verse plus reflection, prayer, and Mark-as-read (streak/XP).
+- **Components.** VerseCard, `MarkRead`, `WeekProgress`, Card.
+- **Actions.** Mark read (primary, gamified), save, browse archive.
+
+### Search (`/search`)
+
+- **Purpose.** Full-text Bible search over the seeded corpus.
+- **Components.** Search input, result Cards, EmptyState, `RecentlyViewed`.
+- **Actions.** Query, open verse, save.
+
+### Prayer Wall (`/prayer`)
+
+- **Purpose.** Post and pray for moderated community requests.
+- **Components.** `Prayer` list/composer, Card, EmptyState, Badge.
+- **Actions.** Post (verified members), pray (one per user), moderation entry for admins.
+
+### Plans (`/plans`), Devotion (`/devotion`, `/devotion/[slug]`), Events (`/events`), Mood (`/mood`)
+
+- **Purpose.** Reading plans with progress, devotional articles, community events with RSVP + pubmats,
+  mood-based verse discovery.
+- **Components.** Card, ProgressBar, Badge, SectionHeading, image pubmats.
+
+### Dashboard (`/dashboard`)
+
+- **Purpose.** Member home — streak, XP/level, saved verses, plan progress, notification toggle.
+- **Components.** `SavedVerses`, `WeekProgress`, `AccountControls`, `NotifyToggle`, ProgressBar, Card.
+- **Actions.** Manage account, toggle push, resume plans, export/delete data.
+
+### Auth (`/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email`)
+
+- **Purpose.** Account lifecycle.
+- **Layout.** Centered `AuthForm` card — logo, contextual heading/sub, fields, CTA, cross-link.
+- **Actions.** Sign in / create account, request/reset password, verify email.
+
+### Static (`/about`, `/privacy`, `/terms`)
+
+- Long-form content within the standard site chrome.
+
+### Admin console (`/admin`, `/admin/prayers`, `/admin/users`, `/admin/devotions`, `/admin-portal`)
+
+- **Purpose.** Moderation and management.
+- **Layout.** Dark `admin-shell`; sticky minimal header (logo, "Events console", exit), no public
+  chrome. Passphrase gate at `/admin-portal`.
+
+---
+
+## 9. User Experience Flow
+
+### Registration & verification
+
+```
+/register → validate (name/email/pw) → POST /api/auth/register
+  → success toast → /dashboard → email-verify prompt → /verify-email → member (can post/pray)
+```
+
+### Login
+
+```
+/login → validate → POST /api/auth/login
+  → "Welcome back" toast → /dashboard   (errors: inline field / server banner)
+```
+
+### Daily reading (core loop)
+
+```
+Home or /verse → read verse → Mark as read → streak + XP update (once/day)
+  → optional Save / Listen / Share → return tomorrow
+```
+
+### Save a verse (optimistic)
+
+```
+Tap Save → flip to "Saved" instantly + burst
+  → POST /api/saved → 401? rollback + "Sign in" toast + /login
+                    → !ok? rollback + error toast
+                    → ok? confirm from server + success toast
+```
+
+### Password recovery
+
+```
+/forgot-password → email → reset link → /reset-password → new password → /login
+```
+
+### Prayer participation
+
+```
+/prayer → (verified) post request → moderation → appears on wall
+        → others tap Pray (one per user) → prayedCount increments
+```
+
+### Error recovery
+
+- **Form/network errors** surface inline or as a danger banner without losing input.
+- **Offline** falls back to a cached shell (`offline.html`) via the service worker.
+- **Failed mutations** roll back optimistic UI and explain via toast.
+
+---
+
+## 10. Accessibility
+
+- **Contrast.** Text tokens tuned for WCAG AA — `--ink-faint` was darkened (`#7d8fa0 → #5f7488`) to
+  clear 4.5:1 on white surfaces.
+- **Touch targets.** 44px minimum on every interactive control (button sizes, icon buttons, nav tabs).
+- **Focus.** Global `:focus-visible` 3px ring (keyboard-only); visible skip-to-content link.
+- **Semantics/ARIA.** `aria-current` on active nav, `aria-pressed` on toggles, `aria-invalid` +
+  `role="alert"` on errors, `aria-live="polite"` toasts, `role="progressbar"`, `aria-label` on
+  icon-only buttons, decorative art marked `aria-hidden`.
+- **Reduced motion.** `prefers-reduced-motion` globally collapses animations/transitions to ~0ms,
+  hides cursor glow and aurora, freezes shimmer, and disables 3D — every effect has a static fallback.
+- **Capability gating.** 3D hero is desktop-only and skipped on low-core devices; scripture-quote SVGs
+  and background layers are `aria-hidden`.
+- **Color independence.** State is never conveyed by color alone (icons + text accompany tones).
+
+---
+
+## 11. Motion & Interaction
+
+Motion tokens live in [`src/lib/motion.ts`](../src/lib/motion.ts); keyframes in `globals.css`.
+
+- **Durations.** `micro 0.18s`, `fast 0.24s`, `base 0.36s`, `slow 0.6s`, `exit 0.22s` (exits ~65% of
+  enters so dismissals feel responsive).
+- **Easing.** `EASE [0.21,0.66,0.29,0.99]` (fluid), `EASE_OUT [0.16,1,0.3,1]`; springs `spring`
+  (stiff, snappy taps) and `springSoft`.
+- **Patterns.** Section reveal (fade + rise + blur), staggered children (40ms), word-mask `TextReveal`,
+  route crossfade (`pageVariants`), shared-layout nav pills, hover sheen/lift/spotlight, verse-save
+  burst, streak flame.
+- **Decorative layers.** Aurora mesh, cursor glow, scroll-progress bar, panning gradient text, floating
+  blobs — all additive and reduced-motion-aware.
+
+---
+
+## Appendix
+
+### Design tokens summary
+
+- **Source of truth (code).** CSS variables in `src/app/globals.css`, surfaced to Tailwind via
+  `@theme` / `@theme inline`. Mirrors the Figma **Semantic** collection (Light/Dark).
+- **Token families.** Color (semantic, theme-swapped) · static color (success/warning/danger/gold) ·
+  typography (`--font-sans`, `--font-serif`) · shadow (`soft/lift/glow`) · animation (`float`, `drift`,
+  `shimmer`, `aurora`, `ping-slow`, `gradient-pan`).
+
+### Route map
+
+| Group | Routes |
+|---|---|
+| `(site)` public | `/`, `/verse`, `/verse/archive`, `/search`, `/plans`, `/devotion`, `/devotion/[slug]`, `/events`, `/mood`, `/prayer`, `/about`, `/privacy`, `/terms` |
+| `(site)` auth | `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` |
+| `(site)` member | `/dashboard` |
+| `(admin)` | `/admin`, `/admin/prayers`, `/admin/users`, `/admin/devotions`, `/admin-portal` |
+
+### Key design files
 
 | File | Role |
 |---|---|
-| `src/proxy.ts` | Per-request CSP nonce middleware (Next 16 `proxy` export) |
-| `next.config.ts` | Static security headers, image optimizer, `transpilePackages` |
-| `src/server/server.js` | `boot()` / `status()` — env assert + DB warmup |
-| `src/server/config/{db,env,mailer}.js` | Connection, required-env gate, SMTP |
-| `src/server/middleware/{session,rate-limit,require-admin}.js` | Auth, throttling, admin gate |
-| `src/server/utils/{api-error,dates,gamification,logger,admin-session}.js` | Cross-cutting helpers |
-| `src/server/services/{verse,user,push,auth}.service.js` | Core domain logic |
-| `src/server/models/*.model.js` | Mongoose schemas + indexes |
-| `src/lib/{data,types}.ts` | Static catalog + shared DTO types |
-| `src/data/verses.json` | Seed corpus + DB-down fallback |
-| `scripts/dev-local.mjs` | One-command local Mongo + seed + `next dev` |
-| `.github/workflows/daily-verse-push.yml` | Daily push scheduler |
-| `docs/ARCHITECTURE.md` | Deeper engineering reference (companion) |
+| `src/app/globals.css` | Design tokens, themes, effects, keyframes |
+| `src/app/layout.tsx` | Fonts (Manrope/Lora), theme-init script, metadata |
+| `src/components/ui.tsx` | Shared primitives (Button, Card, Field, …) |
+| `src/components/verse-card.tsx` | Signature verse surface |
+| `src/components/toast.tsx` | Toast feedback system |
+| `src/components/nav/*` | Navbar, bottom nav, footer, theme toggle |
+| `src/lib/motion.ts` | Motion tokens, variants, easing |
+
+### Design glossary
+
+| Term | Meaning |
+|---|---|
+| Semantic tokens | Theme-swappable CSS variables (`--ink`, `--surface`, …) shared by all components |
+| Signature card | The deep-blue gradient verse card — the product's focal surface |
+| Glass chrome | Frosted, blurred nav / bottom bar (`.glass`) |
+| Aurora | Animated blurred mesh backdrop, reduced-motion-aware |
+| Active pill | Shared-layout highlight that slides between nav items |
+| Optimistic UI | Instant UI change with rollback if the server disagrees (verse save) |
 
 ---
 
-*Maintenance note: keep this document evidence-driven. When architecture changes, update the affected
-section and the [Design Decisions](#19-design-decisions) table, and re-verify any **Needs
-Verification** items.*
+*Maintenance note: keep this document evidence-driven. When tokens in `globals.css`, primitives in
+`ui.tsx`, or motion tokens change, update the affected section here. This file documents the
+**interface**; system/engineering design lives in [`ARCHITECTURE.md`](./ARCHITECTURE.md).*
