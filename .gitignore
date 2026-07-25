@@ -4,6 +4,9 @@ out
 build
 .DS_Store
 
+# Local development database (mongodb-memory-server data)
+.dev-db/
+
 # Tooling caches — machine-local, should never be committed
 .impeccable/
 .playwright-mcp/

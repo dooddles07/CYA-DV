@@ -24,10 +24,16 @@ Implemented from the [CYA Daily Verse Figma design system](https://www.figma.com
 
 ```bash
 npm install
-npm run dev
+npm run dev:local   # local MongoDB + seeded verses + next dev
 ```
 
 Open http://localhost:3000.
+
+`dev:local` stands up a disposable MongoDB (mongodb-memory-server) under `.dev-db`,
+seeds the verse corpus, and runs the app against it — no external database needed.
+Use plain `npm run dev` only when `MONGO_URL` in `.env` already points at a
+database you can reach (the production value targets Railway's private network and
+will not resolve locally).
 
 ```bash
 npm run build   # production build
