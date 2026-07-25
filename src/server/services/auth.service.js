@@ -10,7 +10,9 @@ export async function registerUser({ name, email, password }) {
   password = String(password ?? "");
 
   if (name.length < 2) throw new ApiError(400, "Please tell us your name.");
-  if (!/^\S+@\S+\.\S+$/.test(email)) throw new ApiError(400, "That email doesn't look right.");
+  if (name.length > 60) throw new ApiError(400, "Please use a shorter name (60 characters max).");
+  if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 120)
+    throw new ApiError(400, "That email doesn't look right.");
   if (password.length < 8) throw new ApiError(400, "Password needs at least 8 characters.");
 
   await dbConnect();

@@ -101,9 +101,9 @@ export async function createPrayer({ name, request, anonymous }, author) {
   if (!author) throw new ApiError(401, "Sign in to share a prayer request.");
 
   request = String(request ?? "").trim();
-  const display = anonymous
-    ? "Anonymous"
-    : String(name ?? "").trim() || author.name || "Anonymous";
+  const display = (
+    anonymous ? "Anonymous" : String(name ?? "").trim() || author.name || "Anonymous"
+  ).slice(0, 60);
 
   if (request.length < 10)
     throw new ApiError(400, "Please write at least a short sentence so people know how to pray.");
