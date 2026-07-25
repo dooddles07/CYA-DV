@@ -179,11 +179,13 @@ export function getPlan(slug: string): ReadingPlan | undefined {
   return readingPlans.find((p) => p.slug === slug);
 }
 
+// `id` is the stable claim key — never reuse or change one, or a title/copy
+// edit would reset the per-day dedup and let a challenge be re-claimed.
 export const challenges = [
-  { type: "Memorize", title: "Hide Isaiah 40:31 in your heart", xp: 50, icon: "Brain" },
-  { type: "Kindness", title: "Encourage one friend with a verse today", xp: 30, icon: "HandHeart" },
-  { type: "Prayer", title: "Pray for 3 people on the prayer wall", xp: 40, icon: "Church" },
-  { type: "Reflection", title: "Journal: where did you see God this week?", xp: 35, icon: "PenLine" },
+  { id: "memorize", type: "Memorize", title: "Hide Isaiah 40:31 in your heart", xp: 50, icon: "Brain" },
+  { id: "kindness", type: "Kindness", title: "Encourage one friend with a verse today", xp: 30, icon: "HandHeart" },
+  { id: "prayer", type: "Prayer", title: "Pray for 3 people on the prayer wall", xp: 40, icon: "Church" },
+  { id: "reflection", type: "Reflection", title: "Journal: where did you see God this week?", xp: 35, icon: "PenLine" },
 ];
 
 export const quotes = [

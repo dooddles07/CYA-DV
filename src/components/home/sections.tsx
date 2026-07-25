@@ -193,7 +193,7 @@ export function ChallengeGrid() {
     const res = await fetch("/api/streak/challenge", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: c.title, xp: c.xp }),
+      body: JSON.stringify({ id: c.id }),
     }).catch(() => null);
 
     if (res?.status === 401) {

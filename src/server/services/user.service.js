@@ -95,10 +95,10 @@ export async function markVerseRead(userId) {
  * Capped at one claim per challenge per day.
  */
 export async function claimChallenge(userId, challengeId) {
-  const challenge = challenges.find((c) => c.title === challengeId);
+  const challenge = challenges.find((c) => c.id === challengeId);
   if (!challenge) throw new ApiError(400, "Unknown challenge.");
   const xp = challenge.xp;
-  const key = `${manilaDayKey()}:${challenge.title.slice(0, 40)}`;
+  const key = `${manilaDayKey()}:${challenge.id}`;
 
   await dbConnect();
   const user = await User.findById(userId);

@@ -36,7 +36,11 @@ export async function serve(_req, id) {
     ? image.contentType
     : "application/octet-stream";
 
-  return new NextResponse(new Uint8Array(image.data.buffer), {
+  // Respect the Buffer's own offset/length — `image.data.buffer` alone is the
+  // whole (possibly pooled) backing ArrayBuffer, which could expose unrelated
+  // bytes for small buffers.
+  const bytes = new Uint8Array(image.data.buffer, image.data.byteOffset, image.data.byteLength);
+  return new NextResponse(bytes, {
     headers: {
       "Content-Type": contentType,
       "Content-Length": String(image.bytes),
