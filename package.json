@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test": "node --experimental-strip-types --import ./tests/helpers/register.mjs --test tests/*.test.mjs",
     "seed": "node scripts/seed.mjs",
     "purge:seed": "node scripts/purge-seed.mjs",
     "member:create": "node scripts/create-member.mjs",
@@ -39,6 +39,7 @@
     "@types/three": "^0.182.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "mongodb-memory-server": "^11.2.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
