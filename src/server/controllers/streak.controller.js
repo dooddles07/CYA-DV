@@ -5,7 +5,7 @@ import { getSession } from "@/server/middleware/session";
 import { toResponse } from "@/server/utils/api-error";
 
 export async function markRead() {
-  const session = await getSession();
+  const session = await getSession({ strict: true });
   if (!session)
     return NextResponse.json({ error: "Sign in to keep a streak." }, { status: 401 });
   try {
@@ -16,7 +16,7 @@ export async function markRead() {
 }
 
 export async function challenge(req) {
-  const session = await getSession();
+  const session = await getSession({ strict: true });
   if (!session)
     return NextResponse.json({ error: "Sign in to earn XP." }, { status: 401 });
   try {

@@ -5,7 +5,7 @@ import { getSession } from "@/server/middleware/session";
 import { toResponse } from "@/server/utils/api-error";
 
 export async function enroll(req) {
-  const session = await getSession();
+  const session = await getSession({ strict: true });
   if (!session)
     return NextResponse.json({ error: "Sign in to start a reading plan." }, { status: 401 });
   try {
@@ -17,7 +17,7 @@ export async function enroll(req) {
 }
 
 export async function leave(req) {
-  const session = await getSession();
+  const session = await getSession({ strict: true });
   if (!session)
     return NextResponse.json({ error: "Sign in to manage your plan." }, { status: 401 });
   try {
@@ -30,7 +30,7 @@ export async function leave(req) {
 }
 
 export async function completeDay(req) {
-  const session = await getSession();
+  const session = await getSession({ strict: true });
   if (!session)
     return NextResponse.json({ error: "Sign in to track your progress." }, { status: 401 });
   try {

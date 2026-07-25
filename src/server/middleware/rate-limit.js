@@ -16,8 +16,11 @@ function clientKey(req) {
   if (fwd) {
     const ips = fwd.split(",").map((s) => s.trim()).filter(Boolean);
     // Count from the right: the hop our trusted proxy appended, not the
-    // attacker-controlled leftmost value.
-    const ip = ips[ips.length - TRUSTED_PROXIES];
+    // attacker-controlled leftmost value. Clamp the index so a header with
+    // fewer hops than configured falls back to the leftmost real entry rather
+    // than undefined — which would otherwise dump every such client into one
+    // shared "unknown" bucket and let them exhaust each other's limit.
+    const ip = ips[Math.max(0, ips.length - TRUSTED_PROXIES)];
     if (ip) return ip;
   }
   return req.headers.get("x-real-ip")?.trim() || "unknown";

@@ -11,7 +11,7 @@ export async function index() {
 }
 
 export async function remove(req) {
-  const session = await getSession();
+  const session = await getSession({ strict: true });
   if (!session)
     return NextResponse.json({ error: "Sign in to manage saved verses." }, { status: 401 });
   try {
@@ -23,7 +23,7 @@ export async function remove(req) {
 }
 
 export async function toggle(req) {
-  const session = await getSession();
+  const session = await getSession({ strict: true });
   if (!session)
     return NextResponse.json({ error: "Sign in to save verses." }, { status: 401 });
   try {

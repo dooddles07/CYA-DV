@@ -20,7 +20,7 @@ export async function upcoming() {
 
 export async function rsvp(req, id) {
   try {
-    const session = await getSession();
+    const session = await getSession({ strict: true });
     if (!session)
       return NextResponse.json({ error: "Sign in to RSVP." }, { status: 401 });
     const body = await req.json().catch(() => ({}));

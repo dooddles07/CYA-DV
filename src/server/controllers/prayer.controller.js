@@ -39,7 +39,7 @@ export async function create(req) {
 
 export async function pray(req, id) {
   try {
-    const session = await getSession();
+    const session = await getSession({ strict: true });
     if (!session)
       return NextResponse.json({ error: "Sign in to pray for a request." }, { status: 401 });
 
