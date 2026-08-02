@@ -6,6 +6,7 @@ import { Badge, Button, Card, EmptyState } from "@/components/ui";
 import { toast } from "@/components/toast";
 import { ShieldCheck } from "lucide-react";
 import type { ModeratedPrayer } from "@/lib/types";
+import { csrfHeader } from "@/lib/csrf";
 
 export function AdminClient({ initialPrayers }: { initialPrayers: ModeratedPrayer[] }) {
   const [items, setItems] = useState(initialPrayers);
@@ -19,7 +20,7 @@ export function AdminClient({ initialPrayers }: { initialPrayers: ModeratedPraye
     try {
       const res = await fetch(`/api/admin/prayers/${p.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeader() },
         body: JSON.stringify({ status }),
       });
       const data = await res.json().catch(() => ({}));

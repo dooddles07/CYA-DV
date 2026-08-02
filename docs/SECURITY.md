@@ -411,14 +411,19 @@ upgrade-insecure-requests;
 | `cya-session` | ✅ | ✅ | lax | 30 days |
 | `cya-admin` | ✅ | ✅ | lax | 8 hours |
 
-### Gap
+### Double-submit CSRF token
 
-There is **no explicit anti-CSRF token** on state-changing POSTs; protection rests on `SameSite=Lax`
-plus same-origin. `Lax` permits top-level cross-site GET navigations, so any future
-**state-changing GET** would be exposed — all mutations must stay POST/PUT/DELETE.
-
-**Recommended Improvement:** double-submit CSRF token (or `SameSite=Strict` for the admin cookie) for
-defence in depth on privileged mutations.
+A `cya-csrf` cookie (random, non-`httpOnly` so client JS can read it) is issued alongside every
+session/admin-session cookie ([`csrf.js`](../src/server/middleware/csrf.js)). State-changing
+requests to the admin gate (`assertAdmin()`) and to account export/delete must echo the cookie's
+value back in an `X-CSRF-Token` header; a mismatch or missing header is rejected `403`. Existing
+sessions predating this change self-heal a token on their next page view via `proxy.ts`, so a stale
+30-day session cookie isn't locked out. `SameSite=Lax` plus same-origin remains the first layer;
+the double-submit token is defence in depth on the highest-value mutation surfaces (admin, account
+delete/export). Other member writes (prayer, RSVP, plans, saved verses, streak) still rely on
+`SameSite=Lax` + same-origin only — `Lax` blocks cross-site POST by default in current browsers, so
+residual exposure there is low, but a future **state-changing GET** on any endpoint would bypass it —
+all mutations must stay POST/PUT/PATCH/DELETE.
 
 ---
 
@@ -487,13 +492,19 @@ Secrets live **only in environment variables**; none are committed. Documented i
 | Verse search | `verse:search` | 120 | 1 min |
 | Admin image serve | `admin:image` | 30 | 10 min |
 | Admin portal login | `admin:portal` | 5 | 15 min |
+| Event RSVP | `event:rsvp` | 20 | 10 min |
+| Plan enroll / leave | `plan:enroll` / `plan:leave` | 10 | 10 min |
+| Plan day complete | `plan:complete-day` | 60 | 10 min |
+| Save / unsave verse | `saved-verse:toggle` / `saved-verse:remove` | 30 | 1 min |
+| Mark verse read | `streak:read` | 10 | 10 min |
+| Claim challenge | `streak:challenge` | 10 | 10 min |
 
 **Anti-spoofing:** the client IP is taken from `X-Forwarded-For` **counting from the right** by
 `TRUSTED_PROXY_HOPS`, so a client-injected leftmost address cannot forge identity
 ([`rate-limit.js`](../src/server/middleware/rate-limit.js)).
 
-**Gap / Recommended Improvement:** non-auth state-changing writes — RSVP, plan enroll/leave, saved
-verses, streak, push subscribe — are **not** rate-limited. Add limits to blunt automated abuse.
+All state-changing endpoints are now rate-limited — RSVP, plan enroll/leave/progress, saved verses,
+and streak/challenge writes previously had none; closed in this pass.
 
 ---
 
@@ -532,8 +543,9 @@ Improvement:** verify TLS is enforced on the connection and enable at-rest encry
 | Snyk / OSV-Scanner | Deeper transitive-vulnerability analysis |
 | OWASP Dependency-Check | SCA in CI |
 
-**Recommended Improvement:** enable Dependabot and an `npm audit`/OSV gate in the GitHub Actions
-workflow.
+`npm audit --audit-level=high` runs as a required step in [`ci.yml`](../.github/workflows/ci.yml)
+on every push and PR. **Recommended Improvement:** enable Dependabot (or Renovate) for automated
+dependency PRs, and consider a deeper transitive-vulnerability scan (Snyk/OSV-Scanner) over time.
 
 ---
 
@@ -555,10 +567,16 @@ without touching call sites.
 - Customer PII beyond a user id reference.
 - Routine expected conditions (expired JWT, malformed body) — kept out to preserve signal.
 
+**Admin-action audit log:** an append-only `AdminAuditLog` collection
+([`admin-audit.js`](../src/server/utils/admin-audit.js)) records every privileged mutation — event
+and devotion create/update/delete, prayer moderation, user role changes, verse sync, event-image
+uploads — with actor, action, target, and metadata. Logging is best-effort and never blocks or
+fails the action it records.
+
 **Gaps / Recommended Improvements:**
 
-- No security-specific alerting (failed-login spikes, admin actions) in the repo.
-- **No admin-action audit log.** Add an append-only audit trail for privileged mutations.
+- No security-specific alerting (failed-login spikes, admin actions) in the repo — the audit log is
+  recorded but nothing pages on it yet.
 - Wire the logger to a real error-tracking backend in production.
 
 ---
@@ -572,11 +590,12 @@ without touching call sites.
   optional integrations.
 - **Linting** — ESLint (`eslint-config-next`) on the codebase.
 - **Focused commits** — atomic, conventional messages.
+- **CI gate** — [`ci.yml`](../.github/workflows/ci.yml) runs lint, `tsc --noEmit`, the test suite,
+  `npm audit --audit-level=high`, and a production build on every push and PR.
 
 **Recommended Improvements:**
 
-- Branch protection + required PR review on `main`.
-- CI security checks (dependency audit, secret scanning, lint gate) before merge.
+- Branch protection + required PR review on `main`, with the CI workflow as a required check.
 - A pre-commit secret scanner (e.g. gitleaks).
 
 ---
@@ -591,8 +610,8 @@ without touching call sites.
   `Permissions-Policy`, HSTS) + per-request CSP
 - [x] Required secrets present (boot gate refuses to start otherwise)
 - [x] No secrets committed (`.gitignore` verified)
-- [ ] Dependency audit in CI *(Recommended)*
-- [ ] Admin-action audit logging *(Recommended)*
+- [x] Dependency audit in CI (`npm audit --audit-level=high` in `ci.yml`)
+- [x] Admin-action audit logging (`AdminAuditLog`)
 - [ ] Error-tracking backend connected *(Recommended)*
 
 ### Security headers (static, `next.config.ts`)
@@ -624,7 +643,8 @@ Content-Security-Policy is delivered per-request from `proxy.ts` (see §8).
 - [x] Input validation implemented (service-layer, coercion + bounds)
 - [x] Injection prevention enabled (Mongoose casting, `escapeRegex`, `isValidObjectId`)
 - [x] XSS protection implemented (React escaping + nonce CSP + email escaping)
-- [~] CSRF protection implemented (SameSite=Lax + same-origin; **no token** — Recommended)
+- [x] CSRF protection implemented (SameSite=Lax + same-origin, plus a double-submit token on
+  admin + account delete/export)
 
 **Secrets**
 - [x] No secrets committed (`.gitignore` enforced)
@@ -632,8 +652,8 @@ Content-Security-Policy is delivered per-request from `proxy.ts` (see §8).
 - [ ] Credentials rotated regularly (**operational** — establish a rotation schedule)
 
 **Operations**
-- [ ] Dependencies scanned in CI (**Recommended**)
-- [~] Security monitoring (structured error logging present; no alerting/audit log — Recommended)
+- [x] Dependencies scanned in CI (`npm audit --audit-level=high` in `ci.yml`)
+- [~] Security monitoring (structured error logging + admin audit log present; no alerting yet — Recommended)
 - [ ] Backups secured (**operational** — managed platform)
 
 Legend: `[x]` implemented · `[~]` partial · `[ ]` not yet / operational.

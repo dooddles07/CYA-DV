@@ -5,6 +5,7 @@ import Image from "next/image";
 import { BookOpen, Eye, EyeOff, Loader2, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import { Badge, Button, Card, EmptyState, Field, inputClass } from "@/components/ui";
 import { toast } from "@/components/toast";
+import { csrfHeader } from "@/lib/csrf";
 import { compressImage } from "@/lib/compress-image";
 import { cx } from "@/lib/cx";
 import type { Devotion } from "@/lib/types";
@@ -80,7 +81,7 @@ export function DevotionsAdminClient({ initialDevotions }: { initialDevotions: D
       const compressed = await compressImage(file);
       const body = new FormData();
       body.append("file", compressed);
-      const res = await fetch("/api/admin/events/image", { method: "POST", body });
+      const res = await fetch("/api/admin/events/image", { method: "POST", headers: csrfHeader(), body });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast(data.error ?? "Could not upload that image.", "error");
@@ -115,7 +116,7 @@ export function DevotionsAdminClient({ initialDevotions }: { initialDevotions: D
     try {
       const res = await fetch(isEdit ? `/api/admin/devotions/${editing}` : "/api/admin/devotions", {
         method: isEdit ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeader() },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -141,7 +142,7 @@ export function DevotionsAdminClient({ initialDevotions }: { initialDevotions: D
     try {
       const res = await fetch(`/api/admin/devotions/${d.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeader() },
         body: JSON.stringify({ ...d, published: !d.published }),
       });
       const data = await res.json().catch(() => ({}));
@@ -162,7 +163,7 @@ export function DevotionsAdminClient({ initialDevotions }: { initialDevotions: D
     if (!confirm(`Delete "${d.title}"? This cannot be undone.`)) return;
     setBusy(d.id);
     try {
-      const res = await fetch(`/api/admin/devotions/${d.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/devotions/${d.id}`, { method: "DELETE", headers: csrfHeader() });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast(data.error ?? "Could not delete.", "error");

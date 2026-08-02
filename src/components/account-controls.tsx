@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Download, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { toast } from "@/components/toast";
+import { csrfHeader } from "@/lib/csrf";
 
 export function AccountControls() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export function AccountControls() {
   const onDelete = async () => {
     setBusy("delete");
     try {
-      const res = await fetch("/api/account", { method: "DELETE" });
+      const res = await fetch("/api/account", { method: "DELETE", headers: csrfHeader() });
       if (!res.ok) throw new Error();
       toast("Your account and data were deleted.", "success");
       router.push("/");

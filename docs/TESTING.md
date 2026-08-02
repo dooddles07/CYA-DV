@@ -28,7 +28,7 @@ Testing on this project protects the small set of rules that must never silently
 |---|---|---|
 | Unit | Yes | Pure domain logic |
 | Integration | Yes | Services against in-memory MongoDB |
-| End-to-end | No | UI verified manually (see [End-to-End Tests](#end-to-end-tests)) |
+| End-to-end | Yes (one smoke spec) | Core happy path only; broader coverage manual (see [End-to-End Tests](#end-to-end-tests)) |
 | Performance / load | No | Recommended in [Future Improvements](#future-improvements) |
 
 ---
@@ -122,34 +122,43 @@ node --experimental-strip-types --import ./tests/helpers/register.mjs --test tes
 
 ## End-to-End Tests
 
-There is **no committed E2E test suite** in this repository — no Playwright, Cypress, or Selenium project, config, or dependency.
+One smoke spec exists: [`tests/e2e/smoke.spec.ts`](../tests/e2e/smoke.spec.ts), using `@playwright/test`. It covers the core happy path — register (auto-logs in) → view daily verse → mark read → streak increments (asserted via the button's own state, no DOM scraping) → dashboard renders.
 
-UI is currently verified **manually during development** using the Playwright MCP (real browser rendering plus console-error inspection), but those sessions are ad hoc and not checked into the repo, so there are no automated E2E specs, generated reports, screenshots, or video artifacts to document.
+**Run it:**
 
-> **Gap / recommendation:** add a Playwright project (`@playwright/test`) covering the core happy paths — register → log in → view daily verse → mark read → streak increments → view dashboard. See [Future Improvements](#future-improvements).
+```bash
+npx playwright install chromium   # first run only
+npm run test:e2e
+```
+
+[`playwright.config.ts`](../playwright.config.ts) spins up `npm run dev:local` automatically (disposable in-memory Mongo) via Playwright's `webServer` option, so the suite never touches a real database and needs no manual server management.
+
+**Not yet wired into `ci.yml`** — browser install + `mongodb-memory-server`'s binary download add real time to a CI run, so this stays a local/manual gate for now rather than risking CI flakiness. See [Future Improvements](#future-improvements).
+
+UI beyond this one flow is still verified **manually during development** using the Playwright MCP (real browser rendering plus console-error inspection); those exploratory sessions are ad hoc and not checked into the repo.
 
 ---
 
 ## Test Coverage
 
-**No coverage tooling is currently configured.** There is no coverage dependency, no threshold, no reporter, and no coverage output directory in the repository.
-
-The `node:test` runner does support coverage natively without adding dependencies. To generate an ad-hoc report today:
-
 ```bash
-node --experimental-strip-types --import ./tests/helpers/register.mjs \
-  --test --experimental-test-coverage tests/*.test.mjs
+npm run test:coverage
 ```
 
-This prints a per-file coverage table to the terminal. It is **not** wired into `npm test`, CI, or any threshold gate.
+Uses the `node:test` runner's native `--experimental-test-coverage` — no added dependency. Prints a
+per-file coverage table to the terminal. It is **not** wired into `ci.yml` or any enforced
+threshold — report only. Do not publish a single coverage percentage as a headline number; it
+covers only `tests/*.test.mjs` (unit + integration), not the E2E spec or untested controller/route
+layers.
 
-> **Gap / recommendation:** add a `test:coverage` script using `--experimental-test-coverage` (optionally with `--test-reporter` for LCOV output), and enforce a threshold in CI once a baseline is measured. Do not publish a coverage percentage until it has actually been measured.
+> **Gap / recommendation:** enforce a threshold in CI once a stable baseline is measured across a
+> few runs.
 
 ---
 
 ## Running Tests Locally
 
-Copy-pasteable commands. Only the first two exist as npm scripts; the rest invoke the runner directly.
+Copy-pasteable commands. 1, 2, 3, and 6 exist as npm scripts; the rest invoke the runner directly.
 
 ```bash
 # 1. Install dependencies
@@ -158,14 +167,18 @@ npm install
 # 2. Run the full test suite (unit + integration)
 npm test
 
-# 3. Run a single unit file
+# 3. Coverage report for the unit + integration suite
+npm run test:coverage
+
+# 4. Run a single unit file
 node --experimental-strip-types --import ./tests/helpers/register.mjs --test tests/dates.test.mjs
 
-# 4. Run only the integration suite
+# 5. Run only the integration suite
 node --experimental-strip-types --import ./tests/helpers/register.mjs --test tests/services.integration.test.mjs
 
-# 5. Generate an ad-hoc coverage report (not configured as a script)
-node --experimental-strip-types --import ./tests/helpers/register.mjs --test --experimental-test-coverage tests/*.test.mjs
+# 6. Run the E2E smoke suite (spins up dev:local automatically)
+npx playwright install chromium   # first run only
+npm run test:e2e
 ```
 
 **Full pre-commit gate** (lint + type-check + tests):
@@ -183,9 +196,9 @@ npm run lint && npx tsc --noEmit && npm test
 
 **Important:** this workflow does **not run the test suite**. It is a scheduled operational job that fires a daily push-notification cron (06:00 Manila) by calling the app's `/api/cron/daily-verse` endpoint and failing if the response is not HTTP 200.
 
-There is currently **no CI workflow that installs dependencies and runs `npm test`, lint, or type-check** on push or pull request. Test execution before merge is therefore a manual, local step (the pre-commit gate above).
+A second workflow, [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), runs `npm ci`, `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm audit --audit-level=high`, and `npm run build` on every push and pull request against `main`. Build-time-only placeholder values for `MONGO_URL`/`AUTH_SECRET`/`NEXT_PUBLIC_SITE_URL` are set in the workflow (no live database is reached — `npm test` uses `mongodb-memory-server`, and `next build` tolerates an unreachable DB during static generation).
 
-> **Gap / recommendation:** add a `ci.yml` workflow that runs `npm ci`, `npm run lint`, `npx tsc --noEmit`, and `npm test` on every push and PR, and make it a required status check before merge. This is the single highest-value testing improvement for the project.
+> **Recommendation:** make `ci.yml` a required status check before merge (branch protection on `main` is not configured in-repo).
 
 ---
 
@@ -229,10 +242,10 @@ Issues specific to this repository's setup:
 
 Concrete, repository-specific next steps, roughly in priority order:
 
-1. **Add a CI test workflow.** No workflow currently runs the suite; add `ci.yml` (`npm ci` → lint → `tsc --noEmit` → `npm test`) on push/PR and make it a required check. Highest impact.
-2. **Wire up coverage.** Add a `test:coverage` script using `--experimental-test-coverage`, capture a baseline, then enforce a threshold in CI. Measure before publishing any number.
-3. **Add E2E tests.** Introduce Playwright covering register → login → daily verse → mark read → streak → dashboard, with CI-published traces.
+1. **Make CI a required check.** `ci.yml` exists and runs on every push/PR; branch protection requiring it to pass before merge is not yet configured.
+2. **Enforce a coverage threshold.** `test:coverage` exists and reports; capture a baseline across a few runs, then gate on it in CI.
+3. **Broaden E2E coverage and wire it into CI.** One smoke spec exists (register → verse → mark read → dashboard); extend to login, prayer post, RSVP, and admin moderation, and add it to `ci.yml` once browser-install/binary-download time is acceptable, with traces published on failure.
 4. **Broaden integration coverage.** Extend service tests to reading-plan progress, verse assignment/rotation persistence, and the notification-subscription flow.
 5. **Add API route tests.** Cover the Next.js route handlers (auth, cron, verse endpoints) including auth/authorization failure paths and rate-limit behaviour.
-6. **Add npm script aliases.** Provide `test:unit`, `test:integration`, and `test:coverage` so the long `node --test` invocations are discoverable.
-7. **Performance testing.** Once E2E exists, add a lightweight load check for the daily-verse and cron endpoints to catch regressions under concurrency.
+6. **Add npm script aliases.** Provide `test:unit` and `test:integration` so the long `node --test` invocations are discoverable (`test:coverage` and `test:e2e` already exist).
+7. **Performance testing.** Add a lightweight load check for the daily-verse and cron endpoints to catch regressions under concurrency.

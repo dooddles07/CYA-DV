@@ -108,7 +108,7 @@ Full capability breakdown in [`docs/FEATURES.md`](./docs/FEATURES.md).
 
 ## Live Demo
 
-- **Production:** https://cya-daily-verses-production.up.railway.app
+- **Production:** https://cya-dv.vercel.app/
 - **Documentation:** [`docs/`](./docs)
 
 ---
@@ -140,7 +140,8 @@ Full capability breakdown in [`docs/FEATURES.md`](./docs/FEATURES.md).
 
 ### Infrastructure
 
-- Railway (hosting + managed MongoDB; see [Deployment](#deployment))
+- Vercel (hosting)
+- MongoDB Atlas (managed database; see [Deployment](#deployment))
 - GitHub Actions (daily verse push cron)
 
 ---
@@ -161,7 +162,7 @@ npm run dev:local   # local MongoDB + seeded verses + next dev
 
 Open http://localhost:3000.
 
-`dev:local` stands up a disposable MongoDB (`mongodb-memory-server`) under `.dev-db` on port **27099**, seeds the verse corpus, and runs the app against it — no external database needed. Use plain `npm run dev` only when `MONGO_URL` in `.env` already points at a database you can reach (the production value targets Railway's private network and will not resolve locally).
+`dev:local` stands up a disposable MongoDB (`mongodb-memory-server`) under `.dev-db` on port **27099**, seeds the verse corpus, and runs the app against it — no external database needed. Use plain `npm run dev` only when `MONGO_URL` in `.env` already points at a database you can reach (e.g. your own MongoDB Atlas cluster) — never point local dev at the production Atlas connection string.
 
 Production build:
 
@@ -291,9 +292,9 @@ Tests run with the built-in Node test runner (`node:test`) against an in-memory 
 npm test
 ```
 
-Existing suites cover dates, gamification, reading plans, verse rotation, verse data, and service integration (`tests/*.test.mjs`). See [`docs/TESTING.md`](./docs/TESTING.md).
+Existing suites cover dates, gamification, reading plans, verse rotation, verse data, and service integration (`tests/*.test.mjs`). `npm run test:coverage` reports coverage for that suite. A Playwright smoke spec (`npm run test:e2e`) covers the core happy path against `dev:local`. See [`docs/TESTING.md`](./docs/TESTING.md).
 
-> Coverage tooling, plus end-to-end and contract suites, are tracked on the [roadmap](#roadmap).
+> Broader E2E/contract coverage and CI-wired E2E are tracked on the [roadmap](#roadmap).
 
 ---
 
@@ -314,7 +315,7 @@ A single Next.js 16 deployment (SSR UI + JSON API) backed by MongoDB. The app is
 
 **Background scheduler.** `.github/workflows/daily-verse-push.yml` runs cron `0 22 * * *` UTC (06:00 Manila) and POSTs `/api/cron/daily-verse` with `Authorization: Bearer $CRON_SECRET`. The send is idempotent (`PushLog.day` prevents double-send).
 
-**Hosting.** Production runs on **Railway** (single Next.js service + managed MongoDB), deployed via Railway's push-to-deploy. No Docker/K8s manifests or GitHub Actions deploy workflow are committed; automated backups and a formal DR runbook are not yet in place. Full detail in [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md).
+**Hosting.** Production runs on **Vercel** (Next.js), backed by **MongoDB Atlas**, deployed via Vercel's push-to-deploy on `main`. No Docker/K8s manifests or GitHub Actions deploy workflow are committed; automated backups and a formal DR runbook are not yet in place. Full detail in [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md).
 
 ---
 
@@ -339,7 +340,6 @@ Priority-ordered, no committed dates. Full detail in [`docs/ROADMAP.md`](./docs/
 **High priority**
 
 - Metrics + alerting; wire `/api/health` to a probe
-- Extend rate limiting to all state-changing endpoints; confirm CSRF posture
 - Document/verify production topology and commit a deploy/rollback workflow
 
 **Medium priority**
@@ -360,10 +360,9 @@ Priority-ordered, no committed dates. Full detail in [`docs/ROADMAP.md`](./docs/
 ## Known Limitations
 
 - **Verse coupling.** The verse of the day couples to the lexical corpus order — reordering or removing verses retroactively changes the archive mapping.
-- **Rate-limit coverage.** Non-auth write endpoints (prayer, RSVP, enroll) need confirmed rate-limit coverage.
 - **No formal migrations.** The verse corpus self-reconciles via `ensureSynced()`; other collections have no migration mechanism yet.
 - **Cache drift.** Per-instance `unstable_cache` may briefly differ across instances until each revalidates.
-- **Ops automation.** Production runs on Railway, but automated database backups, a disaster-recovery runbook, and a CI deploy workflow are not yet configured (tracked on the [roadmap](#roadmap)).
+- **Ops automation.** Production runs on Vercel + MongoDB Atlas, but automated database backups, a disaster-recovery runbook, and a CI deploy workflow are not yet configured (tracked on the [roadmap](#roadmap)).
 
 ---
 
@@ -373,7 +372,7 @@ Priority-ordered, no committed dates. Full detail in [`docs/ROADMAP.md`](./docs/
 No. `npm run dev:local` spins up an in-memory MongoDB, seeds it, and runs the app against it.
 
 **Why won't plain `npm run dev` connect?**
-The production `MONGO_URL` targets Railway's private network and won't resolve locally. Use `npm run dev:local`, or point `MONGO_URL` at a database you can reach.
+It needs a reachable `MONGO_URL` in `.env` — the production Atlas connection string should never be used for local dev. Use `npm run dev:local`, or point `MONGO_URL` at your own database.
 
 **Is it installable on a phone?**
 Yes. It's a PWA — add it to your home screen; the service worker caches the shell with an offline fallback.

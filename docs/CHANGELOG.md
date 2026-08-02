@@ -21,6 +21,27 @@ Maintainer guide:
 ### Added
 - Product screenshots (`docs/images/`) embedded in `README.md` and `DESIGN.md`
   — home (light/dark), daily verse, Bible search, reading plans, prayer wall.
+- `.github/workflows/ci.yml` — lint, type check, test, `npm audit`, and build
+  on every push and PR against `main`.
+- Rate limiting on previously-unprotected authenticated write endpoints: event
+  RSVP, reading-plan enroll/leave/day-complete, saved-verse toggle/remove, and
+  streak mark-read/challenge-claim.
+- CSRF double-submit token (`cya-csrf` cookie + `X-CSRF-Token` header,
+  [`csrf.js`](../src/server/middleware/csrf.js)) required on the admin gate and
+  account export/delete, on top of the existing `SameSite=Lax` + same-origin
+  defense. Existing sessions self-heal a token via `proxy.ts` so no one is
+  locked out by the change.
+- Admin-action audit log (`AdminAuditLog`,
+  [`admin-audit.js`](../src/server/utils/admin-audit.js)) — records every
+  privileged mutation (event/devotion create/update/delete, prayer moderation,
+  user role changes, verse sync, event-image upload) with actor, action,
+  target, and metadata.
+- `public/favicon.ico`.
+- `tests/e2e/smoke.spec.ts` (`npm run test:e2e`) — Playwright smoke spec for
+  register → mark today's verse read → streak increments → dashboard, run
+  against `dev:local` via `playwright.config.ts`'s `webServer`.
+- `npm run test:coverage` — coverage report for the unit/integration suite via
+  `node:test`'s native `--experimental-test-coverage`.
 
 ### Changed
 - **Documentation overhaul.** Rewrote the project docs from an implementation
@@ -45,10 +66,12 @@ Maintainer guide:
 - Restructured `docs/` into a standard layout and normalized Markdown
   filenames and cross-links.
 - Moved `LICENSE.md` to the repository root for discoverability.
-
-### Fixed
-- Removed a stray Markdown code fence and a reference to a non-existent
-  "leaderboard" screen in `TESTING.md`.
+- **Production host corrected: Vercel + MongoDB Atlas, not Railway.** Updated
+  `README.md`, `ARCHITECTURE.md`, `DEPLOYMENT.md`, `DATABASE.md`, and
+  `ROADMAP.md` to match; Railway is now documented as an alternative host
+  (`DEPLOYMENT.md` §10), not current production. Live demo link corrected to
+  `https://cya-dv.vercel.app/`.
+- `LICENSE` copyright line updated to credit the builder.
 
 ### Deprecated
 <!-- Features slated for removal in a future release. -->
@@ -57,10 +80,14 @@ Maintainer guide:
 <!-- Removed features or dead code. -->
 
 ### Fixed
-<!-- Bug fixes and corrections. -->
+- Removed a stray Markdown code fence and a reference to a non-existent
+  "leaderboard" screen in `TESTING.md`.
+- Patched a `brace-expansion` high-severity DoS vulnerability
+  (`GHSA-mh99-v99m-4gvg`) via `npm audit fix`; `npm audit` is now clean.
 
 ### Security
-<!-- Security-related updates. -->
+- See **Added** — rate limiting, CSRF, and the admin audit log all close
+  gaps `SECURITY.md` previously labelled as open.
 
 ---
 

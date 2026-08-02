@@ -4,6 +4,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { dbConnect } from "@/server/config/db";
 import { User } from "@/server/models/user.model";
 import { logError } from "@/server/utils/logger";
+import { ensureCsrfCookie } from "@/server/middleware/csrf";
 
 const COOKIE = "cya-session";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
@@ -32,6 +33,7 @@ export async function createSession(user) {
     path: "/",
     maxAge: MAX_AGE,
   });
+  await ensureCsrfCookie();
 }
 
 /**

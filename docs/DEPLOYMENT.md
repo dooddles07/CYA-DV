@@ -6,9 +6,9 @@ this document end to end. See [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 (Deployment Architecture, Design Decisions & Trade-offs) for rationale.
 
 > **Ground truth vs. reference patterns.** The application currently ships as a
-> single **Next.js** server deployed on **Railway** with **MongoDB**, plus a
+> single **Next.js** server deployed on **Vercel** with **MongoDB Atlas**, plus a
 > **GitHub Actions** cron for the daily push. Sections for Docker, generic
-> CI/CD, Vercel, and AWS are included as **portable reference patterns** the
+> CI/CD, Railway, and AWS are included as **portable reference patterns** the
 > team can adopt; where a file or provider is not yet part of the repo it is
 > marked **(not in repo — template)** so nothing here misrepresents the current
 > setup.
@@ -25,8 +25,8 @@ this document end to end. See [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 6. [Docker Deployment](#6-docker-deployment)
 7. [Database Setup and Migrations](#7-database-setup-and-migrations)
 8. [CI/CD Pipeline](#8-cicd-pipeline)
-9. [Railway Deployment](#9-railway-deployment)
-10. [Vercel Deployment](#10-vercel-deployment)
+9. [Vercel Deployment](#9-vercel-deployment)
+10. [Railway Deployment](#10-railway-deployment)
 11. [AWS Deployment](#11-aws-deployment)
 12. [Deployment Workflow](#12-deployment-workflow)
 13. [Production Deployment Checklist](#13-production-deployment-checklist)
@@ -52,8 +52,8 @@ monitored, and rolled back across all environments.
 | Environment | Runtime | Database | Purpose |
 |---|---|---|---|
 | **Development** | `npm run dev:local` | `mongodb-memory-server` @ `:27099` (disk-backed `.dev-db`) | Local feature work |
-| **Staging** | Railway (separate env/project) | Separate MongoDB instance | Pre-production verification — *not currently provisioned; recommended* |
-| **Production** | Railway service | Railway MongoDB plugin | Live traffic |
+| **Staging** | Vercel (Preview deployment) | Separate MongoDB Atlas cluster/database | Pre-production verification — *not currently provisioned; recommended* |
+| **Production** | Vercel | MongoDB Atlas | Live traffic |
 
 **High-level deployment workflow.**
 
@@ -70,10 +70,10 @@ CI/CD (GitHub Actions checks)
 Build (next build)  [optional: Docker image]
     |
     v
-Cloud Deployment (Railway)
+Cloud Deployment (Vercel)
     |
     v
-Production Environment (Next.js + MongoDB)
+Production Environment (Next.js + MongoDB Atlas)
 ```
 
 **Production architecture.** Stateless app — horizontally scalable. All shared
@@ -83,9 +83,9 @@ so any instance can serve any request.
 ```mermaid
 graph TB
   Dev["Local dev<br/>npm run dev:local<br/>(mongodb-memory-server :27099)"]
-  subgraph Prod["Production (Railway)"]
+  subgraph Prod["Production (Vercel)"]
     App["Next.js server (SSR + API)"]
-    Mongo[("MongoDB")]
+    Mongo[("MongoDB Atlas")]
   end
   GH["GitHub Actions<br/>daily cron"]
   App --- Mongo
@@ -156,8 +156,8 @@ CYA DV/
 | Node.js | `>= 20` | `@types/node` targets 20; Next 16 requires 18.18+ |
 | npm | `>= 10` | ships with Node 20 |
 | Git | `>= 2.30` | |
-| MongoDB client | any | `mongosh` for inspecting prod data |
-| Railway CLI | latest | `npm i -g @railway/cli` (optional, for CLI deploys/logs) |
+| MongoDB client | any | `mongosh` for inspecting prod data (via the Atlas connection string) |
+| Vercel CLI | latest | `npm i -g vercel` (optional, for CLI deploys/logs) |
 | Docker | `>= 24` | **only** if adopting the §6 container path |
 | Docker Compose | `>= 2` | optional |
 
@@ -166,8 +166,9 @@ CYA DV/
 
 **Accounts.**
 - **GitHub** — source + Actions (cron, CI).
-- **Railway** — hosting + managed MongoDB (current production).
-- **Vercel** / **AWS** — only if adopting those paths (§10 / §11).
+- **Vercel** — hosting (current production).
+- **MongoDB Atlas** — managed database (current production).
+- **Railway** / **AWS** — only if adopting those alternate paths (§10 / §11).
 - **SMTP provider** (e.g. Gmail App Password) — optional, enables reset/verify
   email.
 
@@ -235,8 +236,9 @@ cp .env.example .env
 
 **Secret management rules.**
 - **Never commit `.env*` files** (only `.env.example`).
-- In production, store secrets in the **host's secret manager** (Railway
-  Variables, Vercel Env, AWS Secrets Manager) — never in the image or repo.
+- In production, store secrets in the **host's secret manager** (Vercel
+  Environment Variables, Railway Variables, AWS Secrets Manager) — never in the
+  image or repo.
 - **Rotate** `AUTH_SECRET`, `CRON_SECRET`, and `ADMIN_PORTAL_PASSWORD`
   periodically and whenever a person with access leaves. Rotating `AUTH_SECRET`
   invalidates all active sessions (acceptable, forces re-login).
@@ -289,9 +291,9 @@ App: `http://localhost:3000`.
 npm run dev   # requires a reachable MONGO_URL in .env
 ```
 
-> The production `MONGO_URL` targets Railway's private network
-> (`mongodb.railway.internal`) and will **not** resolve locally — use
-> `dev:local` or a local/Atlas connection string instead.
+> The production `MONGO_URL` targets the production MongoDB Atlas cluster —
+> never point local dev at it. Use `dev:local`, or your own local/Atlas
+> connection string instead.
 
 ### Database setup / seeding
 
@@ -306,8 +308,8 @@ npm run member:create # bootstrap a member/admin account
 
 ## 6. Docker Deployment
 
-**(not in repo — reference template.)** The app deploys today via Railway's
-native Nixpacks build (no Dockerfile required). Adopt the pattern below if you
+**(not in repo — reference template.)** The app deploys today via Vercel's
+native Next.js build (no Dockerfile required). Adopt the pattern below if you
 want reproducible container images or a different host.
 
 **Why Docker.** Reproducible builds, environment parity, easy horizontal
@@ -402,7 +404,7 @@ to stdout (host aggregates), and scan images (`docker scout cves` / Trivy).
 
 ## 7. Database Setup and Migrations
 
-**Requirements.** MongoDB (Railway plugin in prod; in-memory locally). Driver:
+**Requirements.** MongoDB (Atlas cluster in prod; in-memory locally). Driver:
 Mongoose. Connection is a single pooled, cached client
 ([`config/db.js`](../src/server/config/db.js)) with `bufferCommands: false` and a
 5s server-selection timeout.
@@ -465,7 +467,7 @@ Test (npm test  — node:test + in-memory Mongo)
 Build (npm run build)
     |
     v
-Deploy (Railway — on merge to main)
+Deploy (Vercel — on merge to main)
 ```
 
 ### Existing workflow
@@ -477,7 +479,11 @@ pipeline:
 - Idempotent: `PushLog.day` prevents double-send; the lock releases on broadcast
   failure so a retry is safe.
 
-### CI workflow (template — `.github/workflows/ci.yml`, not in repo)
+### CI workflow (`.github/workflows/ci.yml`)
+
+Runs on every push and PR against `main`: install, lint, type check, test, dependency audit, build.
+Placeholder `MONGO_URL`/`AUTH_SECRET`/`NEXT_PUBLIC_SITE_URL` values are set at the job level —
+build-time only, no live database is reached.
 
 ```yaml
 name: CI
@@ -488,6 +494,10 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://127.0.0.1:27017/ci
+      AUTH_SECRET: ci-placeholder-secret-do-not-use-in-prod
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -496,47 +506,88 @@ jobs:
       - run: npm run lint
       - run: npx tsc --noEmit
       - run: npm test
+      - run: npm audit --audit-level=high
       - run: npm run build
 ```
 
 **Branch strategy.** Feature branches → PR → CI must pass → review → merge to
-`main` → deploy. Store CI/deploy secrets (`CRON_SECRET`, Railway token) in GitHub
+`main` → deploy. Store CI/deploy secrets (`CRON_SECRET`, Vercel token) in GitHub
 **repository secrets**; gate production deploys with an environment
-**approval** if desired.
+**approval** if desired. Branch protection requiring `ci.yml` to pass before merge
+is not yet configured on `main`.
 
-### Suggested workflows
+### Workflows
 
 ```
 .github/workflows/
 ├── daily-verse-push.yml   # exists — scheduled cron
-├── ci.yml                 # recommended — lint + typecheck + test + build (not yet added)
-└── deploy.yml             # optional — deploy on merge (currently Railway auto-deploy)
+├── ci.yml                 # exists — lint + typecheck + test + audit + build
+└── deploy.yml             # optional — deploy on merge (currently Vercel auto-deploy)
 ```
 
 ---
 
-## 9. Railway Deployment
+## 9. Vercel Deployment
 
-Current production host. Builds with Nixpacks (auto-detects Next.js) — no
-Dockerfile needed.
+Current production host. Next.js is first-class on Vercel — no Dockerfile
+needed. Database is **external** (MongoDB Atlas), since Vercel provides no
+database.
 
-1. **Connect repo.** Railway → New Project → Deploy from GitHub → select this
-   repo. Enable auto-deploy on `main`.
-2. **Add the database.** New → Database → MongoDB. Railway injects a private
-   `MONGO_URL` reachable at `mongodb.railway.internal`.
-3. **Configure variables.** Service → Variables: set `MONGO_URL` (reference the
-   Mongo plugin var), `AUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`, and any optional
-   integrations (VAPID, SMTP, `CRON_SECRET`, `ADMIN_PORTAL_PASSWORD`).
-4. **Build/start.** Detected automatically: build `npm run build`, start
-   `npm start`. Override in Settings if needed.
-5. **Migrations.** None — verse sync auto-runs on first request. Optionally run
-   `npm run seed` via `railway run` against the prod DB.
-6. **Deploy.** Push to `main` (auto-deploy) or `railway up` from the CLI.
-7. **Logs.** `railway logs` or the dashboard Deploy Logs.
-8. **Health / monitoring.** Point an uptime check at `GET /api/health` (returns
-   `200` only when env + DB are ready).
-9. **Rollback.** Railway dashboard → Deployments → select a previous successful
-   deploy → **Redeploy** (see §14).
+1. **Import** the GitHub repo into Vercel; framework auto-detected (Next.js).
+2. **Database.** Provision a MongoDB Atlas cluster; add Vercel's egress (or
+   `0.0.0.0/0` if using Atlas's Vercel integration) to the Atlas IP access
+   list; copy the SRV connection string.
+3. **Environment variables:** add `MONGO_URL` (Atlas SRV string), `AUTH_SECRET`,
+   `NEXT_PUBLIC_SITE_URL`, plus optional VAPID/SMTP/`CRON_SECRET` — set per
+   environment (Production / Preview / Development).
+4. **Build/start.** Detected automatically: `npm run build`; output managed by
+   the Next.js adapter.
+5. **Migrations.** None — verse sync auto-runs on first request.
+6. **Preview deployments:** every PR gets an isolated preview URL — point it at
+   a **staging** Atlas database, not production.
+7. **Production:** merges to `main` promote to production.
+8. **Custom domains:** Project → Domains → add and configure DNS; set
+   `NEXT_PUBLIC_SITE_URL` to the final domain.
+9. **Cron:** the daily push currently runs via the GitHub Actions workflow
+   (§8); Vercel Cron can replace it — schedule a request to
+   `/api/cron/daily-verse` with the bearer secret.
+10. **Health / monitoring.** Point an uptime check at `GET /api/health`
+    (returns `200` only when env + DB are ready).
+11. **Rollback.** Vercel dashboard → Deployments → previous production deploy
+    → **Promote to Production** (see §14).
+
+```bash
+npm i -g vercel
+vercel login
+vercel link       # link to the project
+vercel env ls     # inspect env
+vercel            # preview deploy
+vercel deploy --prod
+vercel logs
+```
+
+---
+
+## 10. Railway Deployment
+
+**(alternative host — not currently used.)** Builds with Nixpacks
+(auto-detects Next.js) — no Dockerfile needed. Railway can also host the
+database itself via its MongoDB plugin, if you'd rather not use Atlas.
+
+- **Connect repo.** Railway → New Project → Deploy from GitHub → select this
+  repo. Enable auto-deploy on `main`.
+- **Database.** Either point `MONGO_URL` at the same Atlas cluster used in
+  production, or add Railway's MongoDB plugin (injects a private `MONGO_URL`
+  reachable at `mongodb.railway.internal`, usable only from within Railway).
+- **Configure variables.** Service → Variables: set `MONGO_URL`, `AUTH_SECRET`,
+  `NEXT_PUBLIC_SITE_URL`, and any optional integrations (VAPID, SMTP,
+  `CRON_SECRET`, `ADMIN_PORTAL_PASSWORD`).
+- **Build/start.** Detected automatically: build `npm run build`, start
+  `npm start`. Override in Settings if needed.
+- **Deploy.** Push to `main` (auto-deploy) or `railway up` from the CLI.
+- **Logs.** `railway logs` or the dashboard Deploy Logs.
+- **Rollback.** Railway dashboard → Deployments → select a previous successful
+  deploy → **Redeploy** (see §14).
 
 ```bash
 npm i -g @railway/cli
@@ -546,33 +597,6 @@ railway variables     # inspect env
 railway run npm run seed
 railway up            # deploy current dir
 railway logs
-```
-
----
-
-## 10. Vercel Deployment
-
-**(alternative host — not currently used.)** Next.js is first-class on Vercel;
-you still need an **external** MongoDB (Atlas), since Vercel provides no
-database.
-
-- **Import** the GitHub repo into Vercel; framework auto-detected (Next.js).
-- **Build:** `npm run build` (default). Output: managed by Next adapter.
-- **Environment variables:** add `MONGO_URL` (Atlas SRV string), `AUTH_SECRET`,
-  `NEXT_PUBLIC_SITE_URL`, plus optional VAPID/SMTP/`CRON_SECRET` — set per
-  environment (Production / Preview / Development).
-- **Preview deployments:** every PR gets an isolated preview URL — point it at a
-  **staging** database, not production.
-- **Production:** merges to `main` promote to production.
-- **Custom domains:** Project → Domains → add and configure DNS; set
-  `NEXT_PUBLIC_SITE_URL` to the final domain.
-- **Cron:** Vercel Cron can replace the GitHub Actions cron — schedule a request
-  to `/api/cron/daily-verse` with the bearer secret.
-
-```bash
-npm i -g vercel
-vercel            # preview deploy
-vercel deploy --prod
 ```
 
 ---
@@ -639,7 +663,7 @@ Merge to main
 Deploy Staging (verify)      [when a staging environment exists]
         |
         v
-Production Release (Railway auto-deploy on main)
+Production Release (Vercel auto-deploy on main)
 ```
 
 ---
@@ -658,8 +682,8 @@ Production Release (Railway auto-deploy on main)
 
 **During deployment**
 
-- [ ] Deploy the application (push to `main` / `railway up`)
-- [ ] Verse sync auto-runs on first request (or `railway run npm run seed`)
+- [ ] Deploy the application (push to `main` / `vercel deploy --prod`)
+- [ ] Verse sync auto-runs on first request (or `npm run seed` against the prod `MONGO_URL`)
 - [ ] `GET /api/health` returns `200`
 - [ ] Review deploy logs for errors
 
@@ -676,8 +700,8 @@ Production Release (Railway auto-deploy on main)
 ## 14. Rollback Strategy
 
 **Application rollback.** Immutable deploys make this instant:
-- **Railway:** Deployments → pick the last good deploy → **Redeploy**.
-- **Vercel:** Deployments → previous production → **Promote**.
+- **Vercel:** Deployments → previous production → **Promote to Production**.
+- **Railway** (if adopted): Deployments → pick the last good deploy → **Redeploy**.
 - **Git:** `git revert <sha>` and push to trigger a fresh deploy.
 
 **Database rollback.** No migration framework, so there is **no automated schema
@@ -697,7 +721,7 @@ reversal**:
 
 > **Recommended (not yet configured):** automate MongoDB backups (`mongodump` +
 > retention) and document a tested restore with an RPO/RTO target. Confirm
-> Railway's managed backup cadence for the current plan.
+> Atlas's managed backup cadence for the current cluster tier.
 
 ---
 
@@ -715,14 +739,14 @@ reversal**:
   + server) for exception aggregation and performance traces.
 
 **Infrastructure.**
-- CPU / memory / storage / restarts: Railway dashboard metrics (or CloudWatch on
+- CPU / memory / storage / restarts: Vercel dashboard metrics (or CloudWatch on
   AWS).
-- Database health: Railway/Atlas metrics; alert on connection saturation.
+- Database health: Atlas metrics; alert on connection saturation.
 - Availability: external uptime monitor hitting `/api/health`.
 
 **Recommended stack (not yet wired):** Sentry (errors), Datadog **or**
 Prometheus + Grafana (metrics/dashboards), platform-native logs
-(Railway/CloudWatch).
+(Vercel/CloudWatch).
 
 ---
 
@@ -730,7 +754,7 @@ Prometheus + Grafana (metrics/dashboards), platform-native logs
 
 - **Never commit secrets** — only `.env.example`; real values live in host
   secret managers.
-- **HTTPS everywhere** — Railway/Vercel terminate TLS; HSTS is set in
+- **HTTPS everywhere** — Vercel terminates TLS; HSTS is set in
   `next.config.ts` (`max-age=63072000; includeSubDomains`).
 - **Security headers** — `X-Content-Type-Options`, `X-Frame-Options: DENY`,
   `Referrer-Policy`, `Permissions-Policy`, and a per-request nonce'd CSP
@@ -761,20 +785,21 @@ Prometheus + Grafana (metrics/dashboards), platform-native logs
 
 ### Database connection failure
 
-- **Causes:** wrong `MONGO_URL`; using the Railway **private** URL from outside
-  Railway; network/firewall; DB down.
+- **Causes:** wrong `MONGO_URL`; Vercel's egress IPs not on the Atlas access
+  list; network/firewall; DB down.
 - **Diagnose:** `GET /api/health` → `db: "unreachable"` with an error string;
   connect with `mongosh "$MONGO_URL"`.
-- **Fix:** use the correct connection string (public string / Atlas SRV for
-  external access); confirm IP allowlist; restart the DB service.
+- **Fix:** use the correct Atlas SRV connection string; confirm the Atlas IP
+  access list allows Vercel (or use Atlas's Vercel integration / `0.0.0.0/0`);
+  confirm the cluster is running.
 
 ### "Data does not appear / verses missing"
 
 - **Causes:** verse sync hasn't run; empty collection.
 - **Diagnose:** call `GET /api/verse/today`; check logs for
   `verse.ensureSynced`.
-- **Fix:** `railway run npm run seed`, or `POST /api/admin/sync-verses` with the
-  cron secret or an admin session.
+- **Fix:** run `npm run seed` against the prod `MONGO_URL`, or
+  `POST /api/admin/sync-verses` with the cron secret or an admin session.
 
 ### Migration failure
 

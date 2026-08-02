@@ -100,12 +100,12 @@ graph TB
 | Local DB | mongodb-memory-server ^11 (dev + tests) | — |
 | Lint / Test | ESLint ^9 · `node:test` with `--experimental-strip-types` | — |
 | CI (jobs) | GitHub Actions (daily push cron) | — |
-| Hosting | Railway (Next.js service + managed MongoDB) | — |
+| Hosting | Vercel (Next.js) + MongoDB Atlas (managed database) | — |
 
 - **Caching:** Next `unstable_cache` (verse of day, community stats) + HTTP `Cache-Control` on images. No Redis.
 - **Queues:** none. Fan-out done in-process with bounded batches.
 - **Monitoring / Logging:** `console`-based structured logger (`server/utils/logger.js`). External APM `> TBC`.
-- **CI/CD (build & deploy):** Railway push-to-deploy. No build/deploy workflow committed in `.github/` — deployment is platform-managed, not defined in-repo.
+- **CI/CD (build & deploy):** Vercel push-to-deploy on `main`. No build/deploy workflow committed in `.github/` — deployment is platform-managed, not defined in-repo.
 
 ---
 
@@ -463,8 +463,8 @@ erDiagram
   and `$inc` counters. No multi-doc transaction boundaries.
 - **Connection management:** single cached global connection; fail-fast timeouts; cached promise reset
   on failure.
-- **Backup / recovery:** `> TBC` — depends on the Railway plan (replication, snapshots); not defined
-  in-repo.
+- **Backup / recovery:** `> TBC` — depends on the Atlas cluster tier (replication, snapshots); not
+  defined in-repo.
 
 ---
 
@@ -507,8 +507,9 @@ register → hash+store → email verify token → verify → login (bcrypt comp
 - **CSP:** per-request nonce + `strict-dynamic` (no `script-unsafe-inline`); `object-src none`,
   `frame-ancestors none`, `base-uri self`, `form-action self`. Style keeps `unsafe-inline` (font /
   Tailwind injected `<style>`; documented weaker risk).
-- **CSRF:** `sameSite=lax` cookies + same-origin `form-action`. No explicit anti-CSRF token on
-  state-changing POSTs — relies on SameSite (`> TBC` whether to harden).
+- **CSRF:** `sameSite=lax` cookies + same-origin `form-action`, plus a double-submit `cya-csrf`
+  token required on admin-gated and account-delete/export mutations
+  ([`csrf.js`](../src/server/middleware/csrf.js)).
 - **XSS/Injection:** React escaping + strict CSP; served image content-type clamped to an allowlist;
   Mongoose typed queries; user regex input escaped before search.
 - **API protection:** distributed fixed-window rate limiting; spoof-resistant client-IP derivation.
@@ -523,9 +524,16 @@ register → hash+store → email verify token → verify → login (bcrypt comp
 | `auth:reset`, `auth:verify` | 10 / 15 min |
 | `auth:verify-resend` | 3 / 15 min |
 | `admin:image` | 30 / 10 min |
+| `prayer:create` | 5 / 10 min |
+| `prayer:pray` | 60 / 1 min |
+| `event:rsvp` | 20 / 10 min |
+| `plan:enroll`, `plan:leave` | 10 / 10 min |
+| `plan:complete-day` | 60 / 10 min |
+| `saved-verse:toggle`, `saved-verse:remove` | 30 / 1 min |
+| `streak:read`, `streak:challenge` | 10 / 10 min |
 
-> `> TBC` — whether non-auth write endpoints (prayer post, RSVP, enroll) are rate-limited; not
-> observed in the files reviewed. No dedicated audit trail for admin actions found.
+> All state-changing endpoints are now rate-limited. No dedicated audit trail for admin actions
+> found (tracked as a Recommended Improvement — see [`SECURITY.md`](./SECURITY.md) §14).
 
 ---
 
@@ -537,7 +545,8 @@ register → hash+store → email verify token → verify → login (bcrypt comp
 | **SMTP (nodemailer)** | Verify + reset email | SMTP creds `SMTP_USER/PASS` | Email address + token link | Fire-and-forget with own error boundary; SMTP timeouts set; **feature silently disabled if unset** |
 | **Web Push (VAPID)** | Daily reminders | `web-push`, VAPID key pair | Push subscription endpoint + verse payload | 404/410 → prune sub; other errors logged; bounded 100-batch; **feature disabled if keys unset** |
 | **GitHub Actions** | Daily push scheduler | HTTPS POST, `CRON_SECRET` bearer + `SITE_URL` secret | Trigger only | Job fails on non-200; `workflow_dispatch` manual retry; 06:00 Manila cron |
-| **Railway (host)** | Runtime + managed MongoDB | Platform | — | — |
+| **Vercel (host)** | Runtime | Platform | — | — |
+| **MongoDB Atlas** | Managed database | Connection string (`MONGO_URL`, SRV) | All domain data | — |
 
 - **Payment / SMS / object storage / third-party monitoring:** none. Images are stored in Mongo, not
   an object store.
@@ -549,9 +558,9 @@ register → hash+store → email verify token → verify → login (bcrypt comp
 ```mermaid
 graph TB
   Dev["Local dev<br/>npm run dev:local<br/>(mongodb-memory-server @ :27099)"]
-  subgraph Prod["Production (Railway)"]
+  subgraph Prod["Production (Vercel)"]
     App["Next.js server<br/>(SSR + API)"]
-    Mongo[("MongoDB plugin<br/>mongodb.railway.internal")]
+    Mongo[("MongoDB Atlas")]
   end
   GH["GitHub Actions<br/>daily cron"]
   App --- Mongo
@@ -561,18 +570,18 @@ graph TB
 **Deployment flow**
 
 ```
-Developer → GitHub repo → (push) → Railway build (next build) → seed/ensureSynced → Production (SSR + API)
+Developer → GitHub repo → (push) → Vercel build (next build) → seed/ensureSynced → Production (SSR + API)
                          └→ GitHub Actions (daily-verse-push.yml, scheduled cron) → POST /api/cron/daily-verse
 ```
 
-- **Hosting:** single Next.js instance + managed MongoDB on Railway. No Docker/K8s files in repo — no
+- **Hosting:** single Next.js instance on Vercel + MongoDB Atlas. No Docker/K8s files in repo — no
   containerization layer committed.
 - **Environments:** local (`dev:local` disposable Mongo, seeds verses, runs `next dev`) and
   production. No dedicated staging environment is defined in-repo.
 - **Configuration:** env vars documented in `.env.example`. Required (boot-blocking): `MONGO_URL`,
   `AUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`. Optional feature toggles by presence: `VAPID_*`, `SMTP_*`,
   `CRON_SECRET`, `ADMIN_PORTAL_PASSWORD`, `TRUSTED_PROXY_HOPS`.
-- **CI/CD pipeline:** GitHub Actions runs only the daily cron. Deployment uses Railway push-to-deploy;
+- **CI/CD pipeline:** GitHub Actions runs only the daily cron. Deployment uses Vercel push-to-deploy;
   no build/deploy/rollback workflow is committed in-repo. Rollback is a platform redeploy of a prior
   commit.
 - **Build stages:** `lint` (eslint) → `type check` (`tsc --noEmit`) → `test` (`node:test`, in-memory
@@ -582,7 +591,7 @@ Developer → GitHub repo → (push) → Railway build (next build) → seed/ens
   community stats/verse-of-day may differ briefly until each revalidates (acceptable staleness). Mongo
   is the primary vertical dependency.
 - **Observability:** `/api/health` (`status()` — env + DB reachability, `force-dynamic`) + console
-  logs. Metrics / tracing / alerting / probes not in repo (`> TBC`; likely relies on Railway
+  logs. Metrics / tracing / alerting / probes not in repo (`> TBC`; likely relies on Vercel
   defaults).
 
 ---

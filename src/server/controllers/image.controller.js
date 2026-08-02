@@ -4,10 +4,11 @@ import { getEventImage, saveEventImage } from "@/server/services/event-image.ser
 import { assertAdmin } from "@/server/middleware/require-admin";
 import { toResponse } from "@/server/utils/api-error";
 import { rateLimit } from "@/server/middleware/rate-limit";
+import { logAdminAction } from "@/server/utils/admin-audit";
 
 export async function upload(req) {
   try {
-    await assertAdmin();
+    await assertAdmin(req);
     await rateLimit(req, {
       name: "admin:image",
       limit: 30,
@@ -16,7 +17,9 @@ export async function upload(req) {
     });
 
     const form = await req.formData();
-    return NextResponse.json(await saveEventImage(form.get("file")), { status: 201 });
+    const image = await saveEventImage(form.get("file"));
+    await logAdminAction({ action: "image.upload", targetType: "event-image", targetId: image.url });
+    return NextResponse.json(image, { status: 201 });
   } catch (err) {
     return toResponse(err, "Could not upload that image.");
   }

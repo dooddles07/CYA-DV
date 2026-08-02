@@ -5,6 +5,7 @@ import { Loader2, Shield, ShieldCheck, ShieldOff, Users } from "lucide-react";
 import { Badge, Button, Card, EmptyState } from "@/components/ui";
 import { toast } from "@/components/toast";
 import type { AdminUser } from "@/lib/types";
+import { csrfHeader } from "@/lib/csrf";
 
 export function UsersAdminClient({ initialUsers }: { initialUsers: AdminUser[] }) {
   const [items, setItems] = useState(initialUsers);
@@ -16,7 +17,7 @@ export function UsersAdminClient({ initialUsers }: { initialUsers: AdminUser[] }
     try {
       const res = await fetch(`/api/admin/users/${u.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeader() },
         body: JSON.stringify({ role }),
       });
       const data = await res.json().catch(() => ({}));

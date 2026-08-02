@@ -32,7 +32,7 @@ multi-document transactions. See [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 | **Database** | MongoDB (document store) |
 | **Driver / ODM** | Mongoose `^9.8.0` |
 | **Migration tool** | None (schemaless; app-level reconciliation — see §8) |
-| **Provider** | Railway MongoDB plugin (per `.env.example`) |
+| **Provider** | MongoDB Atlas (per `.env.example`) |
 | **Connection** | Single pooled connection cached on `global._mongoose` |
 | **Version** | Not pinned in code; confirm the deployed MongoDB server version per environment. |
 
@@ -357,7 +357,7 @@ Delete cascades: removes RSVP rows and the uploaded image if unreferenced.
 ## Collection: eventimages — `event-image.model.js`
 
 **Purpose.** Uploaded event/devotion artwork stored **as binary in Mongo**
-(Railway's filesystem is ephemeral). Served via `GET /api/images/[id]`.
+(Vercel's serverless filesystem is ephemeral). Served via `GET /api/images/[id]`.
 
 | Field | Type | Nullable | Default | Description |
 |---|---|---|---|---|
@@ -649,9 +649,9 @@ devotion/plan/challenge catalogs in `src/lib/data`.
 
 ## Backup
 ```
-STATUS: No backup automation exists in the repository. The database is hosted on the
-Railway MongoDB plugin.
- - Confirm and document Railway's backup cadence/retention, OR
+STATUS: No backup automation exists in the repository. The database is hosted on
+MongoDB Atlas.
+ - Confirm and document Atlas's backup cadence/retention for the current cluster tier, OR
  - Add a scheduled `mongodump` job with offsite storage.
 Recommended: daily automated dump + 7–30 day retention.
 ```
@@ -743,7 +743,7 @@ Currently available:
 
 Recommended additions:
  - Slow-query logging / MongoDB profiler in production.
- - Connection-pool and query metrics (e.g. via the Atlas/Railway dashboard).
+ - Connection-pool and query metrics (e.g. via the Atlas dashboard).
  - Alerting on health-check failures and error-rate spikes.
 ```
 

@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import { ApiError } from "@/server/utils/api-error";
+import { ensureCsrfCookie } from "@/server/middleware/csrf";
 
 const COOKIE = "cya-admin";
 // Shorter than a member session: a shared passphrase should not leave a
@@ -43,6 +44,7 @@ export async function createAdminSession() {
     path: "/",
     maxAge: MAX_AGE,
   });
+  await ensureCsrfCookie();
 }
 
 /** True when this browser holds a valid admin-portal session. */

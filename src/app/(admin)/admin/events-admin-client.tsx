@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Badge, Button, Card, EmptyState, Field, inputClass } from "@/components/ui";
 import { toast } from "@/components/toast";
+import { csrfHeader } from "@/lib/csrf";
 import { compressImage } from "@/lib/compress-image";
 import { cx } from "@/lib/cx";
 import { eventTags } from "@/lib/media";
@@ -128,7 +129,7 @@ export function EventsAdminClient({ initialEvents }: { initialEvents: EventItem[
       const body = new FormData();
       body.append("file", compressed);
 
-      const res = await fetch("/api/admin/events/image", { method: "POST", body });
+      const res = await fetch("/api/admin/events/image", { method: "POST", headers: csrfHeader(), body });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast(data.error ?? "Could not upload that image.", "error");
@@ -168,7 +169,7 @@ export function EventsAdminClient({ initialEvents }: { initialEvents: EventItem[
     try {
       const res = await fetch(isEdit ? `/api/admin/events/${editing!.id}` : "/api/admin/events", {
         method: isEdit ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeader() },
         body: JSON.stringify(draft),
       });
       const data = await res.json().catch(() => ({}));
@@ -193,7 +194,7 @@ export function EventsAdminClient({ initialEvents }: { initialEvents: EventItem[
     try {
       const res = await fetch(`/api/admin/events/${event.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeader() },
         body: JSON.stringify({ ...toDraft(event), published: !event.published }),
       });
       const data = await res.json().catch(() => ({}));
@@ -215,7 +216,7 @@ export function EventsAdminClient({ initialEvents }: { initialEvents: EventItem[
     const target = confirmDelete;
     setBusy(target.id);
     try {
-      const res = await fetch(`/api/admin/events/${target.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/events/${target.id}`, { method: "DELETE", headers: csrfHeader() });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast(data.error ?? "Could not delete that event.", "error");
