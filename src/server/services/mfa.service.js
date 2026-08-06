@@ -31,22 +31,29 @@ function sessionShape(user) {
 }
 
 /**
- * Starts (or restarts) enrollment for an admin-role account. The secret and
- * backup-code hashes are written immediately but inert — confirmEnrollment
- * is what flips totpEnabled, which is the actual gate login() checks.
+ * Starts (or resumes) enrollment for an admin-role account. If an
+ * unconfirmed enrollment is already in progress, its secret is reused rather
+ * than replaced — a page reload, a duplicate tab, or a duplicate in-flight
+ * request must not silently invalidate whatever the user already scanned
+ * into their authenticator app. Backup codes are regenerated every call
+ * regardless (their plaintext can't be recovered from the stored hashes),
+ * which is safe because the client only ever displays one response.
+ * confirmEnrollment is what flips totpEnabled, which is the actual gate
+ * login() checks.
  */
 export async function beginEnrollment(userId) {
   await dbConnect();
-  const existing = await User.findById(userId).select("role email").lean();
+  const existing = await User.findById(userId).select("role email totpSecret totpEnabled").lean();
   if (!existing) throw new ApiError(404, "Account not found.");
   if (existing.role !== "admin") throw new ApiError(403, "MFA enrollment is for admin accounts only.");
 
-  const secret = generateSecret();
+  const secret =
+    existing.totpSecret && !existing.totpEnabled ? decryptSecret(existing.totpSecret) : generateSecret();
   const backupCodes = generateBackupCodes();
   // Atomic $set instead of load+save: two concurrent enroll calls (a double
-  // click, a retried request, React Strict Mode's dev-only double-effect)
-  // would otherwise race a stale in-memory document against Mongoose's
-  // optimistic-concurrency check and throw a VersionError on the loser.
+  // click, a retried request) would otherwise race a stale in-memory
+  // document against Mongoose's optimistic-concurrency check and throw a
+  // VersionError on the loser.
   const user = await User.findByIdAndUpdate(
     userId,
     {
@@ -75,7 +82,7 @@ export async function confirmEnrollment(userId, code) {
   const secret = decryptSecret(user.totpSecret);
   if (!verifyTotp(secret, code)) throw new ApiError(401, "That code didn't match. Try again.");
 
-  const updated = await User.findByIdAndUpdate(userId, { $set: { totpEnabled: true } }, { new: true });
+  const updated = await User.findByIdAndUpdate(userId, { $set: { totpEnabled: true } }, { returnDocument: "after" });
   return sessionShape(updated);
 }
 

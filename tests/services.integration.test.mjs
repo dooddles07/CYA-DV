@@ -125,6 +125,16 @@ test("beginEnrollment rejects a non-admin account", async () => {
   await assert.rejects(beginEnrollment(u.id), /admin accounts only/);
 });
 
+test("beginEnrollment reuses the pending secret on a second call before confirmation", async () => {
+  const { registerUser, setUserRole, beginEnrollment } = await app();
+  const u = await registerUser({ name: "Ada", email: "ada-repeat@example.com", password: "supersecret" });
+  await setUserRole(u.id, "admin");
+  const first = await beginEnrollment(u.id);
+  const second = await beginEnrollment(u.id);
+  const secretOf = (uri) => new URL(uri).searchParams.get("secret");
+  assert.equal(secretOf(second.otpauthUri), secretOf(first.otpauthUri));
+});
+
 test("confirmEnrollment accepts the current TOTP code and enables MFA", async () => {
   const { registerUser, setUserRole, beginEnrollment, confirmEnrollment, User } = await app();
   const { decryptSecret, totpCode } = await import("@/server/utils/totp.js");
