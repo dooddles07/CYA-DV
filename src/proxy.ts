@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { jwtVerify, SignJWT } from "jose";
 
 // Per-request nonce lets us drop 'unsafe-inline' from script-src. Next reads the
 // nonce back out of the request's Content-Security-Policy header and stamps it
@@ -6,7 +7,55 @@ import { NextResponse, type NextRequest } from "next/server";
 // so no component needs to thread it manually.
 const isDev = process.env.NODE_ENV !== "production";
 
-export function proxy(req: NextRequest) {
+const SESSION_COOKIE = "cya-session";
+const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days — must match session.js's MAX_AGE
+
+function authSecret() {
+  const s = process.env.AUTH_SECRET;
+  return s ? new TextEncoder().encode(s) : null;
+}
+
+/**
+ * Slides the session forward once it's past the halfway point of its
+ * lifetime, so an active user is never logged out mid-use. Can't live in
+ * session.js's getSession() — Next only allows cookies().set() inside a
+ * Server Action or Route Handler, and getSession() is also called from plain
+ * Server Component renders (e.g. login/page.tsx's redirect-if-logged-in
+ * check), which would throw there. Middleware's res.cookies API has no such
+ * restriction, so this mirrors the CSRF-cookie self-heal below.
+ */
+async function refreshSessionIfHalfExpired(req: NextRequest, res: NextResponse) {
+  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  if (!token) return;
+  const secret = authSecret();
+  if (!secret) return;
+
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    const iat = Number(payload.iat ?? 0) * 1000;
+    const exp = Number(payload.exp ?? 0) * 1000;
+    if (!payload.sub || !iat || !exp || Date.now() < iat + (exp - iat) / 2) return;
+
+    const fresh = await new SignJWT({ name: payload.name, email: payload.email, tv: payload.tv })
+      .setProtectedHeader({ alg: "HS256" })
+      .setSubject(String(payload.sub))
+      .setIssuedAt()
+      .setExpirationTime(`${SESSION_MAX_AGE}s`)
+      .sign(secret);
+
+    res.cookies.set(SESSION_COOKIE, fresh, {
+      httpOnly: true,
+      secure: !isDev,
+      sameSite: "lax",
+      path: "/",
+      maxAge: SESSION_MAX_AGE,
+    });
+  } catch {
+    // Invalid/expired token — leave it alone, getSession() rejects it normally downstream.
+  }
+}
+
+export async function proxy(req: NextRequest) {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
   const nonce = btoa(String.fromCharCode(...bytes));
@@ -56,6 +105,8 @@ export function proxy(req: NextRequest) {
       path: "/",
     });
   }
+
+  await refreshSessionIfHalfExpired(req, res);
 
   return res;
 }
