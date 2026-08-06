@@ -1,7 +1,7 @@
 import "server-only";
 import crypto from "node:crypto";
 import { dbConnect } from "@/server/config/db";
-import { mailConfigured, mailFrom, mailer } from "@/server/config/mailer";
+import { logoDataUri, mailConfigured, mailFrom, mailer } from "@/server/config/mailer";
 import { User } from "@/server/models/user.model";
 import { VerifyToken } from "@/server/models/verify-token.model";
 import { ApiError } from "@/server/utils/api-error";
@@ -17,16 +17,16 @@ const escapeHtml = (s) =>
 
 function emailBody(name, link) {
   const safeName = escapeHtml(name);
-  const logoUrl = `${requireSiteUrl()}/media/cya-logo.png`;
+  const logoUrl = logoDataUri();
   return {
     text: [
       `Hi ${name},`,
       "",
-      "Confirm your email to finish setting up your CYA Daily Verse account:",
+      "Welcome to CYA Daily Verse. Confirm your email and you're in:",
       link,
       "",
       `This link expires in ${TTL_MINUTES / 60} hours.`,
-      "If you didn't create an account, you can ignore this email.",
+      "Didn't create this account? You can ignore this email.",
       "",
       "— CYA Daily Verse",
     ].join("\n"),
@@ -42,7 +42,7 @@ function emailBody(name, link) {
           <div style="padding:36px 32px 32px">
             <h1 style="margin:0 0 12px;font-size:22px;font-weight:800;color:#0f2233">Confirm your email</h1>
             <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#44586b">
-              Hi ${safeName}, one more step to finish setting up your account — confirm your email below.
+              Hi ${safeName}, welcome to CYA Daily Verse. Confirm your email below and you're in.
             </p>
             <div style="text-align:center;margin:0 0 28px">
               <a href="${link}" style="display:inline-block;background:#0095ff;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 32px;border-radius:999px">
@@ -50,8 +50,7 @@ function emailBody(name, link) {
               </a>
             </div>
             <p style="margin:0;font-size:13px;line-height:1.6;color:#8ba0b3">
-              This link expires in ${TTL_MINUTES / 60} hours. Didn't create this account? You can safely ignore this
-              email.
+              This link expires in ${TTL_MINUTES / 60} hours. Didn't create this account? You can ignore this email.
             </p>
             <p style="margin:20px 0 0;font-size:11px;word-break:break-all;color:#b7c5d1">${link}</p>
           </div>

@@ -1,8 +1,22 @@
 import "server-only";
 import { ApiError } from "@/server/utils/api-error";
+import { CYA_LOGO_DATA_URI } from "@/server/config/logo-data-uri";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 const TIMEOUT_MS = 10_000;
+
+/**
+ * Inline base64 data URI for the CYA logo, so outbound email never links to
+ * an externally-hosted image. With no verified sending domain (zero-cost
+ * setup — see mailer()'s docstring), a linked image on a different domain
+ * than the sender is one of the two mismatch signals Gmail/Resend flag as
+ * spam-risk; embedding removes that one. The other (reset/verify links
+ * pointing at the app's real domain) can't be removed — that link is the
+ * whole point of the email.
+ */
+export function logoDataUri() {
+  return CYA_LOGO_DATA_URI;
+}
 
 /**
  * Resend's HTTP API, not raw SMTP. Vercel's serverless functions can't

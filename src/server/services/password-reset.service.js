@@ -2,7 +2,7 @@ import "server-only";
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import { dbConnect } from "@/server/config/db";
-import { mailConfigured, mailFrom, mailer } from "@/server/config/mailer";
+import { logoDataUri, mailConfigured, mailFrom, mailer } from "@/server/config/mailer";
 import { User } from "@/server/models/user.model";
 import { ResetToken } from "@/server/models/reset-token.model";
 import { ApiError } from "@/server/utils/api-error";
@@ -19,17 +19,17 @@ const escapeHtml = (s) =>
 
 function emailBody(name, link) {
   const safeName = escapeHtml(name);
-  const logoUrl = `${requireSiteUrl()}/media/cya-logo.png`;
+  const logoUrl = logoDataUri();
   return {
     text: [
       `Hi ${name},`,
       "",
-      "We received a request to reset your CYA Daily Verse password.",
-      "Open this link to choose a new one:",
+      "Someone asked to reset the password on your CYA Daily Verse account.",
+      "If that was you, pick a new one here:",
       link,
       "",
-      `The link expires in ${TTL_MINUTES} minutes and can only be used once.`,
-      "If you didn't ask for this, you can safely ignore this email — nothing has changed.",
+      `This link works once and expires in ${TTL_MINUTES} minutes.`,
+      "Wasn't you? Nothing's changed — just leave this email alone.",
       "",
       "— CYA Daily Verse",
     ].join("\n"),
@@ -45,7 +45,8 @@ function emailBody(name, link) {
           <div style="padding:36px 32px 32px">
             <h1 style="margin:0 0 12px;font-size:22px;font-weight:800;color:#0f2233">Reset your password</h1>
             <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#44586b">
-              Hi ${safeName}, we got a request to reset your CYA Daily Verse password. Tap the button below to choose a new one.
+              Hi ${safeName}, someone asked to reset the password on your CYA Daily Verse account. If that was you,
+              pick a new one below.
             </p>
             <div style="text-align:center;margin:0 0 28px">
               <a href="${link}" style="display:inline-block;background:#0095ff;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 32px;border-radius:999px">
@@ -53,8 +54,8 @@ function emailBody(name, link) {
               </a>
             </div>
             <p style="margin:0;font-size:13px;line-height:1.6;color:#8ba0b3">
-              This link expires in ${TTL_MINUTES} minutes and works once. Didn't ask for this? No changes were made
-              — just ignore this email.
+              This link works once and expires in ${TTL_MINUTES} minutes. Wasn't you? Nothing's changed
+              — just leave this email alone.
             </p>
             <p style="margin:20px 0 0;font-size:11px;word-break:break-all;color:#b7c5d1">${link}</p>
           </div>
