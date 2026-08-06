@@ -5,6 +5,7 @@ import { Bell, BellOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { toast } from "@/components/toast";
 import { usePushSupported } from "@/lib/hooks";
+import { csrfHeader } from "@/lib/csrf";
 
 /** base64url VAPID key -> ArrayBuffer, the format PushManager expects. */
 function urlBase64ToBuffer(base64: string): ArrayBuffer {
@@ -61,7 +62,7 @@ export function NotifyToggle() {
 
       const res = await fetch("/api/push/subscribe", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeader() },
         body: JSON.stringify({ subscription: sub.toJSON() }),
       });
       if (!res.ok) throw new Error("save failed");
@@ -83,7 +84,7 @@ export function NotifyToggle() {
       if (sub) {
         await fetch("/api/push/subscribe", {
           method: "DELETE",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...csrfHeader() },
           body: JSON.stringify({ endpoint: sub.endpoint }),
         });
         await sub.unsubscribe();

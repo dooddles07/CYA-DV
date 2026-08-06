@@ -8,6 +8,7 @@ import {
 } from "@/server/utils/admin-session";
 import { ApiError, toResponse } from "@/server/utils/api-error";
 import { rateLimit } from "@/server/middleware/rate-limit";
+import { logAdminAction } from "@/server/utils/admin-audit";
 
 export async function portalLogin(req) {
   try {
@@ -28,6 +29,11 @@ export async function portalLogin(req) {
       throw new ApiError(401, "That passphrase is not correct.");
 
     await createAdminSession();
+    await logAdminAction({
+      action: "admin.portal-login",
+      targetType: "admin-session",
+      actorLabel: "admin-portal",
+    });
     return NextResponse.json({ ok: true });
   } catch (err) {
     return toResponse(err, "Could not sign in.");
@@ -36,5 +42,10 @@ export async function portalLogin(req) {
 
 export async function portalLogout() {
   await destroyAdminSession();
+  await logAdminAction({
+    action: "admin.portal-logout",
+    targetType: "admin-session",
+    actorLabel: "admin-portal",
+  });
   return NextResponse.json({ ok: true });
 }

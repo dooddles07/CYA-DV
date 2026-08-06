@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Loader2, Trash2 } from "lucide-react";
 import { Badge, ButtonLink } from "@/components/ui";
 import { toast } from "@/components/toast";
+import { csrfHeader } from "@/lib/csrf";
 import type { SavedVerse } from "@/lib/types";
 
 export function SavedVerses({ initial }: { initial: SavedVerse[] }) {
@@ -19,7 +20,7 @@ export function SavedVerses({ initial }: { initial: SavedVerse[] }) {
     try {
       const res = await fetch("/api/saved", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeader() },
         body: JSON.stringify({ reference: verse.reference }),
       });
       if (!res.ok) throw new Error();

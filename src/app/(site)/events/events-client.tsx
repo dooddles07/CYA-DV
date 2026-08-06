@@ -10,6 +10,7 @@ import { toast } from "@/components/toast";
 import { Stagger, StaggerItem } from "@/components/motion";
 import { spring } from "@/lib/motion";
 import { useNow } from "@/lib/hooks";
+import { csrfHeader } from "@/lib/csrf";
 import type { EventItem } from "@/lib/types";
 
 /** Live countdown, recalculated each minute. Returns null once the date passes. */
@@ -49,7 +50,7 @@ function EventCard({ event, signedIn }: { event: EventItem; signedIn: boolean })
     try {
       const res = await fetch(`/api/events/${event.id}/rsvp`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeader() },
         body: JSON.stringify({ going: next }),
       });
       if (!res.ok) throw new Error();

@@ -9,6 +9,7 @@ import { Tilt3D } from "@/components/motion";
 import { toast } from "@/components/toast";
 import { cx } from "@/lib/cx";
 import { spring } from "@/lib/motion";
+import { csrfHeader } from "@/lib/csrf";
 import type { Verse } from "@/lib/data";
 
 /**
@@ -80,7 +81,7 @@ export function VerseCard({
 
     const res = await fetch("/api/saved", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...csrfHeader() },
       body: JSON.stringify(verse),
     }).catch(() => null);
 

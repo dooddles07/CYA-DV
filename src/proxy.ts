@@ -39,14 +39,13 @@ export function proxy(req: NextRequest) {
   const res = NextResponse.next({ request: { headers: requestHeaders } });
   res.headers.set("content-security-policy", csp);
 
-  // Self-heal the CSRF cookie for sessions that predate it (existing 30-day
-  // cookies from before this was added) — mint one on the next page view so
-  // their next mutation isn't rejected. New logins get it immediately from
-  // the login/admin-login response itself; this just covers everyone else.
-  if (
-    !req.cookies.get("cya-csrf") &&
-    (req.cookies.get("cya-session") || req.cookies.get("cya-admin"))
-  ) {
+  // Mint the CSRF cookie for every visitor, not just signed-in ones — some
+  // state-changing endpoints (push subscribe/unsubscribe) are reachable while
+  // anonymous, and the double-submit check needs the cookie to exist before
+  // that first mutation. Also self-heals sessions that predate this cookie
+  // (existing 30-day cookies from before it was added). New logins get it
+  // immediately from the login/admin-login response itself.
+  if (!req.cookies.get("cya-csrf")) {
     const csrfBytes = new Uint8Array(32);
     crypto.getRandomValues(csrfBytes);
     const csrfToken = Array.from(csrfBytes, (b) => b.toString(16).padStart(2, "0")).join("");

@@ -13,6 +13,7 @@ import { getSession } from "@/server/middleware/session";
 import { toResponse } from "@/server/utils/api-error";
 import { rateLimit } from "@/server/middleware/rate-limit";
 import { logAdminAction } from "@/server/utils/admin-audit";
+import { verifyCsrf } from "@/server/middleware/csrf";
 
 /** Public — upcoming published events only. RSVP state reflects the viewer. */
 export async function upcoming() {
@@ -25,6 +26,7 @@ export async function rsvp(req, id) {
     const session = await getSession({ strict: true });
     if (!session)
       return NextResponse.json({ error: "Sign in to RSVP." }, { status: 401 });
+    await verifyCsrf(req);
     await rateLimit(req, { name: "event:rsvp", limit: 20, windowMs: 10 * 60_000 });
     const body = await req.json().catch(() => ({}));
     return NextResponse.json(await toggleRsvp(id, session.sub, Boolean(body?.going)));

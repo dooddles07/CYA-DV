@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Local/manual E2E smoke suite — not wired into ci.yml yet (see docs/TESTING.md).
+// E2E smoke suite, run locally and in ci.yml (see docs/TESTING.md).
 // Spins up dev:local (disposable in-memory Mongo) so it never touches a real database.
 export default defineConfig({
   testDir: "./tests/e2e",

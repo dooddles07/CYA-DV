@@ -413,17 +413,17 @@ upgrade-insecure-requests;
 
 ### Double-submit CSRF token
 
-A `cya-csrf` cookie (random, non-`httpOnly` so client JS can read it) is issued alongside every
-session/admin-session cookie ([`csrf.js`](../src/server/middleware/csrf.js)). State-changing
-requests to the admin gate (`assertAdmin()`) and to account export/delete must echo the cookie's
-value back in an `X-CSRF-Token` header; a mismatch or missing header is rejected `403`. Existing
-sessions predating this change self-heal a token on their next page view via `proxy.ts`, so a stale
-30-day session cookie isn't locked out. `SameSite=Lax` plus same-origin remains the first layer;
-the double-submit token is defence in depth on the highest-value mutation surfaces (admin, account
-delete/export). Other member writes (prayer, RSVP, plans, saved verses, streak) still rely on
-`SameSite=Lax` + same-origin only — `Lax` blocks cross-site POST by default in current browsers, so
-residual exposure there is low, but a future **state-changing GET** on any endpoint would bypass it —
-all mutations must stay POST/PUT/PATCH/DELETE.
+A `cya-csrf` cookie (random, non-`httpOnly` so client JS can read it) is minted for every visitor —
+signed-in or not — on their first page view via `proxy.ts`, and immediately on login/register/admin
+login ([`csrf.js`](../src/server/middleware/csrf.js)). Every state-changing endpoint that requires a
+session or the admin gate — admin actions, account export/delete, prayer create/pray, event RSVP,
+plan enroll/leave/day, saved-verse toggle/remove, streak read/challenge, and push subscribe/unsubscribe
+— must echo the cookie's value back in an `X-CSRF-Token` header; a mismatch or missing header is
+rejected `403`. Existing sessions predating this change self-heal a token on their next page view, so
+a stale 30-day session cookie isn't locked out. `SameSite=Lax` plus same-origin is the first layer;
+the double-submit token is defence in depth applied uniformly across all mutating endpoints — a future
+**state-changing GET** would bypass `SameSite=Lax` alone, but not the token check. All mutations must
+stay POST/PUT/PATCH/DELETE.
 
 ---
 
@@ -481,7 +481,7 @@ Secrets live **only in environment variables**; none are committed. Documented i
 
 | Endpoint | Name | Limit | Window |
 |---|---|---|---|
-| Register | `auth:register` | 5 | 60 min |
+| Register | `auth:register` | 10 | 15 min |
 | Login | `auth:login` | 10 | 15 min |
 | Forgot password | `auth:forgot` | 3 | 15 min |
 | Reset password | `auth:reset` | 10 | 15 min |
@@ -498,6 +498,8 @@ Secrets live **only in environment variables**; none are committed. Documented i
 | Save / unsave verse | `saved-verse:toggle` / `saved-verse:remove` | 30 | 1 min |
 | Mark verse read | `streak:read` | 10 | 10 min |
 | Claim challenge | `streak:challenge` | 10 | 10 min |
+| Push subscribe | `push:subscribe` | 20 | 15 min |
+| Push unsubscribe | `push:unsubscribe` | 20 | 15 min |
 
 **Anti-spoofing:** the client IP is taken from `X-Forwarded-For` **counting from the right** by
 `TRUSTED_PROXY_HOPS`, so a client-injected leftmost address cannot forge identity
@@ -570,8 +572,8 @@ without touching call sites.
 **Admin-action audit log:** an append-only `AdminAuditLog` collection
 ([`admin-audit.js`](../src/server/utils/admin-audit.js)) records every privileged mutation — event
 and devotion create/update/delete, prayer moderation, user role changes, verse sync, event-image
-uploads — with actor, action, target, and metadata. Logging is best-effort and never blocks or
-fails the action it records.
+uploads, and admin portal login/logout — with actor, action, target, and metadata. Logging is
+best-effort and never blocks or fails the action it records.
 
 **Gaps / Recommended Improvements:**
 

@@ -4,6 +4,7 @@ import { createPrayer, listPrayersPage, togglePrayed } from "@/server/services/p
 import { toResponse } from "@/server/utils/api-error";
 import { rateLimit } from "@/server/middleware/rate-limit";
 import { getSession } from "@/server/middleware/session";
+import { verifyCsrf } from "@/server/middleware/csrf";
 
 export async function index(req) {
   const { searchParams } = new URL(req.url);
@@ -23,6 +24,7 @@ export async function create(req) {
     if (!session)
       return NextResponse.json({ error: "Sign in to share a prayer request." }, { status: 401 });
 
+    await verifyCsrf(req);
     await rateLimit(req, {
       name: "prayer:create",
       limit: 5,
@@ -43,6 +45,7 @@ export async function pray(req, id) {
     if (!session)
       return NextResponse.json({ error: "Sign in to pray for a request." }, { status: 401 });
 
+    await verifyCsrf(req);
     await rateLimit(req, { name: "prayer:pray", limit: 60, windowMs: 60_000 });
     const body = await req.json().catch(() => ({}));
     const result = await togglePrayed(id, session.sub, Boolean(body?.undo));

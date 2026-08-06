@@ -3,9 +3,9 @@
  *
  *   npm run dev:local
  *
- * The production MONGO_URL points at Railway's private host
- * (mongodb.railway.internal), which only resolves inside Railway — so a plain
- * `npm run dev` cannot reach a database. This script stands up a local MongoDB
+ * The production MONGO_URL points at a MongoDB Atlas cluster reachable only
+ * with production credentials — so a plain `npm run dev` cannot reach a
+ * database. This script stands up a local MongoDB
  * (mongodb-memory-server), keeps its data on disk under .dev-db so it survives
  * restarts, seeds the verse corpus once, then launches `next dev` pointed at it.
  *

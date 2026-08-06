@@ -8,6 +8,7 @@ import { Badge, Button, ButtonLink, Card, ProgressBar } from "@/components/ui";
 import { Stagger, StaggerItem } from "@/components/motion";
 import { WeekProgress } from "@/components/week-progress";
 import { toast } from "@/components/toast";
+import { csrfHeader } from "@/lib/csrf";
 import type { ActivePlan, PlanSummary } from "@/lib/types";
 
 export function PlansClient({
@@ -28,7 +29,7 @@ export function PlansClient({
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeader() },
         body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));

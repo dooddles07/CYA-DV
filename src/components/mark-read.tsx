@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BookOpenCheck, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { toast } from "@/components/toast";
+import { csrfHeader } from "@/lib/csrf";
 
 /** "I read today's verse" — awards XP and extends the signed-in user's streak. */
 export function MarkRead() {
@@ -17,7 +18,7 @@ export function MarkRead() {
     if (busy || done) return;
     setBusy(true);
     try {
-      const res = await fetch("/api/streak/read", { method: "POST" });
+      const res = await fetch("/api/streak/read", { method: "POST", headers: csrfHeader() });
       const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
         toast("Sign in to keep a streak", "info");

@@ -5,6 +5,7 @@ import { removeSubscription, saveSubscription, sendDailyVerse } from "@/server/s
 import { getSession } from "@/server/middleware/session";
 import { rateLimit } from "@/server/middleware/rate-limit";
 import { ApiError, toResponse } from "@/server/utils/api-error";
+import { verifyCsrf } from "@/server/middleware/csrf";
 
 /** Constant-time string compare so response time can't leak the cron secret. */
 function secretMatches(provided, expected) {
@@ -22,6 +23,7 @@ export async function subscribe(req) {
   try {
     // Unauthenticated write — throttle so a bot can't flood the store with junk
     // (and useless) subscriptions.
+    await verifyCsrf(req);
     await rateLimit(req, { name: "push:subscribe", limit: 20, windowMs: 15 * 60_000 });
     const body = await req.json().catch(() => ({}));
     const session = await getSession();
@@ -33,6 +35,8 @@ export async function subscribe(req) {
 
 export async function unsubscribe(req) {
   try {
+    await verifyCsrf(req);
+    await rateLimit(req, { name: "push:unsubscribe", limit: 20, windowMs: 15 * 60_000 });
     const body = await req.json().catch(() => ({}));
     const session = await getSession();
     return NextResponse.json(await removeSubscription(body.endpoint, session?.sub ?? null));

@@ -36,6 +36,7 @@ import { spring } from "@/lib/motion";
 import { useNow } from "@/lib/hooks";
 import { relTime } from "@/lib/rel-time";
 import { PrayButton } from "@/components/prayer";
+import { csrfHeader } from "@/lib/csrf";
 import type { PrayerItem } from "@/lib/types";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -136,7 +137,7 @@ export function PrayerPreview({
     try {
       const res = await fetch(`/api/prayers/${p.id}/pray`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeader() },
         body: JSON.stringify({ undo: done }),
       });
       if (!res.ok) throw new Error();
@@ -192,7 +193,7 @@ export function ChallengeGrid() {
     if (done[i]) return;
     const res = await fetch("/api/streak/challenge", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...csrfHeader() },
       body: JSON.stringify({ id: c.id }),
     }).catch(() => null);
 

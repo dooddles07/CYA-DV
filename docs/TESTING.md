@@ -133,7 +133,7 @@ npm run test:e2e
 
 [`playwright.config.ts`](../playwright.config.ts) spins up `npm run dev:local` automatically (disposable in-memory Mongo) via Playwright's `webServer` option, so the suite never touches a real database and needs no manual server management.
 
-**Not yet wired into `ci.yml`** — browser install + `mongodb-memory-server`'s binary download add real time to a CI run, so this stays a local/manual gate for now rather than risking CI flakiness. See [Future Improvements](#future-improvements).
+**Wired into `ci.yml`** — the workflow installs Chromium (`npx playwright install --with-deps chromium`) and runs `npm run test:e2e` after the build step, gating every push and pull request against `main`.
 
 UI beyond this one flow is still verified **manually during development** using the Playwright MCP (real browser rendering plus console-error inspection); those exploratory sessions are ad hoc and not checked into the repo.
 
@@ -196,7 +196,7 @@ npm run lint && npx tsc --noEmit && npm test
 
 **Important:** this workflow does **not run the test suite**. It is a scheduled operational job that fires a daily push-notification cron (06:00 Manila) by calling the app's `/api/cron/daily-verse` endpoint and failing if the response is not HTTP 200.
 
-A second workflow, [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), runs `npm ci`, `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm audit --audit-level=high`, and `npm run build` on every push and pull request against `main`. Build-time-only placeholder values for `MONGO_URL`/`AUTH_SECRET`/`NEXT_PUBLIC_SITE_URL` are set in the workflow (no live database is reached — `npm test` uses `mongodb-memory-server`, and `next build` tolerates an unreachable DB during static generation).
+A second workflow, [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), runs `npm ci`, `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm audit --audit-level=high`, `npm run build`, and `npm run test:e2e` (after installing Chromium) on every push and pull request against `main`. Build-time-only placeholder values for `MONGO_URL`/`AUTH_SECRET`/`NEXT_PUBLIC_SITE_URL` are set in the workflow (no live database is reached — `npm test` uses `mongodb-memory-server`, and `next build` tolerates an unreachable DB during static generation; `test:e2e` spins up its own disposable in-memory Mongo via `dev:local`).
 
 > **Recommendation:** make `ci.yml` a required status check before merge (branch protection on `main` is not configured in-repo).
 
@@ -244,7 +244,7 @@ Concrete, repository-specific next steps, roughly in priority order:
 
 1. **Make CI a required check.** `ci.yml` exists and runs on every push/PR; branch protection requiring it to pass before merge is not yet configured.
 2. **Enforce a coverage threshold.** `test:coverage` exists and reports; capture a baseline across a few runs, then gate on it in CI.
-3. **Broaden E2E coverage and wire it into CI.** One smoke spec exists (register → verse → mark read → dashboard); extend to login, prayer post, RSVP, and admin moderation, and add it to `ci.yml` once browser-install/binary-download time is acceptable, with traces published on failure.
+3. **Broaden E2E coverage.** One smoke spec exists (register → verse → mark read → dashboard) and now runs in `ci.yml`; extend to login, prayer post, RSVP, and admin moderation, with traces published on failure.
 4. **Broaden integration coverage.** Extend service tests to reading-plan progress, verse assignment/rotation persistence, and the notification-subscription flow.
 5. **Add API route tests.** Cover the Next.js route handlers (auth, cron, verse endpoints) including auth/authorization failure paths and rate-limit behaviour.
 6. **Add npm script aliases.** Provide `test:unit` and `test:integration` so the long `node --test` invocations are discoverable (`test:coverage` and `test:e2e` already exist).

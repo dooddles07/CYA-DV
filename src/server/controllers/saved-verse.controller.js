@@ -4,6 +4,7 @@ import { listSaved, removeSaved, toggleSaved } from "@/server/services/saved-ver
 import { getSession } from "@/server/middleware/session";
 import { toResponse } from "@/server/utils/api-error";
 import { rateLimit } from "@/server/middleware/rate-limit";
+import { verifyCsrf } from "@/server/middleware/csrf";
 
 export async function index() {
   const session = await getSession();
@@ -16,6 +17,7 @@ export async function remove(req) {
   if (!session)
     return NextResponse.json({ error: "Sign in to manage saved verses." }, { status: 401 });
   try {
+    await verifyCsrf(req);
     await rateLimit(req, { name: "saved-verse:remove", limit: 30, windowMs: 60_000 });
     const body = await req.json().catch(() => ({}));
     return NextResponse.json(await removeSaved(session.sub, body.reference));
@@ -29,6 +31,7 @@ export async function toggle(req) {
   if (!session)
     return NextResponse.json({ error: "Sign in to save verses." }, { status: 401 });
   try {
+    await verifyCsrf(req);
     await rateLimit(req, { name: "saved-verse:toggle", limit: 30, windowMs: 60_000 });
     const body = await req.json().catch(() => ({}));
     return NextResponse.json(await toggleSaved(session.sub, body));

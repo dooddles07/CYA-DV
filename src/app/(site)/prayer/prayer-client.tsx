@@ -10,6 +10,7 @@ import { toast } from "@/components/toast";
 import { useNow } from "@/lib/hooks";
 import { relTime } from "@/lib/rel-time";
 import { PrayButton } from "@/components/prayer";
+import { csrfHeader } from "@/lib/csrf";
 import type { PrayerItem } from "@/lib/types";
 
 export function PrayerClient({
@@ -54,7 +55,7 @@ export function PrayerClient({
     try {
       const res = await fetch("/api/prayers", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeader() },
         body: JSON.stringify({ name, request, anonymous }),
       });
       const data = await res.json().catch(() => ({}));
@@ -109,7 +110,7 @@ export function PrayerClient({
     try {
       const res = await fetch(`/api/prayers/${p.id}/pray`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeader() },
         body: JSON.stringify({ undo: done }),
       });
       if (!res.ok) throw new Error();
