@@ -13,6 +13,14 @@ before(async () => {
   process.env.MONGO_URL = mem.getUri();
   const { dbConnect } = await import("@/server/config/db.js");
   await dbConnect();
+
+  // Default breach-check response for the whole suite: "not breached". Some
+  // of the plain test passwords used elsewhere in this file (e.g.
+  // "supersecret") are real entries in HIBP's dataset, which would otherwise
+  // make every registerUser/completeReset call here hit the live network.
+  // The one test that wants a "breached" result overrides this locally and
+  // restores it in a finally block.
+  global.fetch = async () => ({ ok: false, text: async () => "" });
 });
 
 after(async () => {
@@ -67,6 +75,24 @@ test("registerUser rejects a short password", async () => {
     registerUser({ name: "Grace", email: "short@example.com", password: "1234" }),
     /at least 8/
   );
+});
+
+test("registerUser rejects a breached password", async () => {
+  const { registerUser } = await app();
+  const crypto = await import("node:crypto");
+  const password = "definitely-breached-pw";
+  const sha1 = crypto.createHash("sha1").update(password).digest("hex").toUpperCase();
+  const suffix = sha1.slice(5);
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({ ok: true, text: async () => `${suffix}:99999` });
+  try {
+    await assert.rejects(
+      registerUser({ name: "Grace", email: "breached@example.com", password }),
+      /data breach/
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
 });
 
 test("loginUser accepts the right password and rejects the wrong one", async () => {

@@ -8,6 +8,7 @@ import { ResetToken } from "@/server/models/reset-token.model";
 import { ApiError } from "@/server/utils/api-error";
 import { requireSiteUrl } from "@/lib/site";
 import { logError } from "@/server/utils/logger";
+import { isPasswordBreached } from "@/server/services/breach-check.service";
 
 const TTL_MINUTES = 60;
 
@@ -107,6 +108,8 @@ export async function completeReset(token, password) {
 
   if (!token) throw new ApiError(400, "This reset link is invalid.");
   if (password.length < 8) throw new ApiError(400, "Password needs at least 8 characters.");
+  if (await isPasswordBreached(password))
+    throw new ApiError(400, "This password has appeared in a data breach. Please choose a different one.");
 
   await dbConnect();
   const record = await ResetToken.findOne({ tokenHash: hash(token) });

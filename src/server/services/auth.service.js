@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { dbConnect } from "@/server/config/db";
 import { User } from "@/server/models/user.model";
 import { ApiError } from "@/server/utils/api-error";
+import { isPasswordBreached } from "@/server/services/breach-check.service";
 
 export async function registerUser({ name, email, password }) {
   name = String(name ?? "").trim();
@@ -15,6 +16,8 @@ export async function registerUser({ name, email, password }) {
   if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 120)
     throw new ApiError(400, "That email doesn't look right.");
   if (password.length < 8) throw new ApiError(400, "Password needs at least 8 characters.");
+  if (await isPasswordBreached(password))
+    throw new ApiError(400, "This password has appeared in a data breach. Please choose a different one.");
 
   await dbConnect();
   if (await User.findOne({ email }).lean())
