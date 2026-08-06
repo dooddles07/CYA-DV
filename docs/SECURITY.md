@@ -194,8 +194,13 @@ reset logs out **all** existing sessions.
 
 ### Access-token expiration & refresh
 
-No refresh tokens. The 30-day cookie is re-issued on login. There is no sliding renewal.
-**Recommended Improvement:** sliding expiry / explicit refresh for long-lived sessions.
+No refresh tokens. The 30-day cookie is re-issued on login, and slides forward on activity:
+[`proxy.ts`](../src/proxy.ts) decodes the session JWT on every page navigation and, once it's past
+the halfway point of its lifetime, re-signs it with a fresh 30-day expiry. This can't live in
+`getSession()` itself — Next only allows `cookies().set()` inside a Server Action or Route Handler,
+and `getSession()` is also called from plain Server Component renders. No absolute lifetime cap;
+`tokenVersion` revocation still invalidates a session immediately regardless of how recently it was
+refreshed.
 
 ### Account recovery
 
@@ -289,6 +294,7 @@ flowchart TD
 | Storage | Only `passwordHash` is stored; **plaintext is never persisted or logged** |
 | Comparison | `bcrypt.compare` (constant-time within bcrypt) |
 | Minimum strength | ≥ 8 characters (enforced on register and reset) |
+| Breach check | [HIBP k-anonymity range API](https://haveibeenpwned.com/API/v3#PwnedPasswords) — only a 5-char SHA-1 prefix is sent, full password/hash never leaves the server. Fails open (allows the password) on network error or timeout, matching this app's dependency-outage philosophy elsewhere ([`breach-check.service.js`](../src/server/services/breach-check.service.js)) |
 | Reset token | `crypto.randomBytes(32)` hex, **SHA-256 hashed at rest**, 60-min TTL, single-use |
 | Reset side effect | `tokenVersion++` invalidates all sessions |
 | Brute-force defence | Per-IP rate limits on login (10/15m), forgot (3/15m), reset (10/15m) |
@@ -303,7 +309,6 @@ Reset flow ([`password-reset.service.js`](../src/server/services/password-reset.
 
 **Recommended Improvements:**
 
-- Password complexity / breached-password check (e.g. HaveIBeenPwned k-anonymity range API).
 - Explicit account lockout after N consecutive failures (today only rate limiting applies).
 
 ---
@@ -393,6 +398,8 @@ Set **per request** in [`proxy.ts`](../src/proxy.ts) so `script-src` carries a f
 default-src 'self';
 script-src 'self' 'nonce-<random>' 'strict-dynamic';
 style-src 'self' 'unsafe-inline';
+style-src-elem 'self';
+style-src-attr 'unsafe-inline';
 img-src 'self' data: blob:;
 font-src 'self' data:;
 connect-src 'self';
@@ -405,9 +412,13 @@ upgrade-insecure-requests;
 ```
 
 - `strict-dynamic` means only the nonce'd bootstrap and scripts it loads execute.
-- `style-src` retains `'unsafe-inline'` because `next/font` and Tailwind inject inline `<style>` a
-  nonce cannot reach. Style-based XSS is materially weaker than script-based; documented and accepted.
-  **Recommended Improvement:** move to hashed/nonce'd styles if the toolchain allows.
+- `style-src-elem` drops `'unsafe-inline'` — verified against a production build that Tailwind's
+  compiled CSS and `next/font`'s font-face rules both ship as one external linked stylesheet, so
+  zero inline `<style>` elements ever render in prod. `style-src-attr` keeps `'unsafe-inline'`
+  because the app has genuine dynamic `style=""` usage (framer-motion animation values across
+  several components) that can't be static classes. The base `style-src` line is the fallback for
+  browsers without CSP3 split-directive support — they keep today's exact (permissive) behavior,
+  so nothing regresses on older browsers.
 
 ---
 
@@ -561,8 +572,9 @@ Improvement:** verify TLS is enforced on the connection and enable at-rest encry
 | OWASP Dependency-Check | SCA in CI |
 
 `npm audit --audit-level=high` runs as a required step in [`ci.yml`](../.github/workflows/ci.yml)
-on every push and PR. **Recommended Improvement:** enable Dependabot (or Renovate) for automated
-dependency PRs, and consider a deeper transitive-vulnerability scan (Snyk/OSV-Scanner) over time.
+on every push and PR. [`dependabot.yml`](../.github/dependabot.yml) opens weekly npm update PRs
+(minor/patch grouped into one PR; majors get their own for manual review). **Recommended
+Improvement:** consider a deeper transitive-vulnerability scan (Snyk/OSV-Scanner) over time.
 
 ---
 
@@ -650,8 +662,9 @@ Content-Security-Policy is delivered per-request from `proxy.ts` (see §8).
 **Authentication**
 - [x] Secure authentication implemented (bcrypt + signed JWT)
 - [x] Password hashing enabled (bcrypt cost 10)
-- [x] Session security configured (httpOnly, secure-in-prod, SameSite=Lax, revocable)
+- [x] Session security configured (httpOnly, secure-in-prod, SameSite=Lax, revocable, sliding expiry)
 - [x] MFA required for admin access (TOTP, both admin paths — see §9 MFA)
+- [x] Breached-password check on register/reset (HIBP k-anonymity, fails open)
 
 **Authorization**
 - [x] Role permissions validated (`assertAdmin`, `emailVerified`, no self-elevation)
@@ -671,6 +684,7 @@ Content-Security-Policy is delivered per-request from `proxy.ts` (see §8).
 
 **Operations**
 - [x] Dependencies scanned in CI (`npm audit --audit-level=high` in `ci.yml`)
+- [x] Automated dependency updates (Dependabot, weekly)
 - [~] Security monitoring (structured error logging + admin audit log present; no alerting yet — Recommended)
 - [ ] Backups secured (**operational** — managed platform)
 
