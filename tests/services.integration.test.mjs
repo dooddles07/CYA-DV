@@ -8,6 +8,7 @@ import mongoose from "mongoose";
 // without a shared database.
 let mem;
 before(async () => {
+  process.env.AUTH_SECRET = "test-secret-for-integration-tests";
   mem = await MongoMemoryServer.create();
   process.env.MONGO_URL = mem.getUri();
   const { dbConnect } = await import("@/server/config/db.js");
@@ -24,14 +25,15 @@ after(async () => {
 let mod;
 async function app() {
   if (mod) return mod;
-  const [auth, user, users, dates, model] = await Promise.all([
+  const [auth, user, users, dates, model, mfa] = await Promise.all([
     import("@/server/services/auth.service.js"),
     import("@/server/services/user.service.js"),
     import("@/server/services/user.service.js"),
     import("@/server/utils/dates.js"),
     import("@/server/models/user.model.js"),
+    import("@/server/services/mfa.service.js"),
   ]);
-  mod = { ...auth, ...user, ...users, ...dates, User: model.User };
+  mod = { ...auth, ...user, ...users, ...dates, User: model.User, ...mfa };
   return mod;
 }
 
@@ -78,6 +80,74 @@ test("loginUser accepts the right password and rejects the wrong one", async () 
     loginUser({ email: "login@example.com", password: "wrongpass" }),
     /Invalid email or password/
   );
+});
+
+// --- mfa.service -------------------------------------------------------------
+
+test("beginEnrollment stores an encrypted secret and returns 10 backup codes", async () => {
+  const { registerUser, setUserRole, beginEnrollment } = await app();
+  const u = await registerUser({ name: "Ada", email: "ada@example.com", password: "supersecret" });
+  await setUserRole(u.id, "admin");
+  const enrollment = await beginEnrollment(u.id);
+  assert.match(enrollment.otpauthUri, /^otpauth:\/\/totp\//);
+  assert.equal(enrollment.backupCodes.length, 10);
+});
+
+test("beginEnrollment rejects a non-admin account", async () => {
+  const { registerUser, beginEnrollment } = await app();
+  const u = await registerUser({ name: "Mem", email: "member@example.com", password: "supersecret" });
+  await assert.rejects(beginEnrollment(u.id), /admin accounts only/);
+});
+
+test("confirmEnrollment accepts the current TOTP code and enables MFA", async () => {
+  const { registerUser, setUserRole, beginEnrollment, confirmEnrollment, User } = await app();
+  const { decryptSecret, totpCode } = await import("@/server/utils/totp.js");
+  const u = await registerUser({ name: "Ada", email: "ada2@example.com", password: "supersecret" });
+  await setUserRole(u.id, "admin");
+  await beginEnrollment(u.id);
+
+  const stored = await User.findById(u.id);
+  const code = totpCode(decryptSecret(stored.totpSecret));
+  await confirmEnrollment(u.id, code);
+
+  const after = await User.findById(u.id);
+  assert.equal(after.totpEnabled, true);
+});
+
+test("confirmEnrollment rejects a wrong code", async () => {
+  const { registerUser, setUserRole, beginEnrollment, confirmEnrollment } = await app();
+  const u = await registerUser({ name: "Ada", email: "ada3@example.com", password: "supersecret" });
+  await setUserRole(u.id, "admin");
+  await beginEnrollment(u.id);
+  await assert.rejects(confirmEnrollment(u.id, "000000"), /didn't match/);
+});
+
+test("verifyMemberCode consumes a backup code exactly once", async () => {
+  const { registerUser, setUserRole, beginEnrollment, confirmEnrollment, verifyMemberCode, User } = await app();
+  const { decryptSecret, totpCode } = await import("@/server/utils/totp.js");
+  const u = await registerUser({ name: "Ada", email: "ada4@example.com", password: "supersecret" });
+  await setUserRole(u.id, "admin");
+  const { backupCodes } = await beginEnrollment(u.id);
+
+  const stored = await User.findById(u.id);
+  await confirmEnrollment(u.id, totpCode(decryptSecret(stored.totpSecret)));
+
+  const code = backupCodes[0];
+  await verifyMemberCode(u.id, { backupCode: code });
+  await assert.rejects(verifyMemberCode(u.id, { backupCode: code }), /not valid/);
+});
+
+test("verifyPortalCode checks against ADMIN_PORTAL_TOTP_SECRET", async () => {
+  const { verifyPortalCode } = await app();
+  const { generateSecret, totpCode } = await import("@/server/utils/totp.js");
+  const secret = generateSecret();
+  process.env.ADMIN_PORTAL_TOTP_SECRET = secret;
+  try {
+    assert.equal(await verifyPortalCode({ code: totpCode(secret) }), true);
+    await assert.rejects(verifyPortalCode({ code: "000000" }), /didn't match/);
+  } finally {
+    delete process.env.ADMIN_PORTAL_TOTP_SECRET;
+  }
 });
 
 // --- user.service: streak -------------------------------------------------
