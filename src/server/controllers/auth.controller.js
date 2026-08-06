@@ -7,6 +7,7 @@ import { getUserStats } from "@/server/services/user.service";
 import { createSession, destroySession, getSession } from "@/server/middleware/session";
 import { toResponse } from "@/server/utils/api-error";
 import { rateLimit } from "@/server/middleware/rate-limit";
+import { createMfaPending } from "@/server/middleware/mfa-pending";
 
 async function readJson(req) {
   try {
@@ -42,6 +43,13 @@ export async function login(req) {
       message: "Too many sign-in attempts — please wait a few minutes and try again.",
     });
     const user = await loginUser(await readJson(req));
+
+    if (user.role === "admin") {
+      const purpose = user.totpEnabled ? "verify" : "enroll";
+      await createMfaPending({ sub: user.id, kind: "member", purpose });
+      return NextResponse.json(purpose === "enroll" ? { mfaSetupRequired: true } : { mfaRequired: true });
+    }
+
     await createSession(user);
     return NextResponse.json({ user: { name: user.name, email: user.email } });
   } catch (err) {

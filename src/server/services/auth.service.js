@@ -35,5 +35,12 @@ export async function loginUser({ email, password }) {
   const ok = user && (await bcrypt.compare(password, user.passwordHash));
   if (!ok) throw new ApiError(401, "Invalid email or password.");
 
-  return { id: user._id.toString(), name: user.name, email: user.email, tokenVersion: user.tokenVersion ?? 0 };
+  return {
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    tokenVersion: user.tokenVersion ?? 0,
+    role: user.role,
+    totpEnabled: Boolean(user.totpEnabled),
+  };
 }
