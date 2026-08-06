@@ -17,6 +17,7 @@ const escapeHtml = (s) =>
 
 function emailBody(name, link) {
   const safeName = escapeHtml(name);
+  const logoUrl = `${requireSiteUrl()}/media/cya-logo.png`;
   return {
     text: [
       `Hi ${name},`,
@@ -30,22 +31,34 @@ function emailBody(name, link) {
       "— CYA Daily Verse",
     ].join("\n"),
     html: `
-      <div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:32px;color:#0f2233">
-        <p style="font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#0095ff;margin:0">
-          CYA Daily Verse
-        </p>
-        <h1 style="font-size:22px;margin:16px 0 0">Confirm your email</h1>
-        <p style="line-height:1.6;color:#44586b">Hi ${safeName}, confirm your email to finish setting up your account:</p>
-        <p style="margin:28px 0">
-          <a href="${link}" style="background:#0095ff;color:#fff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:999px;display:inline-block">
-            Confirm email
-          </a>
-        </p>
-        <p style="line-height:1.6;color:#44586b;font-size:14px">
-          This link expires in ${TTL_MINUTES / 60} hours.
-          If you didn't create an account, you can ignore this email.
-        </p>
-        <p style="color:#8ba0b3;font-size:12px;word-break:break-all;margin-top:24px">${link}</p>
+      <div style="background:#eef6ff;padding:40px 16px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif">
+        <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 1px 3px rgba(15,34,51,0.08)">
+          <div style="background:#0095ff;padding:32px 32px 28px;text-align:center">
+            <img src="${logoUrl}" alt="CYA Daily Verse" width="56" height="56" style="border-radius:14px;display:block;margin:0 auto 12px" />
+            <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#e0f2ff">
+              CYA Daily Verse
+            </p>
+          </div>
+          <div style="padding:36px 32px 32px">
+            <h1 style="margin:0 0 12px;font-size:22px;font-weight:800;color:#0f2233">Confirm your email</h1>
+            <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#44586b">
+              Hi ${safeName}, one more step to finish setting up your account — confirm your email below.
+            </p>
+            <div style="text-align:center;margin:0 0 28px">
+              <a href="${link}" style="display:inline-block;background:#0095ff;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 32px;border-radius:999px">
+                Confirm email
+              </a>
+            </div>
+            <p style="margin:0;font-size:13px;line-height:1.6;color:#8ba0b3">
+              This link expires in ${TTL_MINUTES / 60} hours. Didn't create this account? You can safely ignore this
+              email.
+            </p>
+            <p style="margin:20px 0 0;font-size:11px;word-break:break-all;color:#b7c5d1">${link}</p>
+          </div>
+          <div style="padding:20px 32px;background:#f7fafc;text-align:center;border-top:1px solid #eef2f5">
+            <p style="margin:0;font-size:12px;color:#8ba0b3">Made with prayer, for the youth.</p>
+          </div>
+        </div>
       </div>
     `,
   };
