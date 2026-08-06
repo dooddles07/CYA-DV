@@ -69,13 +69,16 @@ export async function proxy(req: NextRequest) {
     // Verified against a production build: Tailwind's compiled CSS and
     // next/font's font-face rules both ship as one external linked
     // stylesheet — zero inline <style> elements in prod. style-src-elem
-    // hardens that. style-src-attr stays permissive because the app has
+    // hardens that in production only — Next's own dev-mode devtools panel
+    // injects inline <style> elements for its overlay UI, so this stays
+    // permissive in dev (same reasoning as script-src's dev-only unsafe-eval
+    // above). style-src-attr stays permissive always because the app has
     // genuine dynamic style="" usage (framer-motion animation values across
     // 9 files) that can't be static classes. The base style-src line is the
     // fallback for browsers that don't support the split directives — they
     // keep today's exact (permissive) behavior, no regression either way.
     "style-src 'self' 'unsafe-inline'",
-    "style-src-elem 'self'",
+    `style-src-elem 'self'${isDev ? " 'unsafe-inline'" : ""}`,
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
