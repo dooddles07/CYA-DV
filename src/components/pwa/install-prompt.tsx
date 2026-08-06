@@ -40,6 +40,18 @@ export function InstallPrompt() {
     setDeferred(null);
   };
 
+  useEffect(() => {
+    if (!deferred) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        localStorage.setItem(DISMISSED_KEY, "1");
+        setDeferred(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [deferred]);
+
   const install = async () => {
     if (!deferred) return;
     await deferred.prompt();
@@ -55,7 +67,7 @@ export function InstallPrompt() {
           animate={{ opacity: 1, y: 0 }}
           exit={reduce ? undefined : { opacity: 0, y: 24 }}
           transition={{ duration: 0.28 }}
-          role="dialog"
+          role="region"
           aria-label="Install CYA Daily Verse"
           className="glass fixed inset-x-4 bottom-24 z-[120] flex items-center gap-4 rounded-3xl p-4 shadow-lift sm:left-auto sm:right-6 sm:w-96 lg:bottom-6"
         >

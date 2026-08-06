@@ -735,6 +735,47 @@ reversal**:
 > retention) and document a tested restore with an RPO/RTO target. Confirm
 > Atlas's managed backup cadence for the current cluster tier.
 
+### Backup & restore runbook
+
+**Automated backups (recommended, one-time setup).** Atlas M10+ clusters have
+Cloud Backup available in the Atlas UI (Cluster → Backup tab → **Enable**).
+Free/shared (M0/M2/M5) tiers don't offer Cloud Backup — use the manual
+snapshot below on a schedule (e.g. a GitHub Actions cron, matching this repo's
+existing `daily-verse` cron pattern in `.github/workflows/`) until the cluster
+is upgraded. Target: daily snapshot, 7-day retention as a starting point —
+tune to the ministry's actual tolerance for data loss (RPO).
+
+**Manual snapshot** (works on any tier — run from a machine with the Atlas
+IP-allowlisted, or Atlas's own temporary access):
+
+```bash
+mongodump --uri="$MONGO_URL" --gzip --archive=cya-backup-$(date +%Y%m%d).gz
+```
+
+Store the archive somewhere outside the app's own infra (a private cloud
+bucket or encrypted local storage) — a backup that lives next to the thing it
+backs up isn't a backup.
+
+**Restore** (RTO target: under 30 minutes from a recent snapshot):
+
+```bash
+# Dry-run first against a scratch cluster/db to confirm the archive is good:
+mongorestore --uri="$MONGO_URL_SCRATCH" --gzip --archive=cya-backup-YYYYMMDD.gz
+
+# Once confirmed, restore for real. --drop replaces existing collections
+# instead of merging, so double-check MONGO_URL points at the intended
+# cluster before running this against production.
+mongorestore --uri="$MONGO_URL" --gzip --archive=cya-backup-YYYYMMDD.gz --drop
+```
+
+After a restore: hit `GET /api/health`, spot-check a known record (e.g. the
+latest verse-of-the-day), and confirm `AUTH_SECRET`/`tokenVersion` still match
+so existing sessions aren't left in a half-valid state.
+
+**Test the restore before you need it** — an unverified backup is a hope, not
+a plan. Run the dry-run step above against a scratch database at least once
+per quarter.
+
 ---
 
 ## 15. Monitoring and Logging

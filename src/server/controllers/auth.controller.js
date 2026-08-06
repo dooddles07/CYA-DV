@@ -8,14 +8,8 @@ import { createSession, destroySession, getSession } from "@/server/middleware/s
 import { toResponse } from "@/server/utils/api-error";
 import { rateLimit } from "@/server/middleware/rate-limit";
 import { createMfaPending } from "@/server/middleware/mfa-pending";
-
-async function readJson(req) {
-  try {
-    return await req.json();
-  } catch {
-    return {};
-  }
-}
+import { verifyCsrf } from "@/server/middleware/csrf";
+import { readJson } from "@/server/utils/request";
 
 export async function register(req) {
   try {
@@ -112,9 +106,14 @@ export async function resendVerificationEmail(req) {
   }
 }
 
-export async function logout() {
-  await destroySession();
-  return NextResponse.json({ ok: true });
+export async function logout(req) {
+  try {
+    await verifyCsrf(req);
+    await destroySession();
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return toResponse(err, "Could not sign out.");
+  }
 }
 
 export async function me() {

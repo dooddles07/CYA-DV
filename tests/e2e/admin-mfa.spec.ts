@@ -36,7 +36,10 @@ test("admin-role login enrolls in MFA, then a later login verifies it", async ({
   await expect(page).toHaveURL(/\/dashboard/);
 
   // Second login: already enrolled, so this goes through verify, not setup.
-  await page.request.post("/api/auth/logout");
+  // Logout is CSRF-protected like every other mutating endpoint, and
+  // page.request doesn't add the double-submit header automatically.
+  const csrfCookie = (await page.context().cookies()).find((c) => c.name === "cya-csrf");
+  await page.request.post("/api/auth/logout", { headers: { "X-CSRF-Token": csrfCookie!.value } });
   await page.goto("/login");
   await page.getByRole("textbox", { name: "Email" }).fill(ADMIN_EMAIL);
   await page.getByRole("textbox", { name: "Password" }).fill(ADMIN_PASSWORD);

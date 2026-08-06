@@ -1,6 +1,10 @@
 /* Service worker: offline shell + push notifications. */
 
-const CACHE = "cya-v2";
+// __BUILD_ID__ is stamped by scripts/stamp-sw.mjs (npm run build's prebuild
+// step) with the deploy's git SHA, so a new deploy gets a fresh cache name and
+// activate's cleanup evicts the previous deploy's entries automatically —
+// no more hand-bumping a literal and hoping nobody forgets.
+const CACHE = "cya-__BUILD_ID__";
 const OFFLINE_URL = "/offline.html";
 const VERSE_URL = "/verse";
 const VERSE_API = "/api/verse/today";
@@ -35,6 +39,27 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   const isVerseData = url.origin === self.location.origin && url.pathname === VERSE_API;
+  const isStaticAsset = url.origin === self.location.origin && url.pathname.startsWith("/_next/static/");
+
+  if (isStaticAsset) {
+    // Cache-first: filenames are content-hashed and immutable, so a cache hit
+    // is always correct. Without this, the offline-cached page shell has no
+    // JS/CSS to hydrate with and only ever renders static markup.
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ||
+          fetch(request).then((res) => {
+            if (res.ok) {
+              const copy = res.clone();
+              caches.open(CACHE).then((cache) => cache.put(request, copy));
+            }
+            return res;
+          })
+      )
+    );
+    return;
+  }
 
   if (request.mode !== "navigate" && !isVerseData) return;
 

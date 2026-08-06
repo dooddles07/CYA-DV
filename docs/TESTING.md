@@ -146,10 +146,11 @@ npm run test:coverage
 ```
 
 Uses the `node:test` runner's native `--experimental-test-coverage` — no added dependency. Prints a
-per-file coverage table to the terminal. It is **not** wired into `ci.yml` or any enforced
-threshold — report only. Do not publish a single coverage percentage as a headline number; it
-covers only `tests/*.test.mjs` (unit + integration), not the E2E spec or untested controller/route
-layers.
+per-file coverage table to the terminal. `ci.yml` runs this instead of plain `npm test`, so the
+coverage table is visible in every CI run's log, but there is still no enforced threshold — report
+only, doesn't fail the build on a coverage drop. Do not publish a single coverage percentage as a
+headline number; it covers only `tests/*.test.mjs` (unit + integration), not the E2E spec or
+untested controller/route layers.
 
 > **Gap / recommendation:** enforce a threshold in CI once a stable baseline is measured across a
 > few runs.
@@ -243,7 +244,7 @@ Issues specific to this repository's setup:
 Concrete, repository-specific next steps, roughly in priority order:
 
 1. **Make CI a required check.** `ci.yml` exists and runs on every push/PR; branch protection requiring it to pass before merge is not yet configured.
-2. **Enforce a coverage threshold.** `test:coverage` exists and reports; capture a baseline across a few runs, then gate on it in CI.
+2. **Enforce a coverage threshold.** `test:coverage` now runs in `ci.yml` and reports; capture a baseline across a few runs, then gate on it.
 3. **Broaden E2E coverage.** One smoke spec exists (register → verse → mark read → dashboard) and now runs in `ci.yml`; extend to login, prayer post, RSVP, and admin moderation, with traces published on failure.
 4. **Broaden integration coverage.** Extend service tests to reading-plan progress, verse assignment/rotation persistence, and the notification-subscription flow.
 5. **Add API route tests.** Cover the Next.js route handlers (auth, cron, verse endpoints) including auth/authorization failure paths and rate-limit behaviour.

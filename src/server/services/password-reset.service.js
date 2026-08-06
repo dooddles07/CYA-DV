@@ -112,9 +112,14 @@ export async function completeReset(token, password) {
     throw new ApiError(400, "This password has appeared in a data breach. Please choose a different one.");
 
   await dbConnect();
-  const record = await ResetToken.findOne({ tokenHash: hash(token) });
-  if (!record || record.usedAt || record.expiresAt < new Date())
-    throw new ApiError(400, "This reset link has expired or already been used.");
+  // Atomic claim: the filter requires usedAt still null, so two concurrent
+  // requests with the same token can't both pass a find-then-save gap and
+  // both consume it.
+  const record = await ResetToken.findOneAndUpdate(
+    { tokenHash: hash(token), usedAt: null, expiresAt: { $gt: new Date() } },
+    { $set: { usedAt: new Date() } }
+  );
+  if (!record) throw new ApiError(400, "This reset link has expired or already been used.");
 
   const user = await User.findById(record.userId);
   if (!user) throw new ApiError(400, "This reset link is no longer valid.");
@@ -123,9 +128,6 @@ export async function completeReset(token, password) {
   // Invalidate every existing session so a compromised login is logged out.
   user.tokenVersion = (user.tokenVersion ?? 0) + 1;
   await user.save();
-
-  record.usedAt = new Date();
-  await record.save();
 
   return { id: user._id.toString(), name: user.name, email: user.email, tokenVersion: user.tokenVersion };
 }

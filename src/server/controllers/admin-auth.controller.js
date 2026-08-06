@@ -11,6 +11,7 @@ import { ApiError, toResponse } from "@/server/utils/api-error";
 import { rateLimit } from "@/server/middleware/rate-limit";
 import { logAdminAction } from "@/server/utils/admin-audit";
 import { createMfaPending } from "@/server/middleware/mfa-pending";
+import { verifyCsrf } from "@/server/middleware/csrf";
 
 export async function portalLogin(req) {
   try {
@@ -47,12 +48,17 @@ export async function portalLogin(req) {
   }
 }
 
-export async function portalLogout() {
-  await destroyAdminSession();
-  await logAdminAction({
-    action: "admin.portal-logout",
-    targetType: "admin-session",
-    actorLabel: "admin-portal",
-  });
-  return NextResponse.json({ ok: true });
+export async function portalLogout(req) {
+  try {
+    await verifyCsrf(req);
+    await destroyAdminSession();
+    await logAdminAction({
+      action: "admin.portal-logout",
+      targetType: "admin-session",
+      actorLabel: "admin-portal",
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return toResponse(err, "Could not sign out.");
+  }
 }

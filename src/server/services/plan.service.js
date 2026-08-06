@@ -110,17 +110,20 @@ export async function setDayComplete(userId, day, complete) {
   if (!Number.isInteger(day) || day < 1) throw new ApiError(400, "Invalid plan day.");
 
   await dbConnect();
-  const doc = await UserPlan.findOne({ userId, active: true });
-  if (!doc) throw new ApiError(404, "Start a reading plan first.");
+  const active = await UserPlan.findOne({ userId, active: true }).select("planSlug").lean();
+  if (!active) throw new ApiError(404, "Start a reading plan first.");
 
-  const plan = getPlan(doc.planSlug);
+  const plan = getPlan(active.planSlug);
   if (!plan) throw new ApiError(404, "That reading plan doesn't exist.");
   if (day > plan.readings.length) throw new ApiError(400, "That day is past the end of the plan.");
 
-  doc.completedDays = complete
-    ? [...new Set([...doc.completedDays, day])]
-    : doc.completedDays.filter((d) => d !== day);
-  await doc.save();
+  // Atomic $addToSet/$pull instead of load-mutate-save, so two concurrent
+  // day-completion requests can't race and silently drop one another's write.
+  const doc = await UserPlan.findOneAndUpdate(
+    { userId, active: true },
+    complete ? { $addToSet: { completedDays: day } } : { $pull: { completedDays: day } },
+    { returnDocument: "after" }
+  ).lean();
 
   return shape(plan, doc.completedDays);
 }

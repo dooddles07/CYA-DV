@@ -13,14 +13,7 @@ import { logAdminAction } from "@/server/utils/admin-audit";
 import { rateLimit } from "@/server/middleware/rate-limit";
 import { verifyCsrf } from "@/server/middleware/csrf";
 import { ApiError, toResponse } from "@/server/utils/api-error";
-
-async function readJson(req) {
-  try {
-    return await req.json();
-  } catch {
-    return {};
-  }
-}
+import { readJson } from "@/server/utils/request";
 
 export async function enroll(req) {
   try {

@@ -102,12 +102,15 @@ export async function verifyEmail(token) {
   if (!token) throw new ApiError(400, "This verification link is invalid.");
 
   await dbConnect();
-  const record = await VerifyToken.findOne({ tokenHash: hash(token) });
-  if (!record || record.usedAt || record.expiresAt < new Date())
-    throw new ApiError(400, "This verification link has expired or already been used.");
+  // Atomic claim: the filter requires usedAt still null, so two concurrent
+  // requests with the same token can't both pass a find-then-save gap and
+  // both consume it.
+  const record = await VerifyToken.findOneAndUpdate(
+    { tokenHash: hash(token), usedAt: null, expiresAt: { $gt: new Date() } },
+    { $set: { usedAt: new Date() } }
+  );
+  if (!record) throw new ApiError(400, "This verification link has expired or already been used.");
 
   await User.findByIdAndUpdate(record.userId, { $set: { emailVerified: true } });
-  record.usedAt = new Date();
-  await record.save();
   return { verified: true };
 }

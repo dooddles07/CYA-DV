@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui";
+import { csrfHeader } from "@/lib/csrf";
 
 export function SignOutButton() {
   const router = useRouter();
@@ -12,7 +13,7 @@ export function SignOutButton() {
   const onClick = async () => {
     if (busy) return;
     setBusy(true);
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    await fetch("/api/auth/logout", { method: "POST", headers: csrfHeader() }).catch(() => {});
     router.push("/");
     router.refresh();
   };

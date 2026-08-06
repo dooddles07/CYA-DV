@@ -106,16 +106,20 @@ export async function claimChallenge(userId, challengeId) {
   const key = `${manilaDayKey()}:${challenge.id}`;
 
   await dbConnect();
-  const user = await User.findById(userId);
-  if (!user) throw new ApiError(404, "Account not found.");
 
-  if (user.challengeDates.includes(key)) return { alreadyClaimed: true, ...stats(user) };
+  // Atomic claim: the filter requires `key` absent, so two concurrent claims
+  // of the same challenge can't both pass a load-then-save gap and both award
+  // XP. $slice caps history length the same as the old load-mutate-save did.
+  const claimed = await User.findOneAndUpdate(
+    { _id: userId, challengeDates: { $ne: key } },
+    { $push: { challengeDates: { $each: [key], $slice: -40 } }, $inc: { xp } },
+    { returnDocument: "after" }
+  );
+  if (claimed) return { alreadyClaimed: false, ...stats(claimed) };
 
-  user.challengeDates = [...user.challengeDates.slice(-40), key];
-  user.xp += xp;
-  await user.save();
-
-  return { alreadyClaimed: false, ...stats(user) };
+  const existing = await User.findById(userId);
+  if (!existing) throw new ApiError(404, "Account not found.");
+  return { alreadyClaimed: true, ...stats(existing) };
 }
 
 export async function requireAdmin(session) {

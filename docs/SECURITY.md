@@ -443,10 +443,10 @@ A `cya-csrf` cookie (random, non-`httpOnly` so client JS can read it) is minted 
 signed-in or not — on their first page view via `proxy.ts`, and immediately on login/register/admin
 login ([`csrf.js`](../src/server/middleware/csrf.js)). Every state-changing endpoint that requires a
 session or the admin gate — admin actions, account export/delete, prayer create/pray, event RSVP,
-plan enroll/leave/day, saved-verse toggle/remove, streak read/challenge, and push subscribe/unsubscribe
-— must echo the cookie's value back in an `X-CSRF-Token` header; a mismatch or missing header is
-rejected `403`. Existing sessions predating this change self-heal a token on their next page view, so
-a stale 30-day session cookie isn't locked out. `SameSite=Lax` plus same-origin is the first layer;
+plan enroll/leave/day, saved-verse toggle/remove, streak read/challenge, push subscribe/unsubscribe,
+and member/portal logout — must echo the cookie's value back in an `X-CSRF-Token` header; a mismatch
+or missing header is rejected `403`. Existing sessions predating this change self-heal a token on
+their next page view, so a stale 30-day session cookie isn't locked out. `SameSite=Lax` plus same-origin is the first layer;
 the double-submit token is defence in depth applied uniformly across all mutating endpoints — a future
 **state-changing GET** would bypass `SameSite=Lax` alone, but not the token check. All mutations must
 stay POST/PUT/PATCH/DELETE.
@@ -526,6 +526,8 @@ Secrets live **only in environment variables**; none are committed. Documented i
 | Claim challenge | `streak:challenge` | 10 | 10 min |
 | Push subscribe | `push:subscribe` | 20 | 15 min |
 | Push unsubscribe | `push:unsubscribe` | 20 | 15 min |
+| Account data export | `account:export` | 10 | 15 min |
+| Account delete | `account:delete` | 10 | 15 min |
 
 **Anti-spoofing:** the client IP is taken from `X-Forwarded-For` **counting from the right** by
 `TRUSTED_PROXY_HOPS`, so a client-injected leftmost address cannot forge identity

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, LogOut } from "lucide-react";
+import { csrfHeader } from "@/lib/csrf";
 
 export function ExitPortalButton() {
   const router = useRouter();
@@ -11,7 +12,7 @@ export function ExitPortalButton() {
   const exit = async () => {
     if (leaving) return;
     setLeaving(true);
-    await fetch("/api/admin/portal/logout", { method: "POST" }).catch(() => {});
+    await fetch("/api/admin/portal/logout", { method: "POST", headers: csrfHeader() }).catch(() => {});
     router.push("/");
     router.refresh();
   };
