@@ -21,10 +21,10 @@ export function MfaSetupClient() {
 
   useEffect(() => {
     // React Strict Mode double-invokes effects in dev, firing this fetch
-    // twice — harmless since beginEnrollment() is an atomic $set server-side
-    // (each call just mints a fresh secret/backup codes), and the "alive"
-    // flag below ensures only the invocation that's still mounted applies
-    // its response, so the later of the two wins.
+    // twice — harmless since beginEnrollment() atomically converges both
+    // calls on the same secret (see its docstring), and the "alive" flag
+    // below ensures only the invocation that's still mounted applies its
+    // response, so the later of the two wins.
     let alive = true;
     fetch("/api/auth/mfa/enroll", { method: "POST", headers: csrfHeader() })
       .then(async (res) => {

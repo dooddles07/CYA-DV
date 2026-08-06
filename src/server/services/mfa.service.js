@@ -35,37 +35,57 @@ function sessionShape(user) {
  * unconfirmed enrollment is already in progress, its secret is reused rather
  * than replaced — a page reload, a duplicate tab, or a duplicate in-flight
  * request must not silently invalidate whatever the user already scanned
- * into their authenticator app. Backup codes are regenerated every call
- * regardless (their plaintext can't be recovered from the stored hashes),
- * which is safe because the client only ever displays one response.
+ * into their authenticator app.
+ *
+ * The secret decision is a single atomic conditional update, not a
+ * read-then-write: two calls racing at the same instant (the client's
+ * effect double-fires under React Strict Mode) could otherwise both read
+ * "no secret yet", each generate a *different* one, and whichever HTTP
+ * response reaches the browser last isn't guaranteed to be the one whose DB
+ * write landed last — the displayed QR code could silently mismatch the
+ * secret confirmEnrollment actually checks against. MongoDB serializes
+ * writes per document, so of two concurrent findByIdAndUpdate calls with
+ * the same "still vacant" filter, only one can win the $set; the loser's
+ * filter no longer matches once the winner's write commits, so it falls
+ * through and reads back the value that's now consistently stored.
+ *
+ * Backup codes are regenerated every call regardless (their plaintext can't
+ * be recovered from the stored hashes) — safe because each response's own
+ * write pairs its stored hashes with the exact codes it displays.
  * confirmEnrollment is what flips totpEnabled, which is the actual gate
  * login() checks.
  */
 export async function beginEnrollment(userId) {
   await dbConnect();
-  const existing = await User.findById(userId).select("role email totpSecret totpEnabled").lean();
-  if (!existing) throw new ApiError(404, "Account not found.");
-  if (existing.role !== "admin") throw new ApiError(403, "MFA enrollment is for admin accounts only.");
 
-  const secret =
-    existing.totpSecret && !existing.totpEnabled ? decryptSecret(existing.totpSecret) : generateSecret();
-  const backupCodes = generateBackupCodes();
-  // Atomic $set instead of load+save: two concurrent enroll calls (a double
-  // click, a retried request) would otherwise race a stale in-memory
-  // document against Mongoose's optimistic-concurrency check and throw a
-  // VersionError on the loser.
-  const user = await User.findByIdAndUpdate(
-    userId,
+  const role = await User.findById(userId).select("role").lean();
+  if (!role) throw new ApiError(404, "Account not found.");
+  if (role.role !== "admin") throw new ApiError(403, "MFA enrollment is for admin accounts only.");
+
+  const freshSecret = generateSecret();
+  let user = await User.findOneAndUpdate(
     {
-      $set: {
-        totpSecret: encryptSecret(secret),
-        backupCodeHashes: backupCodes.map((c) => hashCode(normalizeBackupCode(c))),
-        totpEnabled: false,
-      },
+      _id: userId,
+      $or: [{ totpSecret: { $exists: false } }, { totpSecret: null }, { totpEnabled: true }],
     },
+    { $set: { totpSecret: encryptSecret(freshSecret), totpEnabled: false } },
     { returnDocument: "after" }
   );
-  if (!user) throw new ApiError(404, "Account not found.");
+  let secret = freshSecret;
+
+  if (!user) {
+    // Filter didn't match: a pending secret already exists (this call lost
+    // the race, or arrived after an earlier sequential call). Read it back.
+    user = await User.findById(userId).select("email totpSecret");
+    if (!user) throw new ApiError(404, "Account not found.");
+    secret = decryptSecret(user.totpSecret);
+  }
+
+  const backupCodes = generateBackupCodes();
+  await User.updateOne(
+    { _id: userId },
+    { $set: { backupCodeHashes: backupCodes.map((c) => hashCode(normalizeBackupCode(c))) } }
+  );
 
   const uri = otpauthUri(secret, user.email);
   const qrDataUrl = await QRCode.toDataURL(uri);
