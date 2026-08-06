@@ -11,7 +11,7 @@ type Status = "verifying" | "ok" | "error";
 export function VerifyClient({ token }: { token: string }) {
   const [status, setStatus] = useState<Status>(token ? "verifying" : "error");
   const [message, setMessage] = useState(
-    token ? "" : "This link is missing its token. Open the link from your email again."
+    token ? "" : "This link looks incomplete. Open the link from your email again."
   );
   const ran = useRef(false);
   const [resending, setResending] = useState(false);

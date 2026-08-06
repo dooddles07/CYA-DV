@@ -57,7 +57,7 @@ export function ResetClient({ token }: { token: string }) {
       <div className="text-center">
         <h1 className="text-2xl font-extrabold tracking-tight text-ink">Invalid reset link</h1>
         <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-          This link is missing its token. Request a fresh one and try again.
+          This reset link looks incomplete. Request a fresh one and try again.
         </p>
         <Link
           href="/forgot-password"
