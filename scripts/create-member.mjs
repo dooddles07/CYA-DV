@@ -70,7 +70,23 @@ async function main() {
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await User.findOneAndUpdate(
     { email },
-    { $set: { name, passwordHash, role: "member", emailVerified: true }, $setOnInsert: { email } },
+    {
+      $set: { name, passwordHash, role: "member", emailVerified: true },
+      // Only applied on first creation — a real registration goes through the
+      // app's own schema defaults (User.create()); this upsert bypasses that,
+      // so these must be spelled out explicitly or reads via .lean() (e.g.
+      // getUserStats()) see `undefined` instead of 0 and crash the dashboard.
+      $setOnInsert: {
+        email,
+        tokenVersion: 0,
+        xp: 0,
+        streak: 0,
+        bestStreak: 0,
+        totalReads: 0,
+        lastReadDate: null,
+        challengeDates: [],
+      },
+    },
     { new: true, upsert: true }
   );
   console.log(`Account ready: ${user.email} (${user.role}) — id ${user._id}`);

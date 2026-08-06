@@ -1,5 +1,14 @@
 import { test, expect } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  // The PWA install prompt (src/components/pwa/install-prompt.tsx) is a
+  // fixed, high z-index overlay that can appear at an unpredictable moment
+  // once Chromium fires its native `beforeinstallprompt` event — pre-seed
+  // the same "dismissed" flag the component itself checks so it never
+  // mounts at all, rather than risk it intercepting a click.
+  await page.addInitScript(() => localStorage.setItem("cya-install-dismissed", "1"));
+});
+
 /**
  * Core happy path: register -> auto-logged-in -> view daily verse -> mark
  * read -> streak increments -> dashboard reflects it. Runs against dev:local

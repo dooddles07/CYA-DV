@@ -57,6 +57,9 @@ if (await portInUse(MONGO_PORT)) {
 
 // Seed verses (idempotent upsert — safe every boot).
 await run("node", ["scripts/seed.mjs"], { MONGO_URL: uri });
+// Seed the E2E/dev admin fixture (dev-local only — never wired into the
+// production-facing `npm run seed` script).
+await run("node", ["scripts/seed-e2e-admin.mjs"], { MONGO_URL: uri });
 
 console.log("Starting next dev...\n");
 const dev = spawn("npx", ["next", "dev"], {

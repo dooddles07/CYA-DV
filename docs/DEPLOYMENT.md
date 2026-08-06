@@ -203,6 +203,7 @@ error. Optional integrations disable themselves gracefully when unset.
 | `VAPID_CONTACT_EMAIL` | No | VAPID `mailto:` contact | `mailto:you@example.com` |
 | `CRON_SECRET` | No | Bearer secret for the daily-push cron | 48-hex string |
 | `ADMIN_PORTAL_PASSWORD` | No | Passphrase for `/admin-portal` (8h session) | long random string |
+| `ADMIN_PORTAL_TOTP_SECRET` | No | Shared TOTP secret — portal MFA (unset = passphrase-only) | base32 string, see `.env.example` |
 | `SMTP_USER` | No | SMTP username (reset/verify email) | `you@gmail.com` |
 | `SMTP_PASS` | No | SMTP password / app password | 16-char app password |
 | `SMTP_FROM` | No | From address on outbound mail | `CYA <you@gmail.com>` |
@@ -225,7 +226,17 @@ node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 
 # VAPID key pair
 node -e "console.log(require('web-push').generateVAPIDKeys())"
+
+# ADMIN_PORTAL_TOTP_SECRET (optional — enables portal MFA)
+node --input-type=module -e "import{generateSecret}from './src/server/utils/totp.js';console.log(generateSecret())"
 ```
+
+**Admin MFA.** Admin-role member accounts require TOTP automatically — no
+operator action needed, each account enrolls itself (QR code + backup codes)
+on first login after this ships. The admin **portal** passphrase's MFA is
+opt-in: set `ADMIN_PORTAL_TOTP_SECRET` above and share it out-of-band with
+portal users the same way `ADMIN_PORTAL_PASSWORD` already is; leave it unset
+to keep the portal passphrase-only.
 
 **Setup.**
 
@@ -239,8 +250,9 @@ cp .env.example .env
 - In production, store secrets in the **host's secret manager** (Vercel
   Environment Variables, Railway Variables, AWS Secrets Manager) — never in the
   image or repo.
-- **Rotate** `AUTH_SECRET`, `CRON_SECRET`, and `ADMIN_PORTAL_PASSWORD`
-  periodically and whenever a person with access leaves. Rotating `AUTH_SECRET`
+- **Rotate** `AUTH_SECRET`, `CRON_SECRET`, `ADMIN_PORTAL_PASSWORD`, and (if set)
+  `ADMIN_PORTAL_TOTP_SECRET` periodically and whenever a person with access
+  leaves. Rotating `AUTH_SECRET`
   invalidates all active sessions (acceptable, forces re-login).
 
 ---
@@ -768,7 +780,8 @@ Prometheus + Grafana (metrics/dashboards), platform-native logs
   with `tokenVersion` revocation.
 - **Container security** — non-root user, minimal base image, health checks (§6).
 - **Credential rotation** — rotate `AUTH_SECRET`, `CRON_SECRET`,
-  `ADMIN_PORTAL_PASSWORD` on a schedule and on personnel changes.
+  `ADMIN_PORTAL_PASSWORD`, and `ADMIN_PORTAL_TOTP_SECRET` on a schedule and on
+  personnel changes.
 - **Upload safety** — images magic-byte validated (≤2MB) and content-type
   clamped on serve.
 

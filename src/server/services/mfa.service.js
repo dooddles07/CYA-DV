@@ -37,16 +37,28 @@ function sessionShape(user) {
  */
 export async function beginEnrollment(userId) {
   await dbConnect();
-  const user = await User.findById(userId);
-  if (!user) throw new ApiError(404, "Account not found.");
-  if (user.role !== "admin") throw new ApiError(403, "MFA enrollment is for admin accounts only.");
+  const existing = await User.findById(userId).select("role email").lean();
+  if (!existing) throw new ApiError(404, "Account not found.");
+  if (existing.role !== "admin") throw new ApiError(403, "MFA enrollment is for admin accounts only.");
 
   const secret = generateSecret();
   const backupCodes = generateBackupCodes();
-  user.totpSecret = encryptSecret(secret);
-  user.backupCodeHashes = backupCodes.map((c) => hashCode(normalizeBackupCode(c)));
-  user.totpEnabled = false;
-  await user.save();
+  // Atomic $set instead of load+save: two concurrent enroll calls (a double
+  // click, a retried request, React Strict Mode's dev-only double-effect)
+  // would otherwise race a stale in-memory document against Mongoose's
+  // optimistic-concurrency check and throw a VersionError on the loser.
+  const user = await User.findByIdAndUpdate(
+    userId,
+    {
+      $set: {
+        totpSecret: encryptSecret(secret),
+        backupCodeHashes: backupCodes.map((c) => hashCode(normalizeBackupCode(c))),
+        totpEnabled: false,
+      },
+    },
+    { returnDocument: "after" }
+  );
+  if (!user) throw new ApiError(404, "Account not found.");
 
   const uri = otpauthUri(secret, user.email);
   const qrDataUrl = await QRCode.toDataURL(uri);
@@ -63,9 +75,8 @@ export async function confirmEnrollment(userId, code) {
   const secret = decryptSecret(user.totpSecret);
   if (!verifyTotp(secret, code)) throw new ApiError(401, "That code didn't match. Try again.");
 
-  user.totpEnabled = true;
-  await user.save();
-  return sessionShape(user);
+  const updated = await User.findByIdAndUpdate(userId, { $set: { totpEnabled: true } }, { new: true });
+  return sessionShape(updated);
 }
 
 /** Verifies a TOTP code or consumes a single-use backup code for an already-enrolled account. */
@@ -76,15 +87,19 @@ export async function verifyMemberCode(userId, { code, backupCode } = {}) {
 
   if (backupCode) {
     const target = hashCode(normalizeBackupCode(backupCode));
-    const idx = user.backupCodeHashes.indexOf(target);
-    if (idx === -1) throw new ApiError(401, "That backup code is not valid.");
-    user.backupCodeHashes.splice(idx, 1);
-    await user.save();
-  } else {
-    const secret = decryptSecret(user.totpSecret);
-    if (!verifyTotp(secret, code)) throw new ApiError(401, "That code didn't match. Try again.");
+    // Atomic pull, conditioned on the code still being present, so two
+    // concurrent redemptions of the same backup code can't both succeed.
+    const updated = await User.findOneAndUpdate(
+      { _id: userId, backupCodeHashes: target },
+      { $pull: { backupCodeHashes: target } },
+      { returnDocument: "after" }
+    );
+    if (!updated) throw new ApiError(401, "That backup code is not valid.");
+    return sessionShape(updated);
   }
 
+  const secret = decryptSecret(user.totpSecret);
+  if (!verifyTotp(secret, code)) throw new ApiError(401, "That code didn't match. Try again.");
   return sessionShape(user);
 }
 

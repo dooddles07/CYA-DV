@@ -83,7 +83,7 @@ descriptive of the code as it exists, not aspirational.
 | IP spoofing to evade limits | `X-Forwarded-For` | Trusted-hop counting from the right |
 
 **Out of scope / accepted:** shared admin-portal passphrase model (documented, ministry-operated);
-platform-level DDoS (delegated to the hosting edge); no MFA (see Recommended Improvements).
+platform-level DDoS (delegated to the hosting edge).
 
 ---
 
@@ -205,7 +205,22 @@ response).
 
 ### MFA
 
-Not implemented. **Recommended Improvement:** TOTP or email-code second factor for admin accounts.
+Required for both admin paths — a hand-rolled RFC 6238 TOTP implementation on `node:crypto`
+([`totp.js`](../src/server/utils/totp.js)), no third-party auth library. Primary credential success
+(password or portal passphrase) issues a short-lived `cya-mfa-pending` cookie instead of the real
+session; a valid code (or, for admin-role accounts, a one-time backup code) exchanges it for the
+real `cya-session`/`cya-admin` cookie via [`mfa.service.js`](../src/server/services/mfa.service.js).
+
+- **Admin-role member accounts:** self-service enrollment on first login — QR code (rendered
+  server-side via `qrcode`, never shipped to the client bundle) plus a manual key, and 10 one-time
+  backup codes shown once. The TOTP secret is AES-256-GCM encrypted at rest, keyed from `AUTH_SECRET`
+  (no new secret to provision). Backup-code hashes (SHA-256) are stored, not the codes themselves.
+- **Admin portal:** a single shared TOTP secret via the optional `ADMIN_PORTAL_TOTP_SECRET` env var —
+  unset means the portal stays passphrase-only (opt-in, same pattern as `VAPID_*`/`SMTP_*`). No backup
+  codes for this path; recovery is env-var rotation by an operator, same as `ADMIN_PORTAL_PASSWORD`.
+- **Rate limits:** `auth:mfa-enroll` and `auth:mfa-enroll-confirm` 5/15min, `auth:mfa-verify` 8/15min.
+- All three endpoints require the `X-CSRF-Token` double-submit header, consistent with every other
+  mutating endpoint in the app.
 
 ---
 
@@ -636,6 +651,7 @@ Content-Security-Policy is delivered per-request from `proxy.ts` (see §8).
 - [x] Secure authentication implemented (bcrypt + signed JWT)
 - [x] Password hashing enabled (bcrypt cost 10)
 - [x] Session security configured (httpOnly, secure-in-prod, SameSite=Lax, revocable)
+- [x] MFA required for admin access (TOTP, both admin paths — see §9 MFA)
 
 **Authorization**
 - [x] Role permissions validated (`assertAdmin`, `emailVerified`, no self-elevation)
@@ -646,7 +662,7 @@ Content-Security-Policy is delivered per-request from `proxy.ts` (see §8).
 - [x] Injection prevention enabled (Mongoose casting, `escapeRegex`, `isValidObjectId`)
 - [x] XSS protection implemented (React escaping + nonce CSP + email escaping)
 - [x] CSRF protection implemented (SameSite=Lax + same-origin, plus a double-submit token on
-  admin + account delete/export)
+  every authenticated mutating endpoint)
 
 **Secrets**
 - [x] No secrets committed (`.gitignore` enforced)

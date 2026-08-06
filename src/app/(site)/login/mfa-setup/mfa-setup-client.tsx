@@ -20,6 +20,11 @@ export function MfaSetupClient() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    // React Strict Mode double-invokes effects in dev, firing this fetch
+    // twice — harmless since beginEnrollment() is an atomic $set server-side
+    // (each call just mints a fresh secret/backup codes), and the "alive"
+    // flag below ensures only the invocation that's still mounted applies
+    // its response, so the later of the two wins.
     let alive = true;
     fetch("/api/auth/mfa/enroll", { method: "POST", headers: csrfHeader() })
       .then(async (res) => {
@@ -35,14 +40,19 @@ export function MfaSetupClient() {
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (busy || !code) return;
+    // Read the live DOM value via FormData rather than the `code` state
+    // closure — a controlled input's onChange can lag a fast programmatic
+    // fill (real users typing key-by-key don't hit this), so trusting the
+    // closure risks submitting a stale empty string.
+    const submitted = String(new FormData(e.currentTarget).get("code") ?? "").trim();
+    if (busy || !submitted) return;
     setBusy(true);
     setError("");
     try {
       const res = await fetch("/api/auth/mfa/enroll/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...csrfHeader() },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code: submitted }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {

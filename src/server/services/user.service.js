@@ -11,13 +11,18 @@ import { logError } from "@/server/utils/logger";
 /** @typedef {import("@/lib/types").UserStats} UserStats */
 
 function stats(user) {
+  // Coalesce missing fields rather than trust every write path (scripts,
+  // manual DB edits) to have populated them — .lean() reads skip Mongoose's
+  // schema-default backfill, so a doc missing these would otherwise render
+  // `undefined`/NaN and crash the dashboard (`undefined.toLocaleString()`).
+  const xp = user.xp ?? 0;
   return {
-    streak: user.streak,
-    bestStreak: user.bestStreak,
-    totalReads: user.totalReads,
-    xp: user.xp,
-    level: levelFor(user.xp),
-    xpToNext: xpToNext(user.xp),
+    streak: user.streak ?? 0,
+    bestStreak: user.bestStreak ?? 0,
+    totalReads: user.totalReads ?? 0,
+    xp,
+    level: levelFor(xp),
+    xpToNext: xpToNext(xp),
   };
 }
 

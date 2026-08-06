@@ -16,14 +16,19 @@ export function MfaVerifyClient({ next }: { next: string }) {
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (busy || !value) return;
+    // Read the live DOM value via FormData rather than the `value` state
+    // closure — a controlled input's onChange can lag a fast programmatic
+    // fill (real users typing key-by-key don't hit this), so trusting the
+    // closure risks submitting a stale empty string.
+    const submitted = String(new FormData(e.currentTarget).get("code") ?? "").trim();
+    if (busy || !submitted) return;
     setBusy(true);
     setError("");
     try {
       const res = await fetch("/api/auth/mfa/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...csrfHeader() },
-        body: JSON.stringify(useBackup ? { backupCode: value } : { code: value }),
+        body: JSON.stringify(useBackup ? { backupCode: submitted } : { code: submitted }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
