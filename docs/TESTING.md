@@ -223,7 +223,7 @@ A second workflow, [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), ru
 
 - **Mock only what you cannot run.** The resolver hook stubs `server-only`, `client-only`, and `next/server` because they cannot load outside the Next runtime — not to avoid testing real logic.
 - **Prefer real integrations where cheap.** The service tests deliberately use a real in-memory MongoDB instead of mocking Mongoose, so queries, validators, and indexes are genuinely exercised.
-- **Keep external I/O out of unit tests.** Network, email (`nodemailer`), and push (`web-push`) calls should be injected or stubbed at the boundary if they enter the test path.
+- **Keep external I/O out of unit tests.** Network, email (Resend HTTP API), and push (`web-push`) calls should be injected or stubbed at the boundary if they enter the test path.
 
 ---
 

@@ -68,7 +68,7 @@ graph TB
     Backend["Layered backend<br/>routes→controllers→services→models"]
   end
   DB[("MongoDB<br/>(Mongoose)")]
-  SMTP["SMTP (nodemailer)"]
+  SMTP["Resend<br/>(HTTP API)"]
   PushSvc["Web Push services<br/>(VAPID)"]
   Cron["GitHub Actions scheduler"]
 
@@ -95,7 +95,7 @@ graph TB
 | Fonts | Manrope (UI), Lora (scripture) via `next/font` | — |
 | Database / ODM | MongoDB via Mongoose | ^9.8 |
 | Auth | bcryptjs ^3 (hashing) + jose ^6 (JWT session cookies) | — |
-| Email | nodemailer ^9 (SMTP) | — |
+| Email | Resend HTTP API (plain `fetch`, no SDK) | — |
 | Push | web-push ^3.6 (VAPID) | — |
 | Local DB | mongodb-memory-server ^11 (dev + tests) | — |
 | Lint / Test | ESLint ^9 · `node:test` with `--experimental-strip-types` | — |
@@ -170,7 +170,7 @@ funnel through `toResponse()`.
 ### Communication patterns
 
 - **UI → backend:** HTTP. Server Components call services in-process; Client Components `fetch` the JSON API.
-- **Backend → external:** direct client calls (Mongoose, nodemailer SMTP, web-push VAPID). No message bus.
+- **Backend → external:** direct client calls (Mongoose, Resend HTTP API, web-push VAPID). No message bus.
 - **Scheduler → backend:** GitHub Actions HTTPS `POST` with a `CRON_SECRET` bearer.
 - **Backend → browser (push):** Web Push protocol, server-initiated.
 - **No** GraphQL, gRPC, or WebSockets.
@@ -542,7 +542,7 @@ register → hash+store → email verify token → verify → login (bcrypt comp
 | Integration | Purpose | Integration method / auth | Data exchanged | Failure handling |
 |---|---|---|---|---|
 | **MongoDB** | Primary datastore | Mongoose driver, `MONGO_URL` | All domain data | Fail-fast (5s selection), clear cached promise, retry next call; seed fallback for verses, degraded in-memory rate limit |
-| **SMTP (nodemailer)** | Verify + reset email | SMTP creds `SMTP_USER/PASS` | Email address + token link | Fire-and-forget with own error boundary; SMTP timeouts set; **feature silently disabled if unset** |
+| **Resend** | Verify + reset email | HTTPS, `RESEND_API_KEY` bearer | Email address + token link | Fire-and-forget with own error boundary; 10s request timeout; **feature silently disabled if unset**. Chosen over SMTP because Vercel serverless functions can't reliably complete a raw SMTP handshake. |
 | **Web Push (VAPID)** | Daily reminders | `web-push`, VAPID key pair | Push subscription endpoint + verse payload | 404/410 → prune sub; other errors logged; bounded 100-batch; **feature disabled if keys unset** |
 | **GitHub Actions** | Daily push scheduler | HTTPS POST, `CRON_SECRET` bearer + `SITE_URL` secret | Trigger only | Job fails on non-200; `workflow_dispatch` manual retry; 06:00 Manila cron |
 | **Vercel (host)** | Runtime | Platform | — | — |

@@ -204,9 +204,8 @@ error. Optional integrations disable themselves gracefully when unset.
 | `CRON_SECRET` | No | Bearer secret for the daily-push cron | 48-hex string |
 | `ADMIN_PORTAL_PASSWORD` | No | Passphrase for `/admin-portal` (8h session) | long random string |
 | `ADMIN_PORTAL_TOTP_SECRET` | No | Shared TOTP secret — portal MFA (unset = passphrase-only) | base32 string, see `.env.example` |
-| `SMTP_USER` | No | SMTP username (reset/verify email) | `you@gmail.com` |
-| `SMTP_PASS` | No | SMTP password / app password | 16-char app password |
-| `SMTP_FROM` | No | From address on outbound mail | `CYA <you@gmail.com>` |
+| `RESEND_API_KEY` | No | Resend HTTP API key (reset/verify email) — SMTP doesn't work reliably from Vercel functions | `re_...` |
+| `RESEND_FROM` | No | From address on outbound mail — sandboxed to your Resend account's own email until a domain is verified | `CYA <onboarding@resend.dev>` |
 | `TRUSTED_PROXY_HOPS` | No | Trusted reverse-proxy hops for client-IP derivation (default 1) | `1` |
 
 > This project uses **cookie-JWT sessions** (no `JWT_SECRET`/`SESSION_SECRET`

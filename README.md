@@ -131,7 +131,7 @@ Full capability breakdown in [`docs/FEATURES.md`](./docs/FEATURES.md).
 - Node.js server layer (`src/server`: controllers, routes, services, middleware)
 - Mongoose (data models)
 - `jose` (JWT session signing), `bcryptjs` (password hashing)
-- `nodemailer` (email), `web-push` (VAPID notifications)
+- Resend HTTP API (email), `web-push` (VAPID notifications)
 
 ### Database
 
@@ -187,7 +187,7 @@ Copy `.env.example` to `.env` and fill in the required values. Required variable
 | `VAPID_CONTACT_EMAIL` | ❌ | VAPID `mailto:` contact |
 | `CRON_SECRET` | ❌ | Bearer secret for the daily push cron |
 | `ADMIN_PORTAL_PASSWORD` | ❌ | Passphrase for `/admin-portal` (8-hour sessions) |
-| `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | ❌ | Email for verification/password reset (off if unset) |
+| `RESEND_API_KEY` / `RESEND_FROM` | ❌ | Email for verification/password reset via Resend's HTTP API (off if unset) |
 | `TRUSTED_PROXY_HOPS` | ❌ | Reverse-proxy hop count for client-IP derivation |
 
 Generation hints for secrets are documented inline in `.env.example`.

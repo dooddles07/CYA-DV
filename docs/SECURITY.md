@@ -90,8 +90,8 @@ platform-level DDoS (delegated to the hosting edge).
 ## 2. Security Architecture
 
 The app is a single Next.js deployment. The browser talks only to Next.js; Next.js server code talks
-to MongoDB and, optionally, SMTP and the Web Push service. There are no other inbound trust
-boundaries.
+to MongoDB and, optionally, the Resend email API and the Web Push service. There are no other inbound
+trust boundaries.
 
 ```mermaid
 flowchart LR
@@ -109,7 +109,7 @@ flowchart LR
   end
   subgraph Data["Data & external (trusted network)"]
     DB[(MongoDB / Mongoose)]
-    SMTP[SMTP - nodemailer]
+    SMTP[Resend - HTTP API]
     PUSH[Web Push - VAPID]
   end
 
@@ -468,7 +468,7 @@ Secrets live **only in environment variables**; none are committed. Documented i
 | `ADMIN_PORTAL_PASSWORD` | Shared admin-portal passphrase | Admin portal |
 | `CRON_SECRET` | Shared secret for the daily-verse scheduler | Cron |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_CONTACT_EMAIL` | Web Push | Optional |
-| `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | Transactional email | Optional |
+| `RESEND_API_KEY` / `RESEND_FROM` | Transactional email (Resend HTTP API) | Optional |
 | `TRUSTED_PROXY_HOPS` | Trusted reverse-proxy count for IP derivation | Optional |
 
 ### Protections
@@ -558,9 +558,9 @@ Improvement:** verify TLS is enforced on the connection and enable at-rest encry
 
 ## 13. Dependency Security
 
-- **Runtime deps are deliberately lean** — `bcryptjs`, `jose`, `mongoose`, `nodemailer`, `web-push`,
-  plus the Next/React/UI stack. No heavyweight security middleware; controls are first-party and
-  auditable.
+- **Runtime deps are deliberately lean** — `bcryptjs`, `jose`, `mongoose`, `web-push`, plus the
+  Next/React/UI stack. Email goes through Resend's HTTP API via plain `fetch`, no email SDK. No
+  heavyweight security middleware; controls are first-party and auditable.
 - **Lock file** — `package-lock.json` is committed for reproducible, pinned installs.
 - **Pinned framework** — Next.js and `eslint-config-next` pinned to an exact version.
 
