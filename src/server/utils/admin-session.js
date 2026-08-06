@@ -20,6 +20,11 @@ export function portalConfigured() {
   return Boolean(process.env.ADMIN_PORTAL_PASSWORD);
 }
 
+/** True when an operator has provisioned a shared TOTP secret for the portal. */
+export function portalMfaConfigured() {
+  return Boolean(process.env.ADMIN_PORTAL_TOTP_SECRET);
+}
+
 /** Timing-safe compare so response time can't be used to guess the passphrase. */
 export function passphraseMatches(candidate) {
   const expected = process.env.ADMIN_PORTAL_PASSWORD ?? "";
