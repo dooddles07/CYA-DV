@@ -121,7 +121,7 @@ export function Footer() {
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-line pt-6 text-xs text-ink-faint sm:flex-row">
           <p>
-            © 2026 Christ&apos;s Youth in Action. Scripture: Berean Standard Bible (public domain).
+            © 2026 Christ&apos;s Youth in Action. Scripture: Berean Standard Bible, free to share.
           </p>
           <p>Made with prayer, for the youth.</p>
         </div>
