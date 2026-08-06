@@ -52,6 +52,14 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         setBusy(false);
         return;
       }
+      if (isLogin && data.mfaSetupRequired) {
+        router.push("/login/mfa-setup");
+        return;
+      }
+      if (isLogin && data.mfaRequired) {
+        router.push("/login/mfa-verify");
+        return;
+      }
       toast(isLogin ? "Welcome back!" : "Welcome to the family!", "success");
       router.push("/dashboard");
       router.refresh();

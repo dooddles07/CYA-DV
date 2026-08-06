@@ -37,6 +37,10 @@ export function PortalClient({ next }: { next: string }) {
         setBusy(false);
         return;
       }
+      if (data.mfaRequired) {
+        router.push(`/login/mfa-verify?next=${encodeURIComponent(next)}`);
+        return;
+      }
       router.push(next);
       router.refresh();
     } catch {
