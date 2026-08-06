@@ -5,10 +5,12 @@ import {
   destroyAdminSession,
   passphraseMatches,
   portalConfigured,
+  portalMfaConfigured,
 } from "@/server/utils/admin-session";
 import { ApiError, toResponse } from "@/server/utils/api-error";
 import { rateLimit } from "@/server/middleware/rate-limit";
 import { logAdminAction } from "@/server/utils/admin-audit";
+import { createMfaPending } from "@/server/middleware/mfa-pending";
 
 export async function portalLogin(req) {
   try {
@@ -27,6 +29,11 @@ export async function portalLogin(req) {
     const body = await req.json().catch(() => ({}));
     if (!passphraseMatches(body.passphrase))
       throw new ApiError(401, "That passphrase is not correct.");
+
+    if (portalMfaConfigured()) {
+      await createMfaPending({ sub: "admin-portal", kind: "portal", purpose: "verify" });
+      return NextResponse.json({ mfaRequired: true });
+    }
 
     await createAdminSession();
     await logAdminAction({
