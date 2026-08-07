@@ -109,7 +109,7 @@ Timestamps:   createdAt / updatedAt (Mongoose `timestamps: true`)
 | **Hard delete** | events, devotions, saved verses, RSVP/pray toggles, account delete | Physically removed; deleting an event cascades to its RSVPs and orphaned image. |
 | **TTL auto-expiry** | `resettokens`, `verifytokens`, `ratebuckets` | Mongo removes documents once `expiresAt` passes. |
 | **Bounded array** | `users.challengeDates` | Trimmed to the last ~40 entries on write. |
-| **Audit tracking** | None beyond `createdAt`/`updatedAt` | No dedicated audit log; add if compliance requires. |
+| **Audit tracking** | `adminauditlogs` (append-only) | Every privileged admin mutation — actor, action, target, metadata. Never updated or deleted by the app. |
 
 ---
 
@@ -129,6 +129,7 @@ erDiagram
     USER ||--o{ PUSHSUBSCRIPTION : owns
     USER ||--o{ RESETTOKEN : requests
     USER ||--o{ VERIFYTOKEN : requests
+    USER ||--o{ ADMINAUDITLOG : "acts as (nullable)"
     VERSE ||--o{ SAVEDVERSE : "snapshotted into"
 
     USER {
@@ -234,6 +235,15 @@ erDiagram
         string _id PK
         number count
         date expiresAt
+    }
+    ADMINAUDITLOG {
+        ObjectId _id PK
+        ObjectId actorId FK "null for portal sessions"
+        string actorLabel
+        string action
+        string targetType
+        string targetId
+        mixed meta
     }
 ```
 
@@ -442,6 +452,27 @@ verification). Identical shape. No `timestamps`.
 | `expiresAt` | Date | No | — | TTL index | Mongo auto-removes on expiry |
 | `usedAt` | Date \| null | Yes | `null` | | single-use guard |
 
+## Collection: adminauditlogs — `admin-audit-log.model.js`
+
+**Purpose.** Append-only trail of privileged mutations — event/devotion
+create/update/delete, prayer moderation, user role changes, verse sync,
+event-image uploads, and admin portal login/logout. Never updated or deleted
+by the app; retention is an operational decision.
+
+| Field | Type | Nullable | Default | Key | Description |
+|---|---|---|---|---|---|
+| `_id` | ObjectId | No | auto | PK | Identifier |
+| `actorId` | ObjectId | Yes | `null` | FK→users | `null` for a passphrase-only portal session |
+| `actorLabel` | String | No | — | | required, max 120 |
+| `action` | String | No | — | | required, max 80, e.g. `"prayer.moderate"` |
+| `targetType` | String | Yes | — | | max 40 |
+| `targetId` | String | Yes | — | | max 120 |
+| `meta` | Mixed | Yes | — | | free-form context for the action |
+| `createdAt` / `updatedAt` | Date | No | auto | | timestamps |
+
+**Business rules.** Logging is best-effort and never blocks or fails the
+action it records — a logging failure doesn't roll back the mutation.
+
 ## Collection: ratebuckets — `rate-bucket.model.js`
 
 **Purpose.** Distributed fixed-window rate-limit counters. No `timestamps`.
@@ -488,6 +519,10 @@ most one `active: true` per user by deactivating others on enroll.
 ## users → resettokens / verifytokens — One-to-Many
 `*.userId → users._id`. Short-lived, TTL-expired, single-use.
 
+## users → adminauditlogs — One-to-Many (nullable actor)
+`adminauditlogs.actorId → users._id`, or `null` for a passphrase-only portal
+session (`actorLabel` carries a human-readable name in that case instead).
+
 ---
 
 # 6. Index Strategy
@@ -520,6 +555,7 @@ most one `active: true` per user by deactivating others on enroll.
 | resettokens | `userId_1` | `userId` | STANDARD | per-user tokens |
 | verifytokens | — | (same three as resettokens) | | |
 | ratebuckets | `expiresAt_1` | `expiresAt` | TTL (`expireAfterSeconds: 0`) | auto-clean windows |
+| adminauditlogs | `createdAt_-1` | `createdAt` | STANDARD | newest-first read of the audit trail |
 
 > Only **one text index** is allowed per collection — `verse_search` covers both
 > `reference` and `text`.
@@ -649,20 +685,19 @@ devotion/plan/challenge catalogs in `src/lib/data`.
 
 ## Backup
 ```
-STATUS: No backup automation exists in the repository. The database is hosted on
-MongoDB Atlas.
- - Confirm and document Atlas's backup cadence/retention for the current cluster tier, OR
- - Add a scheduled `mongodump` job with offsite storage.
-Recommended: daily automated dump + 7–30 day retention.
+STATUS: No SCHEDULED backup automation exists. A manual runbook is documented
+in DEPLOYMENT.md §14 (mongodump, storage guidance, restore steps), but nothing
+runs it on a schedule yet. The database is hosted on MongoDB Atlas.
+ - M10+ clusters have Atlas Cloud Backup available — not yet enabled.
+ - M0/M2/M5 (shared) tiers need a scheduled `mongodump` job instead (e.g. a
+   GitHub Actions cron, matching this repo's existing daily-verse-push pattern).
+Recommended: daily automated dump + 7-30 day retention.
 ```
 
 ## Recovery
-```
-RECOMMENDED: Define and rehearse a restore procedure:
- - `mongorestore` from the latest dump into a fresh database.
- - Re-point MONGO_URL and verify GET /api/health.
- - State an RPO/RTO target.
-```
+See [`DEPLOYMENT.md`](./DEPLOYMENT.md) §14 for the documented `mongorestore`
+procedure, post-restore verification steps, and RPO/RTO targets. Not yet
+rehearsed against a real restore — recommended at least once per quarter.
 
 Mitigating factors already in place: the verse corpus is fully reproducible from
 `src/data/verses.json` (`npm run seed`), and devotions re-seed from code — so a
@@ -690,8 +725,8 @@ only user-generated data (accounts, prayers, RSVPs, saves, progress).
 
 ## Sensitive data protection
 - No secrets in the database. Credentials (Mongo URL, `AUTH_SECRET`, VAPID keys,
-  `CRON_SECRET`, `ADMIN_PORTAL_PASSWORD`, SMTP) live in environment variables
-  (`.env`, documented in `.env.example`) — **never committed**.
+  `CRON_SECRET`, `ADMIN_PORTAL_PASSWORD`, `RESEND_API_KEY`) live in environment
+  variables (`.env`, documented in `.env.example`) — **never committed**.
 - Required env vars (`MONGO_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`) are
   asserted at boot; `GET /api/health` reports readiness without exposing values.
 - Uploaded images are magic-byte validated before storage and content-type
@@ -765,8 +800,8 @@ Based on the current implementation:
   is ever relaxed.
 - **Explicit index build control:** disable `autoIndex` in production and build
   indexes deliberately to avoid first-request latency on large collections.
-- **Audit trail:** add an audit log for admin moderation actions if compliance
-  or accountability requirements grow.
+- **Audit-log retention.** `adminauditlogs` is append-only with no rotation or
+  archival policy yet — fine at current volume, worth revisiting if it grows.
 
 ---
 

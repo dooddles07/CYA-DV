@@ -9,7 +9,8 @@ Not committed dates; priority-ordered.
 | Item | Why | Difficulty | Risk |
 |---|---|---|---|
 | Metrics + alerting; wire `/api/health` to a probe | Detect DB latency / push failures early | Medium | APM vendor lock-in |
-| Document/verify prod topology + commit deploy/rollback workflow | Reproducible, recoverable ops | Low | — |
+| Make `ci.yml` a required status check on `main` | A red build shouldn't be mergeable/deployable | Low | — |
+| Automate database backups | Manual runbook exists (`DEPLOYMENT.md` §14); nothing scheduled yet | Low | — |
 
 ## Medium priority
 
@@ -24,11 +25,12 @@ Not committed dates; priority-ordered.
 | Item | Why | Difficulty | Risk |
 |---|---|---|---|
 | Replace `unstable_cache` with a stable abstraction | Insulate from Next churn | Low | Rework if API stabilizes anyway |
-| Broaden E2E coverage + wire into CI; add contract test suites | Regression safety for user flows | Medium | Test maintenance cost, CI runtime |
+| Broaden E2E coverage (event RSVP, admin moderation); add contract test suites | Regression safety for user flows — 4 specs already run in `ci.yml` | Medium | Test maintenance cost, CI runtime |
 | Consider Redis for rate limit / cache | If traffic outgrows Mongo comfort | Medium | Added infra dependency |
 
 ## Open questions
 
 - Verse-of-day couples to lexical corpus order — reordering/removing verses retroactively changes the
   archive mapping. Acceptable product-wise?
-- Backups and DR posture — production runs on Vercel + MongoDB Atlas; automated backups and a DR runbook still need to be defined.
+- Backup automation — production runs on Vercel + MongoDB Atlas; a manual restore runbook exists (`DEPLOYMENT.md` §14), but nothing runs backups on a schedule yet.
+- Email deliverability — outbound mail goes through Resend's shared `onboarding@resend.dev` sender (no verified domain, by deliberate zero-cost choice), so the sender/link domain mismatch can trip Gmail's spam filters. Only fixable by adding a custom domain.

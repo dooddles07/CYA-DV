@@ -19,7 +19,8 @@
     "seed": "node scripts/seed.mjs",
     "purge:seed": "node scripts/purge-seed.mjs",
     "member:create": "node scripts/create-member.mjs",
-    "verses:fetch": "node scripts/fetch-verses.mjs"
+    "verses:fetch": "node scripts/fetch-verses.mjs",
+    "logo:embed": "node scripts/generate-logo-data-uri.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.6",

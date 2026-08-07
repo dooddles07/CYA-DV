@@ -139,7 +139,7 @@ flowchart LR
   that avoid leaking internals.
 - **Database** — Mongoose schemas with typed fields, `maxlength`, enums, unique indexes, and TTL
   indexes for token/rate-bucket expiry.
-- **External** — SMTP and Web Push are optional and fail soft; both use credentials held only in env.
+- **External** — Resend and Web Push are optional and fail soft; both use credentials held only in env.
 
 ---
 
@@ -221,7 +221,7 @@ real `cya-session`/`cya-admin` cookie via [`mfa.service.js`](../src/server/servi
   backup codes shown once. The TOTP secret is AES-256-GCM encrypted at rest, keyed from `AUTH_SECRET`
   (no new secret to provision). Backup-code hashes (SHA-256) are stored, not the codes themselves.
 - **Admin portal:** a single shared TOTP secret via the optional `ADMIN_PORTAL_TOTP_SECRET` env var —
-  unset means the portal stays passphrase-only (opt-in, same pattern as `VAPID_*`/`SMTP_*`). No backup
+  unset means the portal stays passphrase-only (opt-in, same pattern as `VAPID_*`/`RESEND_*`). No backup
   codes for this path; recovery is env-var rotation by an operator, same as `ADMIN_PORTAL_PASSWORD`.
 - **Rate limits:** `auth:mfa-enroll` and `auth:mfa-enroll-confirm` 5/15min, `auth:mfa-verify` 8/15min.
 - All three endpoints require the `X-CSRF-Token` double-submit header, consistent with every other
@@ -305,7 +305,7 @@ Reset flow ([`password-reset.service.js`](../src/server/services/password-reset.
   reconstruct a usable link.
 - Requesting a new link deletes prior unused links for that user.
 - `requestReset` always resolves identically whether or not the email is registered
-  (**anti-enumeration**), and sends mail fire-and-forget so SMTP latency cannot be timed.
+  (**anti-enumeration**), and sends mail fire-and-forget so the send latency cannot be timed.
 
 **Recommended Improvements:**
 
@@ -486,7 +486,8 @@ Secrets live **only in environment variables**; none are committed. Documented i
 - Dev uses a local in-memory Mongo (`mongodb-memory-server`) and a local `.env`; production secrets
   live in the platform's secret store.
 - **Rotation:** rotate `AUTH_SECRET` (invalidates all sessions), `ADMIN_PORTAL_PASSWORD` (rotate when
-  a leader steps down), `CRON_SECRET`, and SMTP/VAPID keys on a schedule and on suspected exposure.
+  a leader steps down), `CRON_SECRET`, and `RESEND_API_KEY`/VAPID keys on a schedule and on suspected
+  exposure.
 
 ---
 
@@ -575,8 +576,12 @@ Improvement:** verify TLS is enforced on the connection and enable at-rest encry
 
 `npm audit --audit-level=high` runs as a required step in [`ci.yml`](../.github/workflows/ci.yml)
 on every push and PR. [`dependabot.yml`](../.github/dependabot.yml) opens weekly npm update PRs
-(minor/patch grouped into one PR; majors get their own for manual review). **Recommended
-Improvement:** consider a deeper transitive-vulnerability scan (Snyk/OSV-Scanner) over time.
+(minor/patch grouped into one PR; majors get their own for manual review), with `eslint` and
+`typescript` majors explicitly ignored until upstream catches up — `typescript-eslint` doesn't
+support TS 7 yet, and `eslint-plugin-react` breaks `npm run lint` outright under ESLint 10's removed
+`context.getFilename()` API. Both surfaced as real failing Dependabot PRs before the ignore rules
+were added. **Recommended Improvement:** consider a deeper transitive-vulnerability scan
+(Snyk/OSV-Scanner) over time.
 
 ---
 
@@ -688,7 +693,7 @@ Content-Security-Policy is delivered per-request from `proxy.ts` (see §8).
 - [x] Dependencies scanned in CI (`npm audit --audit-level=high` in `ci.yml`)
 - [x] Automated dependency updates (Dependabot, weekly)
 - [~] Security monitoring (structured error logging + admin audit log present; no alerting yet — Recommended)
-- [ ] Backups secured (**operational** — managed platform)
+- [~] Backups secured (manual `mongodump`/`mongorestore` runbook documented — `DEPLOYMENT.md` §14; scheduled automation still **operational**, not yet configured)
 
 Legend: `[x]` implemented · `[~]` partial · `[ ]` not yet / operational.
 

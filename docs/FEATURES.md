@@ -171,9 +171,13 @@ Three roles (`src/lib/types.ts`, enforced by `getSession` / `emailVerified` gate
 - **Password reset.** Emailed single-use token; on reset, `tokenVersion` bumps to **invalidate all old
   sessions**.
 - **Session security.** Per-request revocation check; strict fail-closed mode on sensitive writes.
+- **Two-factor sign-in for admins.** Required for every admin-role account — a QR code plus 10
+  one-time backup codes on first login, then a 6-digit authenticator code on every login after.
+  The admin portal's shared passphrase supports the same second factor, opt-in.
 
 **Endpoints:** `auth/register`, `auth/login`, `auth/logout`, `auth/me`, `auth/verify`,
-`auth/verify/resend`, `auth/forgot`, `auth/reset`.
+`auth/verify/resend`, `auth/forgot`, `auth/reset`, `auth/mfa/enroll`, `auth/mfa/enroll/confirm`,
+`auth/mfa/verify`.
 
 ---
 

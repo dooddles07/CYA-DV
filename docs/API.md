@@ -11,6 +11,7 @@ for rationale.
 - [2. Authentication](#2-authentication)
 - [3. API Endpoints](#3-api-endpoints)
   - [Auth](#auth)
+  - [MFA](#mfa)
   - [Verse](#verse)
   - [Streak & Gamification](#streak--gamification)
   - [Prayer](#prayer)
@@ -135,6 +136,25 @@ Cron endpoints — bearer secret:
 Authorization: Bearer <CRON_SECRET>
 ```
 
+## CSRF
+
+A `cya-csrf` cookie (random, non-`httpOnly`) is set for every visitor on first
+page load. Every mutating endpoint that requires a session or the admin gate —
+that's everything under [Account](#account), [Prayer](#prayer) create/pray,
+[Events](#events) RSVP, [Reading Plans](#reading-plans), [Saved
+Verses](#saved-verses), streak read/challenge, push subscribe/unsubscribe,
+[Admin](#admin), MFA enroll/confirm/verify, and both logout endpoints — must
+echo that cookie's value in an `X-CSRF-Token` header, or the request is
+rejected `403`:
+
+```http
+Cookie: cya-session=<jwt>; cya-csrf=<token>
+X-CSRF-Token: <same token>
+```
+
+Public reads and the `POST /api/auth/register`/`login` calls that mint the
+session in the first place don't need it.
+
 ## Access Control
 
 - **Public:** `verse/today`, `verse/search`, `prayers` (GET), `events` (GET),
@@ -164,7 +184,7 @@ return a generic `500` (see §6).
 
 Create an account, set the session cookie, send a verification email.
 
-- **Auth:** Public. **Rate limit:** 5 / 60 min.
+- **Auth:** Public. **Rate limit:** 10 / 15 min.
 - **Body:**
 
 | Field | Type | Required | Rules |
@@ -191,7 +211,7 @@ Create an account, set the session cookie, send a verification email.
 
 ### `POST /api/auth/logout`
 
-- **Auth:** Session (no-op if absent). Clears `cya-session`.
+- **Auth:** Session (no-op if absent). Requires `X-CSRF-Token` (see [CSRF](#csrf)). Clears `cya-session`.
 - **Success:** `200` `{ "ok": true }`
 
 ### `GET /api/auth/me`
@@ -251,6 +271,51 @@ Re-send the verification email to the signed-in user.
 
 - **Auth:** Session (`401` if absent). **Rate limit:** 3 / 15 min.
 - **Success:** `200` (service-defined body).
+
+---
+
+## MFA
+
+Admin-role accounts require TOTP. Instead of setting the real session,
+`POST /api/auth/login` (and `POST /api/admin/portal/login` when
+`ADMIN_PORTAL_TOTP_SECRET` is set) issue a short-lived `cya-mfa-pending`
+cookie and respond `{ "mfaSetupRequired": true }` (first time) or
+`{ "mfaRequired": true }` (already enrolled) instead of `{ "user" }`. These
+three endpoints consume that cookie to exchange it for the real session.
+
+### `POST /api/auth/mfa/enroll`
+
+Start (or resume) enrollment. Requires `X-CSRF-Token` and a pending
+`purpose: "enroll"` cookie (`401` otherwise).
+
+- **Rate limit:** 5 / 15 min.
+- **Success:** `200` `{ "otpauthUri", "qrDataUrl", "backupCodes": [10 strings] }`
+  — backup codes are shown once, never recoverable afterward.
+
+### `POST /api/auth/mfa/enroll/confirm`
+
+Verify the first code and flip `totpEnabled`. Requires `X-CSRF-Token` and the
+same pending cookie.
+
+- **Rate limit:** 5 / 15 min.
+- **Body:** `{ "code": string }`
+- **Success:** `200` `{ "user": { "name", "email" } }` — sets the real session,
+  clears the pending cookie.
+- **Errors:** `401` wrong code or no pending enrollment.
+
+### `POST /api/auth/mfa/verify`
+
+Verify a code (or, for a member account, a one-time backup code) against an
+already-enrolled account. Requires `X-CSRF-Token` and a pending
+`purpose: "verify"` cookie.
+
+- **Rate limit:** 8 / 15 min.
+- **Body:** `{ "code": string }` or, member accounts only, `{ "backupCode": string }`.
+- **Success:** `200` `{ "user": { "name", "email" } }` (member) or
+  `{ "ok": true }` (admin portal) — sets the real session, clears the pending
+  cookie.
+- **Errors:** `400` backup code sent for a portal login (not supported there)
+  · `401` wrong code / no pending verification.
 
 ---
 
@@ -562,7 +627,7 @@ with `role: "admin"`. On failure: `401` (no session) / `403` (not an admin).
 | Method | Path | Notes |
 |---|---|---|
 | POST | `/api/admin/portal/login` | `{ "passphrase": string }` → sets `cya-admin` (8h). Rate limit **5 / 15 min**. `401` wrong passphrase · `503` portal not configured. |
-| POST | `/api/admin/portal/logout` | Clears `cya-admin`. `200 { "ok": true }` |
+| POST | `/api/admin/portal/logout` | Requires `X-CSRF-Token` (see [CSRF](#csrf)). Clears `cya-admin`. `200 { "ok": true }` |
 
 ### Prayers (moderation)
 
@@ -766,20 +831,23 @@ blocks). Client IP is derived from `X-Forwarded-For` counting from the right by
 
 | Limiter | Endpoint | Limit / window |
 |---|---|---|
-| `auth:register` | `POST /api/auth/register` | 5 / 60 min |
+| `auth:register` | `POST /api/auth/register` | 10 / 15 min |
 | `auth:login` | `POST /api/auth/login` | 10 / 15 min |
 | `auth:forgot` | `POST /api/auth/forgot` | 3 / 15 min |
 | `auth:reset` | `POST /api/auth/reset` | 10 / 15 min |
 | `auth:verify` | `POST /api/auth/verify` | 10 / 15 min |
 | `auth:verify-resend` | `POST /api/auth/verify/resend` | 3 / 15 min |
+| `auth:mfa-enroll`, `auth:mfa-enroll-confirm` | `POST /api/auth/mfa/enroll[/confirm]` | 5 / 15 min |
+| `auth:mfa-verify` | `POST /api/auth/mfa/verify` | 8 / 15 min |
 | `verse:search` | `GET /api/verse/search` | 120 / min |
 | `prayer:create` | `POST /api/prayers` | 5 / 10 min |
 | `prayer:pray` | `POST /api/prayers/[id]/pray` | 60 / min |
 | `admin:portal` | `POST /api/admin/portal/login` | 5 / 15 min |
 | `admin:image` | `POST /api/admin/events/image` | 30 / 10 min |
+| `account:export`, `account:delete` | `GET /api/account/export`, `DELETE /api/account` | 10 / 15 min |
 
 **No** `X-RateLimit-*` response headers are emitted. Endpoints not listed above
-(RSVP, plans, saved, streak, push, account) are **not** rate-limited — they are
+(RSVP, plans, saved, streak, push) are **not** rate-limited — they are
 session-gated and idempotent/self-limiting instead.
 
 ---
@@ -898,6 +966,7 @@ deprecation policy.
 
 | Version | Date | Change |
 |---|---|---|
+| v1.1 | 2026-08-06 | Added the missing [MFA](#mfa) section (enroll/confirm/verify) and a [CSRF](#csrf) section — both existed in the implementation but weren't documented. Corrected `auth:register`'s rate limit (10/15min, was listed as 5/60min). Added `account:export`/`account:delete` to the rate-limit table (newly rate-limited this pass) and `X-CSRF-Token` requirement notes on both logout endpoints (also newly required). |
 | v1.0 | 2026-07-25 | Documentation baselined against implementation. Corrected search param (`q`, not `query`; no `limit`), documented prayer cursor pagination + toggle bodies (`undo`/`going`), `DELETE /api/push/subscribe`, cron GET+POST, shared image upload for devotions, and the full rate-limit table. |
 
 > Track added / removed / deprecated endpoints and breaking changes in this

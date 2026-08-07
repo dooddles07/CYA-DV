@@ -28,7 +28,7 @@ Testing on this project protects the small set of rules that must never silently
 |---|---|---|
 | Unit | Yes | Pure domain logic |
 | Integration | Yes | Services against in-memory MongoDB |
-| End-to-end | Yes (one smoke spec) | Core happy path only; broader coverage manual (see [End-to-End Tests](#end-to-end-tests)) |
+| End-to-end | Yes (4 specs) | Register/streak, admin MFA, prayer wall (post + verification gate); RSVP and moderation still manual (see [End-to-End Tests](#end-to-end-tests)) |
 | Performance / load | No | Recommended in [Future Improvements](#future-improvements) |
 
 ---
@@ -122,7 +122,15 @@ node --experimental-strip-types --import ./tests/helpers/register.mjs --test tes
 
 ## End-to-End Tests
 
-One smoke spec exists: [`tests/e2e/smoke.spec.ts`](../tests/e2e/smoke.spec.ts), using `@playwright/test`. It covers the core happy path — register (auto-logs in) → view daily verse → mark read → streak increments (asserted via the button's own state, no DOM scraping) → dashboard renders.
+Four specs exist, all using `@playwright/test`:
+
+| Spec | Covers |
+|---|---|
+| [`smoke.spec.ts`](../tests/e2e/smoke.spec.ts) | Register (auto-logs in) → view daily verse → mark read → streak increments (asserted via the button's own state, no DOM scraping) → dashboard renders |
+| [`admin-mfa.spec.ts`](../tests/e2e/admin-mfa.spec.ts) | Admin-role login enrolls in TOTP MFA, then a second login verifies against it |
+| [`prayer.spec.ts`](../tests/e2e/prayer.spec.ts) | A verified member posts a prayer request and prays for one on the wall; a separate case confirms an unverified member is blocked with the expected error |
+
+The prayer spec needs a member account that's already `emailVerified: true` — a freshly registered account never is in `dev:local` (no SMTP/email configured there), so [`scripts/seed-e2e-member.mjs`](../scripts/seed-e2e-member.mjs) seeds one fixture account, called from `dev-local.mjs` the same way the admin MFA fixture already was.
 
 **Run it:**
 
@@ -197,7 +205,7 @@ npm run lint && npx tsc --noEmit && npm test
 
 **Important:** this workflow does **not run the test suite**. It is a scheduled operational job that fires a daily push-notification cron (06:00 Manila) by calling the app's `/api/cron/daily-verse` endpoint and failing if the response is not HTTP 200.
 
-A second workflow, [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), runs `npm ci`, `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm audit --audit-level=high`, `npm run build`, and `npm run test:e2e` (after installing Chromium) on every push and pull request against `main`. Build-time-only placeholder values for `MONGO_URL`/`AUTH_SECRET`/`NEXT_PUBLIC_SITE_URL` are set in the workflow (no live database is reached — `npm test` uses `mongodb-memory-server`, and `next build` tolerates an unreachable DB during static generation; `test:e2e` spins up its own disposable in-memory Mongo via `dev:local`).
+A second workflow, [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), runs `npm ci`, `npm run lint`, `npx tsc --noEmit`, `npm run test:coverage`, `npm audit --audit-level=high`, `npm run build`, and `npm run test:e2e` (after installing Chromium) on every push and pull request against `main`. Build-time-only placeholder values for `MONGO_URL`/`AUTH_SECRET`/`NEXT_PUBLIC_SITE_URL` are set in the workflow (no live database is reached — the test step uses `mongodb-memory-server`, and `next build` tolerates an unreachable DB during static generation; `test:e2e` spins up its own disposable in-memory Mongo via `dev:local`).
 
 > **Recommendation:** make `ci.yml` a required status check before merge (branch protection on `main` is not configured in-repo).
 
@@ -245,7 +253,7 @@ Concrete, repository-specific next steps, roughly in priority order:
 
 1. **Make CI a required check.** `ci.yml` exists and runs on every push/PR; branch protection requiring it to pass before merge is not yet configured.
 2. **Enforce a coverage threshold.** `test:coverage` now runs in `ci.yml` and reports; capture a baseline across a few runs, then gate on it.
-3. **Broaden E2E coverage.** One smoke spec exists (register → verse → mark read → dashboard) and now runs in `ci.yml`; extend to login, prayer post, RSVP, and admin moderation, with traces published on failure.
+3. **Broaden E2E coverage.** Four specs run in `ci.yml` today (register/streak, admin MFA, prayer post + verification gate); still open: event RSVP and admin prayer/devotion moderation, with traces published on failure.
 4. **Broaden integration coverage.** Extend service tests to reading-plan progress, verse assignment/rotation persistence, and the notification-subscription flow.
 5. **Add API route tests.** Cover the Next.js route handlers (auth, cron, verse endpoints) including auth/authorization failure paths and rate-limit behaviour.
 6. **Add npm script aliases.** Provide `test:unit` and `test:integration` so the long `node --test` invocations are discoverable (`test:coverage` and `test:e2e` already exist).

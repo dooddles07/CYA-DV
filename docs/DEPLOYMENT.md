@@ -153,8 +153,8 @@ CYA DV/
 
 | Tool | Version | Notes |
 |---|---|---|
-| Node.js | `>= 20` | `@types/node` targets 20; Next 16 requires 18.18+ |
-| npm | `>= 10` | ships with Node 20 |
+| Node.js | `22.6.0 – 22.x` | `package.json`'s `engines` field pins this range — Vercel's Project Settings → Node.js Version must match (set to `22.x`), otherwise it's overridden by `engines` anyway with a build warning |
+| npm | `>= 10` | ships with Node 22 |
 | Git | `>= 2.30` | |
 | MongoDB client | any | `mongosh` for inspecting prod data (via the Atlas connection string) |
 | Vercel CLI | latest | `npm i -g vercel` (optional, for CLI deploys/logs) |
@@ -169,8 +169,9 @@ CYA DV/
 - **Vercel** — hosting (current production).
 - **MongoDB Atlas** — managed database (current production).
 - **Railway** / **AWS** — only if adopting those alternate paths (§10 / §11).
-- **SMTP provider** (e.g. Gmail App Password) — optional, enables reset/verify
-  email.
+- **Resend** account + API key — optional, enables reset/verify email. A
+  verified sending domain is needed for delivery beyond the account's own
+  signup address (see §5's `RESEND_API_KEY` row).
 
 ---
 
@@ -472,10 +473,13 @@ Lint (npm run lint)
 Type check (npx tsc --noEmit)
     |
     v
-Test (npm test  — node:test + in-memory Mongo)
+Test (npm run test:coverage  — node:test + in-memory Mongo)
     |
     v
 Build (npm run build)
+    |
+    v
+E2E (npm run test:e2e  — Playwright against dev:local)
     |
     v
 Deploy (Vercel — on merge to main)
@@ -492,9 +496,9 @@ pipeline:
 
 ### CI workflow (`.github/workflows/ci.yml`)
 
-Runs on every push and PR against `main`: install, lint, type check, test, dependency audit, build.
-Placeholder `MONGO_URL`/`AUTH_SECRET`/`NEXT_PUBLIC_SITE_URL` values are set at the job level —
-build-time only, no live database is reached.
+Runs on every push and PR against `main`: install, lint, type check, test (with coverage), dependency
+audit, build, then the Playwright E2E suite. Placeholder `MONGO_URL`/`AUTH_SECRET`/`NEXT_PUBLIC_SITE_URL`
+values are set at the job level — build-time only, no live database is reached.
 
 ```yaml
 name: CI
@@ -512,13 +516,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm }
+        with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run lint
       - run: npx tsc --noEmit
-      - run: npm test
+      - run: npm run test:coverage
       - run: npm audit --audit-level=high
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
 ```
 
 **Branch strategy.** Feature branches → PR → CI must pass → review → merge to
@@ -549,8 +555,8 @@ database.
    `0.0.0.0/0` if using Atlas's Vercel integration) to the Atlas IP access
    list; copy the SRV connection string.
 3. **Environment variables:** add `MONGO_URL` (Atlas SRV string), `AUTH_SECRET`,
-   `NEXT_PUBLIC_SITE_URL`, plus optional VAPID/SMTP/`CRON_SECRET` — set per
-   environment (Production / Preview / Development).
+   `NEXT_PUBLIC_SITE_URL`, plus optional VAPID/`RESEND_API_KEY`/`CRON_SECRET` —
+   set per environment (Production / Preview / Development).
 4. **Build/start.** Detected automatically: `npm run build`; output managed by
    the Next.js adapter.
 5. **Migrations.** None — verse sync auto-runs on first request.
@@ -591,7 +597,7 @@ database itself via its MongoDB plugin, if you'd rather not use Atlas.
   production, or add Railway's MongoDB plugin (injects a private `MONGO_URL`
   reachable at `mongodb.railway.internal`, usable only from within Railway).
 - **Configure variables.** Service → Variables: set `MONGO_URL`, `AUTH_SECRET`,
-  `NEXT_PUBLIC_SITE_URL`, and any optional integrations (VAPID, SMTP,
+  `NEXT_PUBLIC_SITE_URL`, and any optional integrations (VAPID, `RESEND_API_KEY`,
   `CRON_SECRET`, `ADMIN_PORTAL_PASSWORD`).
 - **Build/start.** Detected automatically: build `npm run build`, start
   `npm start`. Override in Settings if needed.

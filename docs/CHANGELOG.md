@@ -42,6 +42,30 @@ Maintainer guide:
   against `dev:local` via `playwright.config.ts`'s `webServer`.
 - `npm run test:coverage` — coverage report for the unit/integration suite via
   `node:test`'s native `--experimental-test-coverage`.
+- Admin two-factor sign-in (TOTP) — required for every admin-role account (QR
+  code + 10 one-time backup codes on first login, a 6-digit code on every
+  login after); opt-in for the admin portal's shared passphrase.
+  `tests/e2e/admin-mfa.spec.ts` covers enrollment and verification.
+- `.github/dependabot.yml` — weekly npm update PRs, minor/patch grouped into
+  one PR; `eslint`/`typescript` majors ignored until upstream catches up
+  (`typescript-eslint` doesn't support TS 7 yet; `eslint-plugin-react` breaks
+  `npm run lint` under ESLint 10's removed `context.getFilename()`).
+- Sliding session expiry — `cya-session` re-signs itself with a fresh 30-day
+  expiry once it's past the halfway point of its lifetime, so an active user
+  is never logged out mid-use.
+- Breached-password check (HIBP k-anonymity range API) on register and
+  password reset — fails open on any network error or timeout.
+- `tests/e2e/prayer.spec.ts` — a verified member posts a prayer request and
+  prays for one on the wall; a separate case confirms an unverified member is
+  blocked. Needed a new seeded fixture, `scripts/seed-e2e-member.mjs`.
+- `scripts/generate-logo-data-uri.mjs` (`npm run logo:embed`) — regenerates
+  the inline base64 CYA logo used in outbound email.
+- Manual backup/restore runbook (`DEPLOYMENT.md` §14) — `mongodump`/
+  `mongorestore` steps, storage guidance, RPO/RTO targets.
+- `loading.tsx`/`error.tsx` route-segment boundaries for the `(site)` and
+  `(admin)` route groups — previously only the root layout had them.
+- Rate limiting on `GET /api/account/export` and `DELETE /api/account`,
+  matching every other mutating endpoint.
 
 ### Changed
 - **Documentation overhaul.** Rewrote the project docs from an implementation
@@ -72,22 +96,68 @@ Maintainer guide:
   (`DEPLOYMENT.md` §10), not current production. Live demo link corrected to
   `https://cya-dv.vercel.app/`.
 - `LICENSE` copyright line updated to credit the builder.
+- **Email delivery switched from SMTP to Resend's HTTP API.** Vercel's
+  serverless functions can't reliably complete a raw SMTP handshake (the
+  connection opens but the greeting never arrives) — Resend's API goes over
+  plain HTTPS instead. `nodemailer` and `@types/nodemailer` are no longer
+  dependencies.
+  - **BREAKING:** `SMTP_USER`/`SMTP_PASS`/`SMTP_FROM` env vars are replaced by
+    `RESEND_API_KEY`/`RESEND_FROM`. Update `.env` and hosting-platform env
+    vars before deploying.
+- Password-reset and verification emails redesigned with the CYA logo
+  (embedded inline as base64, not linked externally — an externally-linked
+  image on a domain different from the sender is a spam-filter trigger) and
+  plainer, warmer copy.
+- `style-src` CSP hardened — split into `style-src-elem`/`style-src-attr`,
+  dropping `unsafe-inline` from the element form in production (kept for the
+  app's genuine dynamic `style=""` animation usage).
+- Service worker now also cache-firsts `/_next/static/*` assets, so the
+  offline shell can actually hydrate and become interactive instead of only
+  rendering static markup; its cache name is now stamped with the deploy's
+  git SHA at build time (`scripts/stamp-sw.mjs`) instead of a hand-bumped
+  literal, so a new deploy reliably evicts the previous one's cache.
+- `install-prompt.tsx` — `role="dialog"` replaced with `role="region"` (it
+  was never a true modal — no focus trap), and Escape now dismisses it.
+- `package.json`'s `engines.node` pinned to `>=22.6.0 <23.0.0` so a hosting
+  platform can't silently jump to a new Node major.
+- Footer copyright line reworded ("public domain" → "free to share"); broken
+  reset/verify-link messaging reworded away from "token" dev-speak.
+- `ci.yml` runs `npm run test:coverage` instead of plain `npm test`, so a
+  coverage table is visible in every run's log (still not an enforced gate).
 
 ### Deprecated
 <!-- Features slated for removal in a future release. -->
 
 ### Removed
-<!-- Removed features or dead code. -->
+- Unused `springSoft` motion token (`src/lib/motion.ts`) — dead export, no
+  call sites.
 
 ### Fixed
 - Removed a stray Markdown code fence and a reference to a non-existent
   "leaderboard" screen in `TESTING.md`.
 - Patched a `brace-expansion` high-severity DoS vulnerability
   (`GHSA-mh99-v99m-4gvg`) via `npm audit fix`; `npm audit` is now clean.
+- **MFA enrollment race condition.** `beginEnrollment()`'s secret decision is
+  now a single atomic conditional update instead of read-then-write — closes
+  a race where React Strict Mode's double-fired setup-page effect could
+  display a QR code for a secret that wasn't the one actually stored,
+  causing the first confirmation code to fail.
+- **Password-reset / email-verification token replay.** Token consumption is
+  now an atomic `findOneAndUpdate` instead of find-then-save, closing a
+  window where two concurrent requests with the same token could both
+  succeed.
+- **Reading-plan and daily-challenge lost-update race.** Both now use atomic
+  `$addToSet`/`$pull`/`$push` instead of load-then-save, so a concurrent
+  write can no longer silently overwrite another.
+- `logout` and the admin portal's logout now require the CSRF token like
+  every other mutating endpoint (previously exempt).
 
 ### Security
 - See **Added** — rate limiting, CSRF, and the admin audit log all close
   gaps `SECURITY.md` previously labelled as open.
+- See **Fixed** — the token-replay race, the lost-update race, and the MFA
+  enrollment race were all real bugs with security or correctness impact,
+  not just cleanup.
 
 ---
 

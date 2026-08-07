@@ -244,10 +244,13 @@ CYA DV/
 | `npm start` | Serve the production build |
 | `npm run lint` | Lint with ESLint |
 | `npm test` | Run the test suites against in-memory Mongo |
+| `npm run test:coverage` | Same suites, with a coverage report |
+| `npm run test:e2e` | Run the Playwright E2E specs against `dev:local` |
 | `npm run seed` | Seed the verse corpus |
 | `npm run purge:seed` | Remove seeded verse data |
 | `npm run member:create` | Create a member account from the CLI |
 | `npm run verses:fetch` | Fetch/refresh the verse source data |
+| `npm run logo:embed` | Regenerate the inline email logo after replacing `public/media/cya-logo.png` |
 
 Type checking is run separately with `npx tsc --noEmit`.
 
@@ -292,9 +295,9 @@ Tests run with the built-in Node test runner (`node:test`) against an in-memory 
 npm test
 ```
 
-Existing suites cover dates, gamification, reading plans, verse rotation, verse data, and service integration (`tests/*.test.mjs`). `npm run test:coverage` reports coverage for that suite. A Playwright smoke spec (`npm run test:e2e`) covers the core happy path against `dev:local`. See [`docs/TESTING.md`](./docs/TESTING.md).
+Existing suites cover dates, gamification, reading plans, verse rotation, verse data, and service integration (`tests/*.test.mjs`). `npm run test:coverage` reports coverage for that suite. Playwright specs (`npm run test:e2e`) cover registration, MFA enrollment, and the prayer wall against `dev:local`, and run in CI on every push. See [`docs/TESTING.md`](./docs/TESTING.md).
 
-> Broader E2E/contract coverage and CI-wired E2E are tracked on the [roadmap](#roadmap).
+> Broader E2E coverage (event RSVP, admin moderation) and contract tests are tracked on the [roadmap](#roadmap).
 
 ---
 
@@ -362,7 +365,7 @@ Priority-ordered, no committed dates. Full detail in [`docs/ROADMAP.md`](./docs/
 - **Verse coupling.** The verse of the day couples to the lexical corpus order — reordering or removing verses retroactively changes the archive mapping.
 - **No formal migrations.** The verse corpus self-reconciles via `ensureSynced()`; other collections have no migration mechanism yet.
 - **Cache drift.** Per-instance `unstable_cache` may briefly differ across instances until each revalidates.
-- **Ops automation.** Production runs on Vercel + MongoDB Atlas, but automated database backups, a disaster-recovery runbook, and a CI deploy workflow are not yet configured (tracked on the [roadmap](#roadmap)).
+- **Ops automation.** Production runs on Vercel + MongoDB Atlas. A manual backup/restore runbook is documented (`docs/DEPLOYMENT.md` §14), but scheduled automated backups and a CI-gated deploy (Vercel currently deploys on push, not on a passing CI run) are not yet configured (tracked on the [roadmap](#roadmap)).
 
 ---
 

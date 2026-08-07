@@ -18,7 +18,6 @@ export const EASE = [0.21, 0.66, 0.29, 0.99] as const;
 export const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
 export const spring: Transition = { type: "spring", stiffness: 420, damping: 32, mass: 0.7 };
-export const springSoft: Transition = { type: "spring", stiffness: 220, damping: 26, mass: 0.9 };
 
 /** Section reveal — used by <Reveal>. Blur adds perceived depth for ~free. */
 export const revealVariants: Variants = {

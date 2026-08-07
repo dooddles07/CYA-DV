@@ -85,7 +85,7 @@ graph TB
 | Layer | Choice | Version |
 |---|---|---|
 | Language | TypeScript (strict) frontend + JavaScript backend (`.js` + JSDoc) | TS ^5 |
-| Runtime | Node.js | 20.x target (`@types/node ^20`) |
+| Runtime | Node.js | 22.x (`engines` pins `>=22.6.0 <23.0.0` — blocks a silent Vercel major-version bump; `@types/node ^20` lags behind but only affects type-checking, not the actual runtime) |
 | Framework | Next.js App Router, Turbopack | 16.2.10 |
 | UI | React / React DOM | 19.2.4 |
 | Styling | Tailwind CSS v4 + CSS-variable design tokens | ^4 |
@@ -105,7 +105,7 @@ graph TB
 - **Caching:** Next `unstable_cache` (verse of day, community stats) + HTTP `Cache-Control` on images. No Redis.
 - **Queues:** none. Fan-out done in-process with bounded batches.
 - **Monitoring / Logging:** `console`-based structured logger (`server/utils/logger.js`). External APM `> TBC`.
-- **CI/CD (build & deploy):** Vercel push-to-deploy on `main`. No build/deploy workflow committed in `.github/` — deployment is platform-managed, not defined in-repo.
+- **CI/CD (build & deploy):** `.github/workflows/ci.yml` runs lint, type check, tests, `npm audit`, build, and the E2E suite on every push/PR, but it's a gate, not a deploy step — it doesn't currently block merges (no branch protection configured), and Vercel's push-to-deploy on `main` runs independently of whether CI passed.
 
 ---
 
@@ -463,8 +463,9 @@ erDiagram
   and `$inc` counters. No multi-doc transaction boundaries.
 - **Connection management:** single cached global connection; fail-fast timeouts; cached promise reset
   on failure.
-- **Backup / recovery:** `> TBC` — depends on the Atlas cluster tier (replication, snapshots); not
-  defined in-repo.
+- **Backup / recovery:** manual `mongodump`/`mongorestore` runbook documented in
+  [`DEPLOYMENT.md`](./DEPLOYMENT.md) §14. Scheduled automated backups depend on the Atlas cluster tier
+  (Cloud Backup on M10+) and aren't yet configured.
 
 ---
 
@@ -518,12 +519,13 @@ register → hash+store → email verify token → verify → login (bcrypt comp
 
 | Endpoint | Limit / window |
 |---|---|
-| `auth:register` | 5 / 60 min |
-| `auth:login` | 10 / 15 min |
-| `auth:forgot` | 3 / 15 min |
-| `auth:reset`, `auth:verify` | 10 / 15 min |
-| `auth:verify-resend` | 3 / 15 min |
+| `auth:register`, `auth:login`, `auth:reset`, `auth:verify` | 10 / 15 min |
+| `auth:forgot`, `auth:verify-resend` | 3 / 15 min |
+| `auth:mfa-enroll`, `auth:mfa-enroll-confirm` | 5 / 15 min |
+| `auth:mfa-verify` | 8 / 15 min |
+| `admin:portal` | 5 / 15 min |
 | `admin:image` | 30 / 10 min |
+| `account:export`, `account:delete` | 10 / 15 min |
 | `prayer:create` | 5 / 10 min |
 | `prayer:pray` | 60 / 1 min |
 | `event:rsvp` | 20 / 10 min |
@@ -531,9 +533,12 @@ register → hash+store → email verify token → verify → login (bcrypt comp
 | `plan:complete-day` | 60 / 10 min |
 | `saved-verse:toggle`, `saved-verse:remove` | 30 / 1 min |
 | `streak:read`, `streak:challenge` | 10 / 10 min |
+| `push:subscribe`, `push:unsubscribe` | 20 / 15 min |
 
-> All state-changing endpoints are now rate-limited. No dedicated audit trail for admin actions
-> found (tracked as a Recommended Improvement — see [`SECURITY.md`](./SECURITY.md) §14).
+> All state-changing endpoints are now rate-limited, including `account:export`/`account:delete`
+> (10/15min each). Admin actions have a dedicated audit trail — an append-only `AdminAuditLog`
+> collection (`server/utils/admin-audit.js`) records every privileged mutation with actor, action,
+> target, and metadata; see [`SECURITY.md`](./SECURITY.md) §14.
 
 ---
 
@@ -579,7 +584,7 @@ Developer → GitHub repo → (push) → Vercel build (next build) → seed/ensu
 - **Environments:** local (`dev:local` disposable Mongo, seeds verses, runs `next dev`) and
   production. No dedicated staging environment is defined in-repo.
 - **Configuration:** env vars documented in `.env.example`. Required (boot-blocking): `MONGO_URL`,
-  `AUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`. Optional feature toggles by presence: `VAPID_*`, `SMTP_*`,
+  `AUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`. Optional feature toggles by presence: `VAPID_*`, `RESEND_*`,
   `CRON_SECRET`, `ADMIN_PORTAL_PASSWORD`, `TRUSTED_PROXY_HOPS`.
 - **CI/CD pipeline:** GitHub Actions runs only the daily cron. Deployment uses Vercel push-to-deploy;
   no build/deploy/rollback workflow is committed in-repo. Rollback is a platform redeploy of a prior
@@ -734,8 +739,8 @@ project-root/
 
 **High priority**
 - Add metrics + alerting (error rate, DB latency, push success); wire `/api/health` to a probe.
-- Extend rate limiting to all state-changing endpoints; confirm/harden CSRF posture beyond SameSite.
-- Document/verify production topology (host, backups, DR); commit a deploy/rollback workflow.
+- Make `ci.yml` a required status check on `main` (branch protection not configured yet).
+- Automate database backups — a manual runbook exists ([`DEPLOYMENT.md`](./DEPLOYMENT.md) §14) but nothing scheduled.
 
 **Medium priority**
 - Migrate `server/**` to TypeScript for end-to-end type safety across the API boundary.
@@ -744,7 +749,7 @@ project-root/
 
 **Low priority**
 - Replace `unstable_cache` with a stable caching abstraction as Next evolves.
-- Add E2E and contract test suites to complement unit/integration coverage.
+- Broaden E2E coverage (event RSVP, admin moderation) and add contract tests.
 - Consider Redis if rate-limit/cache traffic outgrows Mongo comfort.
 
 ---
@@ -757,8 +762,9 @@ project-root/
 - **Unit:** `dates`, `gamification`, `reading-plans`, `verse-rotation`, `verses`.
 - **Integration:** `services.integration.test.mjs` runs auth + streak against **in-memory Mongo** —
   real persistence, no external DB.
-- **E2E / contract / perf / security tests:** none in repo (`> TBC`). UI verification is manual via
-  Playwright MCP per team convention.
+- **E2E:** 4 Playwright specs (register/streak, admin MFA, prayer wall post + verification gate) run
+  in `ci.yml` against `dev:local`. Contract / perf / security-scanner tests: none in repo. UI beyond
+  those flows is verified manually via Playwright MCP per team convention.
 
 ### Coding standards
 
@@ -790,6 +796,7 @@ npm run build         # production build
 npm run lint          # eslint
 npx tsc --noEmit      # type check
 npm test              # node:test suites (in-memory Mongo)
+npm run test:e2e      # Playwright specs against dev:local
 npm run seed          # load verses.json into DB
 npm run verses:fetch  # regenerate verses.json corpus
 npm run member:create # create an account from CLI
